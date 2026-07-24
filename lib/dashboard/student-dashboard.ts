@@ -1,10 +1,11 @@
 import "server-only";
 
-import prisma from "@/lib/prisma";
+import {
+  findStudentDashboardProfileByUserId,
+  getStudentDashboardSnapshot,
+  type DashboardResourceRecord,
+} from "@/repositories/student-dashboard.repository";
 
-const RECENT_RESOURCE_LIMIT = 6;
-const RECOMMENDATION_LIMIT = 6;
-const BOOKMARK_LIMIT = 6;
 const WEEK_IN_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
 export type DashboardResource = {
@@ -80,85 +81,7 @@ export class StudentDashboardNotFoundError extends Error {
   }
 }
 
-type ResourceForDashboard = {
-  id: string;
-  title: string;
-  slug: string;
-  description: string | null;
-  format: string;
-  access: string;
-  thumbnailUrl: string | null;
-  durationSeconds: number | null;
-  pageCount: number | null;
-  resourceType: {
-    name: string;
-    code: string;
-    iconName: string | null;
-  };
-  chapter: {
-    name: string;
-    slug: string;
-    boardClassSubject: {
-      board: {
-        slug: string;
-      };
-      classLevel: {
-        slug: string;
-      };
-      subject: {
-        name: string;
-        slug: string;
-      };
-    };
-  } | null;
-};
-
-const dashboardResourceSelect = {
-  id: true,
-  title: true,
-  slug: true,
-  description: true,
-  format: true,
-  access: true,
-  thumbnailUrl: true,
-  durationSeconds: true,
-  pageCount: true,
-  resourceType: {
-    select: {
-      name: true,
-      code: true,
-      iconName: true,
-    },
-  },
-  chapter: {
-    select: {
-      name: true,
-      slug: true,
-      boardClassSubject: {
-        select: {
-          board: {
-            select: {
-              slug: true,
-            },
-          },
-          classLevel: {
-            select: {
-              slug: true,
-            },
-          },
-          subject: {
-            select: {
-              name: true,
-              slug: true,
-            },
-          },
-        },
-      },
-    },
-  },
-} as const;
-
-function buildResourceHref(resource: ResourceForDashboard): string | null {
+function buildResourceHref(resource: DashboardResourceRecord): string | null {
   if (!resource.chapter) {
     return null;
   }
@@ -176,7 +99,7 @@ function buildResourceHref(resource: ResourceForDashboard): string | null {
   ].join("/");
 }
 
-function mapResource(resource: ResourceForDashboard): DashboardResource {
+function mapResource(resource: DashboardResourceRecord): DashboardResource {
   return {
     id: resource.id,
     title: resource.title,
@@ -213,200 +136,31 @@ export async function getStudentDashboard(
     throw new Error("A valid userId is required to load the student dashboard.");
   }
 
-  const studentProfile = await prisma.studentProfile.findUnique({
-    where: {
-      userId: normalizedUserId,
-    },
-    select: {
-      id: true,
-      userId: true,
-      learningGoal: true,
-      user: {
-        select: {
-          firstName: true,
-          lastName: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
-      board: {
-        select: {
-          id: true,
-          name: true,
-          shortName: true,
-          slug: true,
-        },
-      },
-      classLevel: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          numericLevel: true,
-        },
-      },
-    },
-  });
+  const studentProfile =
+    await findStudentDashboardProfileByUserId(normalizedUserId);
 
   if (!studentProfile) {
     throw new StudentDashboardNotFoundError(normalizedUserId);
   }
 
-  const weekStartedAt = new Date(Date.now() - WEEK_IN_MILLISECONDS);
-
-  const recommendationWhere = {
-    status: "PUBLISHED" as const,
-    chapterId: {
-      not: null,
+  const snapshot = await getStudentDashboardSnapshot({
+    studentProfileId: studentProfile.id,
+    weekStartedAt: new Date(Date.now() - WEEK_IN_MILLISECONDS),
+    recommendationContext: {
+      boardId: studentProfile.board?.id ?? null,
+      classLevelId: studentProfile.classLevel?.id ?? null,
     },
-    ...(studentProfile.board && studentProfile.classLevel
-      ? {
-          chapter: {
-            is: {
-              isActive: true,
-              boardClassSubject: {
-                is: {
-                  isActive: true,
-                  boardId: studentProfile.board.id,
-                  classLevelId: studentProfile.classLevel.id,
-                },
-              },
-            },
-          },
-        }
-      : {
-          isFeatured: true,
-        }),
-  };
-
-  const [
-    completedResources,
-    inProgressResources,
-    bookmarkedResources,
-    completedThisWeek,
-    continueLearningProgress,
-    recentProgress,
-    bookmarkRows,
-    recommendationRows,
-  ] = await Promise.all([
-    prisma.studentResourceProgress.count({
-      where: {
-        studentProfileId: studentProfile.id,
-        status: "COMPLETED",
-      },
-    }),
-    prisma.studentResourceProgress.count({
-      where: {
-        studentProfileId: studentProfile.id,
-        status: "IN_PROGRESS",
-      },
-    }),
-    prisma.resourceBookmark.count({
-      where: {
-        studentProfileId: studentProfile.id,
-      },
-    }),
-    prisma.studentResourceProgress.count({
-      where: {
-        studentProfileId: studentProfile.id,
-        status: "COMPLETED",
-        completedAt: {
-          gte: weekStartedAt,
-        },
-      },
-    }),
-    prisma.studentResourceProgress.findFirst({
-      where: {
-        studentProfileId: studentProfile.id,
-        status: "IN_PROGRESS",
-        resource: {
-          status: "PUBLISHED",
-        },
-      },
-      orderBy: [
-        {
-          lastAccessedAt: "desc",
-        },
-        {
-          updatedAt: "desc",
-        },
-      ],
-      select: {
-        progressPercent: true,
-        lastPosition: true,
-        lastAccessedAt: true,
-        resource: {
-          select: dashboardResourceSelect,
-        },
-      },
-    }),
-    prisma.studentResourceProgress.findMany({
-      where: {
-        studentProfileId: studentProfile.id,
-        lastAccessedAt: {
-          not: null,
-        },
-        resource: {
-          status: "PUBLISHED",
-        },
-      },
-      take: RECENT_RESOURCE_LIMIT,
-      orderBy: {
-        lastAccessedAt: "desc",
-      },
-      select: {
-        status: true,
-        progressPercent: true,
-        lastAccessedAt: true,
-        resource: {
-          select: dashboardResourceSelect,
-        },
-      },
-    }),
-    prisma.resourceBookmark.findMany({
-      where: {
-        studentProfileId: studentProfile.id,
-        resource: {
-          status: "PUBLISHED",
-        },
-      },
-      take: BOOKMARK_LIMIT,
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        resource: {
-          select: dashboardResourceSelect,
-        },
-      },
-    }),
-    prisma.resource.findMany({
-      where: recommendationWhere,
-      take: RECOMMENDATION_LIMIT,
-      orderBy: [
-        {
-          isFeatured: "desc",
-        },
-        {
-          publishedAt: "desc",
-        },
-        {
-          createdAt: "desc",
-        },
-      ],
-      select: dashboardResourceSelect,
-    }),
-  ]);
+  });
 
   const alreadyEngagedResourceIds = new Set([
-    ...recentProgress.map((item) => item.resource.id),
-    ...bookmarkRows.map((item) => item.resource.id),
-    ...(continueLearningProgress
-      ? [continueLearningProgress.resource.id]
+    ...snapshot.recentProgress.map((item) => item.resource.id),
+    ...snapshot.bookmarkRows.map((item) => item.resource.id),
+    ...(snapshot.continueLearningProgress
+      ? [snapshot.continueLearningProgress.resource.id]
       : []),
   ]);
 
-  const recommendations = recommendationRows
+  const recommendations = snapshot.recommendationRows
     .filter((resource) => !alreadyEngagedResourceIds.has(resource.id))
     .map(mapResource);
 
@@ -423,26 +177,30 @@ export async function getStudentDashboard(
       learningGoal: studentProfile.learningGoal,
     },
     stats: {
-      completedResources,
-      inProgressResources,
-      bookmarkedResources,
-      completedThisWeek,
+      completedResources: snapshot.completedResources,
+      inProgressResources: snapshot.inProgressResources,
+      bookmarkedResources: snapshot.bookmarkedResources,
+      completedThisWeek: snapshot.completedThisWeek,
     },
-    continueLearning: continueLearningProgress
+    continueLearning: snapshot.continueLearningProgress
       ? {
-          ...mapResource(continueLearningProgress.resource),
-          progressPercent: continueLearningProgress.progressPercent,
-          lastPosition: continueLearningProgress.lastPosition,
-          lastAccessedAt: continueLearningProgress.lastAccessedAt,
+          ...mapResource(snapshot.continueLearningProgress.resource),
+          progressPercent:
+            snapshot.continueLearningProgress.progressPercent,
+          lastPosition: snapshot.continueLearningProgress.lastPosition,
+          lastAccessedAt:
+            snapshot.continueLearningProgress.lastAccessedAt,
         }
       : null,
-    recentlyViewed: recentProgress.map((item) => ({
+    recentlyViewed: snapshot.recentProgress.map((item) => ({
       ...mapResource(item.resource),
       progressPercent: item.progressPercent,
       progressStatus: item.status,
       lastAccessedAt: item.lastAccessedAt,
     })),
-    bookmarks: bookmarkRows.map((item) => mapResource(item.resource)),
+    bookmarks: snapshot.bookmarkRows.map((item) =>
+      mapResource(item.resource),
+    ),
     recommendations,
   };
 }
