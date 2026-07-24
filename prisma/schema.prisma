@@ -1,0 +1,538 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ======================================================
+// ENUMS
+// ======================================================
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum RoleName {
+  STUDENT
+  PARENT
+  TEACHER
+  COACHING_OWNER
+  ADMIN
+}
+
+enum TeachingMode {
+  ONLINE
+  OFFLINE
+  HYBRID
+}
+
+enum VerificationStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum ProfileStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum BoardType {
+  NATIONAL
+  STATE
+}
+
+enum ExamType {
+  JEE
+  NEET
+  CUET
+}
+
+enum ContentLanguage {
+  ENGLISH
+  HINDI
+}
+
+enum ResourceFormat {
+  PDF
+  VIDEO
+  ARTICLE
+  IMAGE
+  DOCUMENT
+  EXTERNAL_LINK
+  INTERACTIVE
+}
+
+enum PublicationStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum ResourceAccess {
+  FREE
+  PREMIUM
+  ENROLLED_ONLY
+}
+
+enum LearningProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ======================================================
+// USERS AND ROLES
+// ======================================================
+
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  phone         String?    @unique
+  firstName     String
+  lastName      String?
+  displayName   String?
+  avatarUrl     String?
+  status        UserStatus @default(PENDING)
+  emailVerified Boolean    @default(false)
+  phoneVerified Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  roles              UserRole[]
+  studentProfile     StudentProfile?
+  teacherProfile     TeacherProfile?
+  coachingInstitutes CoachingInstitute[]
+  resourcesCreated   Resource[]          @relation("ResourceCreatedBy")
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  name      RoleName @unique
+  createdAt DateTime @default(now())
+
+  users UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+// ======================================================
+// USER PROFILES
+// ======================================================
+
+model StudentProfile {
+  id                String          @id @default(cuid())
+  userId            String          @unique
+  boardId           String?
+  classLevelId      String?
+  schoolName        String?
+  preferredLanguage ContentLanguage @default(ENGLISH)
+  learningGoal      String?
+  city              String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board      Board?      @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  classLevel ClassLevel? @relation(fields: [classLevelId], references: [id], onDelete: SetNull)
+
+  bookmarks ResourceBookmark[]
+  progress  StudentResourceProgress[]
+
+  @@index([boardId])
+  @@index([classLevelId])
+}
+
+model TeacherProfile {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  headline             String?
+  bio                  String?
+  yearsOfExperience    Int?
+  highestQualification String?
+  teachingMode         TeachingMode?
+  demoVideoUrl         String?
+  city                 String?
+  verificationStatus   VerificationStatus @default(NOT_SUBMITTED)
+  profileStatus        ProfileStatus      @default(DRAFT)
+  isAvailable          Boolean            @default(true)
+  averageRating        Float              @default(0)
+  totalReviews         Int                @default(0)
+  totalStudents        Int                @default(0)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  publishedAt          DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  resourceLinks ResourceTeacher[]
+
+  @@index([verificationStatus])
+  @@index([profileStatus])
+  @@index([teachingMode])
+  @@index([city])
+}
+
+model CoachingInstitute {
+  id                 String             @id @default(cuid())
+  ownerUserId        String
+  name               String
+  slug               String             @unique
+  description        String?
+  logoUrl            String?
+  coverImageUrl      String?
+  phone              String?
+  email              String?
+  website            String?
+  address            String?
+  city               String?
+  postalCode         String?
+  teachingMode       TeachingMode?
+  verificationStatus VerificationStatus @default(NOT_SUBMITTED)
+  profileStatus      ProfileStatus      @default(DRAFT)
+  averageRating      Float              @default(0)
+  totalReviews       Int                @default(0)
+  isFeatured         Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  publishedAt        DateTime?
+
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId])
+  @@index([city])
+  @@index([verificationStatus])
+  @@index([profileStatus])
+  @@index([teachingMode])
+}
+
+// ======================================================
+// SCHOOL ACADEMIC CATALOGUE
+// Board → Class → Subject → Chapter
+// ======================================================
+
+model Board {
+  id          String    @id @default(cuid())
+  name        String
+  shortName   String
+  slug        String    @unique
+  boardType   BoardType
+  stateName   String?
+  stateCode   String?
+  description String?
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  boardClassSubjects BoardClassSubject[]
+  studentProfiles    StudentProfile[]
+
+  @@unique([shortName, stateCode])
+  @@index([boardType])
+  @@index([stateCode])
+  @@index([isActive])
+}
+
+model ClassLevel {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  numericLevel Int      @unique
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  boardClassSubjects BoardClassSubject[]
+  studentProfiles    StudentProfile[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String
+  nameHindi   String?
+  slug        String   @unique
+  description String?
+  iconUrl     String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  boardClassSubjects BoardClassSubject[]
+  examSubjects       ExamSubject[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model BoardClassSubject {
+  id           String   @id @default(cuid())
+  boardId      String
+  classLevelId String
+  subjectId    String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  board      Board      @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  classLevel ClassLevel @relation(fields: [classLevelId], references: [id], onDelete: Cascade)
+  subject    Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  chapters   Chapter[]
+
+  @@unique([boardId, classLevelId, subjectId])
+  @@index([boardId])
+  @@index([classLevelId])
+  @@index([subjectId])
+  @@index([isActive])
+}
+
+model Chapter {
+  id                  String   @id @default(cuid())
+  boardClassSubjectId String
+  name                String
+  nameHindi           String?
+  slug                String
+  chapterNumber       Int?
+  description         String?
+  sortOrder           Int      @default(0)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  boardClassSubject BoardClassSubject @relation(fields: [boardClassSubjectId], references: [id], onDelete: Cascade)
+  resources         Resource[]
+
+  @@unique([boardClassSubjectId, slug])
+  @@index([boardClassSubjectId])
+  @@index([chapterNumber])
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+// ======================================================
+// COMPETITIVE EXAM CATALOGUE
+// Exam → Subject → Topic
+// ======================================================
+
+model Exam {
+  id          String   @id @default(cuid())
+  name        String
+  shortName   String   @unique
+  slug        String   @unique
+  examType    ExamType @unique
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  examSubjects ExamSubject[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model ExamSubject {
+  id        String   @id @default(cuid())
+  examId    String
+  subjectId String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exam    Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  topics  ExamTopic[]
+
+  @@unique([examId, subjectId])
+  @@index([examId])
+  @@index([subjectId])
+  @@index([isActive])
+}
+
+model ExamTopic {
+  id            String   @id @default(cuid())
+  examSubjectId String
+  name          String
+  nameHindi     String?
+  slug          String
+  description   String?
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  examSubject ExamSubject @relation(fields: [examSubjectId], references: [id], onDelete: Cascade)
+  resources   Resource[]
+
+  @@unique([examSubjectId, slug])
+  @@index([examSubjectId])
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+// ======================================================
+// RESOURCE ENGINE
+// Notes, NCERT, Exemplar, Videos, PYQs, Worksheets,
+// Formula Sheets, Mind Maps and other learning material
+// ======================================================
+
+model ResourceType {
+  id          String   @id @default(cuid())
+  name        String
+  nameHindi   String?
+  code        String   @unique
+  slug        String   @unique
+  description String?
+  iconName    String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  resources Resource[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model Resource {
+  id              String            @id @default(cuid())
+  resourceTypeId  String
+  chapterId       String?
+  examTopicId     String?
+  createdByUserId String?
+  title           String
+  titleHindi      String?
+  slug            String
+  description     String?
+  language        ContentLanguage   @default(ENGLISH)
+  format          ResourceFormat
+  access          ResourceAccess    @default(FREE)
+  status          PublicationStatus @default(DRAFT)
+  contentUrl      String?
+  externalUrl     String?
+  thumbnailUrl    String?
+  textContent     String?
+  durationSeconds Int?
+  pageCount       Int?
+  fileSizeBytes   BigInt?
+  version         Int               @default(1)
+  sortOrder       Int               @default(0)
+  isFeatured      Boolean           @default(false)
+  viewCount       Int               @default(0)
+  downloadCount   Int               @default(0)
+  publishedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  resourceType ResourceType @relation(fields: [resourceTypeId], references: [id], onDelete: Restrict)
+  chapter      Chapter?     @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  examTopic    ExamTopic?   @relation(fields: [examTopicId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("ResourceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  teachers  ResourceTeacher[]
+  bookmarks ResourceBookmark[]
+  progress  StudentResourceProgress[]
+
+  @@unique([chapterId, slug])
+  @@unique([examTopicId, slug])
+  @@index([resourceTypeId])
+  @@index([chapterId])
+  @@index([examTopicId])
+  @@index([createdByUserId])
+  @@index([status])
+  @@index([access])
+  @@index([language])
+  @@index([format])
+  @@index([isFeatured])
+  @@index([sortOrder])
+  @@index([publishedAt])
+}
+
+model ResourceTeacher {
+  id               String   @id @default(cuid())
+  resourceId       String
+  teacherProfileId String
+  isPrimary        Boolean  @default(false)
+  displayOrder     Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  resource       Resource       @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  teacherProfile TeacherProfile @relation(fields: [teacherProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, teacherProfileId])
+  @@index([resourceId])
+  @@index([teacherProfileId])
+  @@index([isPrimary])
+  @@index([displayOrder])
+}
+
+model ResourceBookmark {
+  id               String   @id @default(cuid())
+  studentProfileId String
+  resourceId       String
+  createdAt        DateTime @default(now())
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  resource       Resource       @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, resourceId])
+  @@index([studentProfileId])
+  @@index([resourceId])
+  @@index([createdAt])
+}
+
+model StudentResourceProgress {
+  id               String                 @id @default(cuid())
+  studentProfileId String
+  resourceId       String
+  status           LearningProgressStatus @default(NOT_STARTED)
+  progressPercent  Int                    @default(0)
+  lastPosition     Int?
+  startedAt        DateTime?
+  lastAccessedAt   DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  resource       Resource       @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, resourceId])
+  @@index([studentProfileId])
+  @@index([resourceId])
+  @@index([status])
+  @@index([lastAccessedAt])
+}
