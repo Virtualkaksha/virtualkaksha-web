@@ -12,9 +12,9 @@ import {
   Target,
 } from "lucide-react";
 
-import EmptyState from "../components/student/dashboard/EmptyState";
-import ResourceCard from "../components/student/dashboard/ResourceCard";
-import StatCard from "../components/student/dashboard/StatCard";
+import EmptyState from "@/app/components/student/dashboard/EmptyState";
+import ResourceCard from "@/app/components/student/dashboard/ResourceCard";
+import StatCard from "@/app/components/student/dashboard/StatCard";
 import {
   getStudentDashboard,
   StudentDashboardNotFoundError,
@@ -22,6 +22,7 @@ import {
   type StudentDashboardData,
 } from "@/lib/dashboard/student-dashboard";
 import prisma from "@/lib/prisma";
+import { requireStudent } from "@/lib/auth/session";
 
 type PublicDashboardResource = {
   id: string;
@@ -66,7 +67,7 @@ type DashboardPageState =
     }
   | {
       mode: "setup";
-      reason: "missing-user-id" | "student-profile-not-found";
+      reason: "student-profile-not-found";
       publicData: PublicDashboardData;
     };
 
@@ -186,20 +187,12 @@ async function getPublicDashboardData(): Promise<PublicDashboardData> {
 }
 
 async function getDashboardPageState(): Promise<DashboardPageState> {
-  const configuredUserId = process.env.STUDENT_DASHBOARD_USER_ID?.trim();
-
-  if (!configuredUserId) {
-    return {
-      mode: "setup",
-      reason: "missing-user-id",
-      publicData: await getPublicDashboardData(),
-    };
-  }
+  const user = await requireStudent();
 
   try {
     return {
       mode: "personalized",
-      data: await getStudentDashboard(configuredUserId),
+      data: await getStudentDashboard(user.id),
     };
   } catch (error) {
     if (error instanceof StudentDashboardNotFoundError) {
@@ -524,10 +517,8 @@ function PersonalizedDashboard({ data }: { data: StudentDashboardData }) {
 
 function SetupDashboard({
   publicData,
-  reason,
 }: {
   publicData: PublicDashboardData;
-  reason: "missing-user-id" | "student-profile-not-found";
 }) {
   return (
     <div className="mx-auto max-w-[1480px] space-y-7 pb-8">
@@ -543,9 +534,9 @@ function SetupDashboard({
               A premium dashboard ready for real student data.
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-              The dashboard is connected to PostgreSQL. Configure the current
-              student user ID to activate progress, bookmarks, recent activity
-              and personalised recommendations without using fake data.
+              The dashboard is connected to PostgreSQL and uses the authenticated
+              student session for progress, bookmarks, recent activity and
+              personalised recommendations.
             </p>
             <Link
               href="/student/resources"
@@ -579,15 +570,14 @@ function SetupDashboard({
 
       <section className="rounded-[24px] border border-amber-200 bg-amber-50 p-6">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-800">
-          One-time local setup
+          Student profile required
         </p>
         <h2 className="mt-2 text-xl font-bold text-amber-950">
-          {reason === "missing-user-id"
-            ? "Connect a student user to this dashboard"
-            : "The configured user has no StudentProfile"}
+          Your account does not have a StudentProfile
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-900/80">
-          Add <code className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold">STUDENT_DASHBOARD_USER_ID</code> to your local <code className="rounded bg-amber-100 px-1.5 py-0.5 font-semibold">.env</code> file and set it to the ID of a user that has a StudentProfile. Restart the development server after saving the environment file.
+          Your account is authenticated, but its student profile is unavailable.
+          Complete student onboarding or contact an administrator.
         </p>
       </section>
 
@@ -637,5 +627,5 @@ export default async function StudentDashboardPage() {
     return <PersonalizedDashboard data={state.data} />;
   }
 
-  return <SetupDashboard publicData={state.publicData} reason={state.reason} />;
+  return <SetupDashboard publicData={state.publicData} />;
 }

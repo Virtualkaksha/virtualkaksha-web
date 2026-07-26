@@ -106,6 +106,8 @@ model User {
   lastName      String?
   displayName   String?
   avatarUrl     String?
+  passwordHash  String?
+  lastLoginAt   DateTime?
   status        UserStatus @default(PENDING)
   emailVerified Boolean    @default(false)
   phoneVerified Boolean    @default(false)
