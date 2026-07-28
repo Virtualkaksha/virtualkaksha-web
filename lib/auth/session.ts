@@ -22,6 +22,18 @@ export async function requireRole(role: RoleName) {
   const user = await requireUser();
 
   if (!user.roles.includes(role)) {
+    if (user.roles.includes("ADMIN")) redirect("/admin");
+    if (user.roles.includes("TEACHER")) redirect("/teacher");
+    redirect("/student");
+  }
+
+  return user;
+}
+
+export async function requireAnyRole(roles: RoleName[]) {
+  const user = await requireUser();
+
+  if (!roles.some((role) => user.roles.includes(role))) {
     redirect(user.roles.includes("ADMIN") ? "/admin" : "/student");
   }
 
@@ -30,6 +42,10 @@ export async function requireRole(role: RoleName) {
 
 export function requireStudent() {
   return requireRole("STUDENT");
+}
+
+export function requireTeacher() {
+  return requireAnyRole(["TEACHER", "ADMIN"]);
 }
 
 export function requireAdmin() {

@@ -30,6 +30,7 @@ function getResourceIcon(code: string, iconName: string | null) {
   return iconName ?? fallbackIcons[code] ?? "📄";
 }
 
+
 function formatDuration(durationSeconds: number | null) {
   if (!durationSeconds) {
     return null;
@@ -392,7 +393,8 @@ export default async function ChapterLearningHubPage({
               {resources.length > 0 ? (
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
                   {resources.map((resource) => {
-                    const resourceHref = `/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedChapter.slug}/${resource.slug}`;
+                    const resourceHref =
+                      `/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedChapter.slug}/${resource.slug}`;
                     const duration = formatDuration(
                       resource.durationSeconds
                     );
@@ -483,7 +485,7 @@ export default async function ChapterLearningHubPage({
                       <Link
                         key={resource.id}
                         href={resourceHref}
-                        className="rounded-2xl border border-slate-200 p-5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-sm"
+                        className="rounded-2xl border border-slate-200 p-5 transition hover:border-blue-200 hover:shadow-sm"
                       >
                         {cardContent}
                       </Link>

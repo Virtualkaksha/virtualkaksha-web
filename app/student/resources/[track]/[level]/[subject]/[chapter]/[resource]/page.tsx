@@ -198,20 +198,14 @@ function ResourceContent({
 export default async function ResourceViewerPage({
   params,
 }: ResourceViewerPageProps) {
-  const {
-    track,
-    level,
-    subject,
-    chapter: chapterSlug,
-    resource,
-  } = await params;
+  const { track, level, subject, chapter, resource } = await params;
 
   const selectedResource = await prisma.resource.findFirst({
     where: {
       slug: resource,
       status: "PUBLISHED",
       chapter: {
-        slug: chapterSlug,
+        slug: chapter,
         isActive: true,
         boardClassSubject: {
           isActive: true,
@@ -322,13 +316,12 @@ export default async function ResourceViewerPage({
     notFound();
   }
 
-  const selectedChapter = selectedResource.chapter;
   const { board, classLevel, subject: selectedSubject } =
-    selectedChapter.boardClassSubject;
+    selectedResource.chapter.boardClassSubject;
 
   const relatedResources = await prisma.resource.findMany({
     where: {
-      chapterId: selectedChapter.id,
+      chapterId: selectedResource.chapter.id,
       status: "PUBLISHED",
       id: {
         not: selectedResource.id,
@@ -401,10 +394,10 @@ export default async function ResourceViewerPage({
         </Link>
         <span aria-hidden="true">/</span>
         <Link
-          href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedChapter.slug}`}
+          href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedResource.chapter.slug}`}
           className="transition hover:text-blue-700"
         >
-          {selectedChapter.name}
+          {selectedResource.chapter.name}
         </Link>
         <span aria-hidden="true">/</span>
         <span className="font-medium text-slate-900">
@@ -474,13 +467,13 @@ export default async function ResourceViewerPage({
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-semibold text-blue-700">Chapter</p>
             <h2 className="mt-2 text-lg font-bold text-slate-900">
-              {selectedChapter.chapterNumber
-                ? `Chapter ${selectedChapter.chapterNumber}: `
+              {selectedResource.chapter.chapterNumber
+                ? `Chapter ${selectedResource.chapter.chapterNumber}: `
                 : ""}
-              {selectedChapter.name}
+              {selectedResource.chapter.name}
             </h2>
             <Link
-              href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedChapter.slug}`}
+              href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedResource.chapter.slug}`}
               className="mt-5 inline-flex text-sm font-semibold text-blue-700 transition hover:text-blue-800"
             >
               View all chapter resources →
@@ -582,7 +575,7 @@ export default async function ResourceViewerPage({
             {relatedResources.map((relatedResource) => (
               <Link
                 key={relatedResource.id}
-                href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedChapter.slug}/${relatedResource.slug}`}
+                href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedResource.chapter.slug}/${relatedResource.slug}`}
                 className="rounded-2xl border border-slate-200 p-5 transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-sm"
               >
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
@@ -611,7 +604,7 @@ export default async function ResourceViewerPage({
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Link
-          href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedChapter.slug}`}
+          href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedResource.chapter.slug}`}
           className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
         >
           ← Back to chapter

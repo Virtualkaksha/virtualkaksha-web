@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 import { Prisma } from "@/app/generated/prisma/client";
 
@@ -13,6 +14,58 @@ export type AuthActionState = {
   message?: string;
   fieldErrors?: Record<string, string[]>;
 };
+
+async function getSafeLoginRedirect(formData: FormData): Promise<string> {
+  const requestHeaders = await headers();
+  const referer = requestHeaders.get("referer");
+
+  let applicationOrigin: string | null = null;
+  let callbackUrl = formData.get("callbackUrl");
+
+  if (referer) {
+    try {
+      const refererUrl = new URL(referer);
+
+      applicationOrigin = refererUrl.origin;
+
+      if (typeof callbackUrl !== "string" || !callbackUrl.trim()) {
+        callbackUrl = refererUrl.searchParams.get("callbackUrl");
+      }
+    } catch {
+      applicationOrigin = null;
+    }
+  }
+
+  if (typeof callbackUrl !== "string" || !callbackUrl.trim()) {
+    return "/student";
+  }
+
+  const normalizedCallbackUrl = callbackUrl.trim();
+
+  // Allow internal relative URLs.
+  if (
+    normalizedCallbackUrl.startsWith("/") &&
+    !normalizedCallbackUrl.startsWith("//")
+  ) {
+    return normalizedCallbackUrl;
+  }
+
+  // Allow absolute callback URLs only when they belong to this application.
+  try {
+    const parsedCallbackUrl = new URL(normalizedCallbackUrl);
+
+    if (
+      applicationOrigin &&
+      parsedCallbackUrl.origin === applicationOrigin
+    ) {
+      return `${parsedCallbackUrl.pathname}${parsedCallbackUrl.search}${parsedCallbackUrl.hash}`;
+    }
+  } catch {
+    return "/student";
+  }
+
+  return "/student";
+}
 
 export async function loginAction(
   _previousState: AuthActionState,
@@ -31,10 +84,12 @@ export async function loginAction(
     };
   }
 
+  const redirectTo = await getSafeLoginRedirect(formData);
+
   try {
     await signIn("credentials", {
       ...parsed.data,
-      redirectTo: "/student",
+      redirectTo,
     });
 
     return {

@@ -3,279 +3,51 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import {
-  ContentLanguage,
-  PublicationStatus,
-  ResourceAccess,
-  ResourceFormat,
-} from "@/app/generated/prisma/client";
+import { requireAdmin } from "@/lib/auth/session";
 import prisma from "@/lib/prisma";
 
-function getRequiredValue(formData: FormData, fieldName: string) {
-  const value = formData.get(fieldName);
-
-  if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(`${fieldName} is required.`);
-  }
-
-  return value.trim();
+function field(formData: FormData, name: string) {
+  const value = formData.get(name);
+  return typeof value === "string" ? value.trim() : "";
 }
 
-function getOptionalValue(formData: FormData, fieldName: string) {
-  const value = formData.get(fieldName);
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const cleanedValue = value.trim();
-
-  return cleanedValue === "" ? null : cleanedValue;
+async function pathsFor(resourceId: string) {
+  return prisma.resource.findUnique({ where: { id: resourceId }, select: { chapter: { select: { slug: true, boardClassSubject: { select: {
+    board: { select: { slug: true } }, classLevel: { select: { slug: true } }, subject: { select: { slug: true } },
+  } } } } } });
 }
 
-function createSlug(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+async function refresh(resourceId: string) {
+  revalidatePath("/admin"); revalidatePath("/admin/resources"); revalidatePath(`/admin/resources/${resourceId}`);
+  revalidatePath("/teacher"); revalidatePath("/teacher/resources"); revalidatePath("/student/resources");
+  const data = await pathsFor(resourceId); const chapter = data?.chapter;
+  if (chapter) revalidatePath(`/student/resources/${chapter.boardClassSubject.board.slug}/${chapter.boardClassSubject.classLevel.slug}/${chapter.boardClassSubject.subject.slug}/${chapter.slug}`);
 }
 
-function getOptionalNumber(formData: FormData, fieldName: string) {
-  const value = getOptionalValue(formData, fieldName);
-
-  if (!value) {
-    return null;
-  }
-
-  const parsedValue = Number.parseInt(value, 10);
-
-  if (!Number.isInteger(parsedValue) || parsedValue < 0) {
-    throw new Error(`${fieldName} must be zero or a positive number.`);
-  }
-
-  return parsedValue;
+export async function approveResource(formData: FormData) {
+  const admin = await requireAdmin(); const resourceId = field(formData, "resourceId");
+  if (!resourceId) throw new Error("Resource ID is required.");
+  await prisma.resource.update({ where: { id: resourceId }, data: {
+    status: "PUBLISHED", publishedAt: new Date(), reviewedAt: new Date(), reviewedByUserId: admin.id, moderationNote: null,
+  } });
+  await refresh(resourceId); redirect(`/admin/resources/${resourceId}?approved=true`);
 }
 
-async function createUniqueSlug(chapterId: string, title: string) {
-  const baseSlug = createSlug(title) || `resource-${Date.now()}`;
-
-  const existingResource = await prisma.resource.findFirst({
-    where: {
-      chapterId,
-      slug: baseSlug,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!existingResource) {
-    return baseSlug;
-  }
-
-  let number = 2;
-
-  while (number <= 100) {
-    const newSlug = `${baseSlug}-${number}`;
-
-    const duplicateResource = await prisma.resource.findFirst({
-      where: {
-        chapterId,
-        slug: newSlug,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!duplicateResource) {
-      return newSlug;
-    }
-
-    number += 1;
-  }
-
-  return `${baseSlug}-${Date.now()}`;
+export async function rejectResource(formData: FormData) {
+  const admin = await requireAdmin(); const resourceId = field(formData, "resourceId"); const reason = field(formData, "reason");
+  if (!resourceId) throw new Error("Resource ID is required.");
+  if (reason.length < 10) throw new Error("Rejection reason must contain at least 10 characters.");
+  await prisma.resource.update({ where: { id: resourceId }, data: {
+    status: "REJECTED", publishedAt: null, reviewedAt: new Date(), reviewedByUserId: admin.id, moderationNote: reason,
+  } });
+  await refresh(resourceId); redirect(`/admin/resources/${resourceId}?rejected=true`);
 }
 
-export async function createResource(formData: FormData) {
-  const chapterId = getRequiredValue(formData, "chapterId");
-  const resourceTypeId = getRequiredValue(formData, "resourceTypeId");
-  const title = getRequiredValue(formData, "title");
-
-  const primaryTeacherProfileId = getOptionalValue(
-    formData,
-    "primaryTeacherProfileId"
-  );
-
-  const titleHindi = getOptionalValue(formData, "titleHindi");
-  const description = getOptionalValue(formData, "description");
-  const contentUrl = getOptionalValue(formData, "contentUrl");
-  const externalUrl = getOptionalValue(formData, "externalUrl");
-  const thumbnailUrl = getOptionalValue(formData, "thumbnailUrl");
-  const textContent = getOptionalValue(formData, "textContent");
-
-  const language = getRequiredValue(
-    formData,
-    "language"
-  ) as ContentLanguage;
-
-  const format = getRequiredValue(
-    formData,
-    "format"
-  ) as ResourceFormat;
-
-  const access = getRequiredValue(
-    formData,
-    "access"
-  ) as ResourceAccess;
-
-  const status = getRequiredValue(
-    formData,
-    "status"
-  ) as PublicationStatus;
-
-  const pageCount = getOptionalNumber(formData, "pageCount");
-  const durationMinutes = getOptionalNumber(
-    formData,
-    "durationMinutes"
-  );
-  const sortOrder = getOptionalNumber(formData, "sortOrder") ?? 0;
-
-  if (!contentUrl && !externalUrl && !textContent) {
-    throw new Error(
-      "Please provide a content URL, external URL or written content."
-    );
-  }
-
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      isActive: true,
-      boardClassSubject: {
-        isActive: true,
-        board: {
-          isActive: true,
-        },
-        classLevel: {
-          isActive: true,
-        },
-        subject: {
-          isActive: true,
-        },
-      },
-    },
-    select: {
-      id: true,
-      slug: true,
-      boardClassSubject: {
-        select: {
-          board: {
-            select: {
-              slug: true,
-            },
-          },
-          classLevel: {
-            select: {
-              slug: true,
-            },
-          },
-          subject: {
-            select: {
-              slug: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!chapter) {
-    throw new Error("Selected chapter was not found.");
-  }
-
-  const resourceType = await prisma.resourceType.findFirst({
-    where: {
-      id: resourceTypeId,
-      isActive: true,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!resourceType) {
-    throw new Error("Selected resource type was not found.");
-  }
-
-  if (primaryTeacherProfileId) {
-    const teacherProfile = await prisma.teacherProfile.findFirst({
-      where: {
-        id: primaryTeacherProfileId,
-        isAvailable: true,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!teacherProfile) {
-      throw new Error("Selected educator was not found or is unavailable.");
-    }
-  }
-
-  const slug = await createUniqueSlug(chapterId, title);
-
-  await prisma.resource.create({
-    data: {
-      chapterId,
-      resourceTypeId,
-      title,
-      titleHindi,
-      slug,
-      description,
-      language,
-      format,
-      access,
-      status,
-      contentUrl,
-      externalUrl,
-      thumbnailUrl,
-      textContent,
-      pageCount,
-      durationSeconds:
-        durationMinutes !== null ? durationMinutes * 60 : null,
-      sortOrder,
-      publishedAt:
-        status === PublicationStatus.PUBLISHED ? new Date() : null,
-      teachers: primaryTeacherProfileId
-        ? {
-            create: {
-              teacherProfileId: primaryTeacherProfileId,
-              isPrimary: true,
-              displayOrder: 0,
-            },
-          }
-        : undefined,
-    },
-  });
-
-  const boardSlug =
-    chapter.boardClassSubject.board.slug;
-
-  const classSlug =
-    chapter.boardClassSubject.classLevel.slug;
-
-  const subjectSlug =
-    chapter.boardClassSubject.subject.slug;
-
-  revalidatePath("/admin/resources");
-
-  revalidatePath(
-    `/student/resources/${boardSlug}/${classSlug}/${subjectSlug}/${chapter.slug}`
-  );
-
-  redirect("/admin/resources?created=true");
+export async function archiveResource(formData: FormData) {
+  const admin = await requireAdmin(); const resourceId = field(formData, "resourceId");
+  if (!resourceId) throw new Error("Resource ID is required.");
+  await prisma.resource.update({ where: { id: resourceId }, data: {
+    status: "ARCHIVED", publishedAt: null, reviewedAt: new Date(), reviewedByUserId: admin.id,
+  } });
+  await refresh(resourceId); redirect("/admin/resources?archived=true");
 }

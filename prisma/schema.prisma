@@ -119,6 +119,7 @@ model User {
   teacherProfile     TeacherProfile?
   coachingInstitutes CoachingInstitute[]
   resourcesCreated   Resource[]          @relation("ResourceCreatedBy")
+  resourcesReviewed  Resource[]          @relation("ResourceReviewedBy")
 }
 
 model Role {
@@ -435,6 +436,7 @@ model Resource {
   chapterId       String?
   examTopicId     String?
   createdByUserId String?
+  reviewedByUserId String?
   title           String
   titleHindi      String?
   slug            String
@@ -456,6 +458,8 @@ model Resource {
   viewCount       Int               @default(0)
   downloadCount   Int               @default(0)
   publishedAt     DateTime?
+  reviewedAt      DateTime?
+  moderationNote  String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -463,6 +467,7 @@ model Resource {
   chapter      Chapter?     @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   examTopic    ExamTopic?   @relation(fields: [examTopicId], references: [id], onDelete: Cascade)
   createdBy    User?        @relation("ResourceCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reviewedBy   User?        @relation("ResourceReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   teachers  ResourceTeacher[]
   bookmarks ResourceBookmark[]
@@ -474,6 +479,8 @@ model Resource {
   @@index([chapterId])
   @@index([examTopicId])
   @@index([createdByUserId])
+  @@index([reviewedByUserId])
+  @@index([reviewedAt])
   @@index([status])
   @@index([access])
   @@index([language])
