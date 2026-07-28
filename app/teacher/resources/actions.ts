@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ContentLanguage, PublicationStatus, ResourceAccess, ResourceFormat } from "@/app/generated/prisma/client";
 import { requireTeacher } from "@/lib/auth/session";
 import prisma from "@/lib/prisma";
+import { uploadResourceAsset } from "@/lib/resources/upload-service";
 
 function required(formData: FormData, name: string) { const value = formData.get(name); if (typeof value !== "string" || !value.trim()) throw new Error(`${name} is required.`); return value.trim(); }
 function optional(formData: FormData, name: string) { const value = formData.get(name); return typeof value === "string" && value.trim() ? value.trim() : null; }
@@ -49,6 +50,18 @@ export async function createTeacherResource(formData: FormData) {
     redirect(`/teacher/resources?error=${encodeURIComponent(message)}`);
   }
   redirect("/teacher/resources?created=true");
+}
+
+export async function uploadTeacherResourcePdf(formData: FormData) {
+  const user = await requireTeacher();
+  const resourceId = required(formData, "resourceId");
+  const file = formData.get("file");
+
+  if (!(file instanceof File)) {
+    return { ok: false as const, code: "INVALID_FILE", message: "Please select a PDF file to upload." };
+  }
+
+  return uploadResourceAsset({ user, resourceId, file });
 }
 
 export async function archiveTeacherResource(formData: FormData) {

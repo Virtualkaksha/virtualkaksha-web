@@ -82,6 +82,13 @@ enum PublicationStatus {
   ARCHIVED
 }
 
+enum ResourceAssetStatus {
+  UPLOADING
+  READY
+  FAILED
+  DELETED
+}
+
 enum ResourceAccess {
   FREE
   PREMIUM
@@ -431,37 +438,37 @@ model ResourceType {
 }
 
 model Resource {
-  id              String            @id @default(cuid())
-  resourceTypeId  String
-  chapterId       String?
-  examTopicId     String?
-  createdByUserId String?
+  id               String            @id @default(cuid())
+  resourceTypeId   String
+  chapterId        String?
+  examTopicId      String?
+  createdByUserId  String?
   reviewedByUserId String?
-  title           String
-  titleHindi      String?
-  slug            String
-  description     String?
-  language        ContentLanguage   @default(ENGLISH)
-  format          ResourceFormat
-  access          ResourceAccess    @default(FREE)
-  status          PublicationStatus @default(DRAFT)
-  contentUrl      String?
-  externalUrl     String?
-  thumbnailUrl    String?
-  textContent     String?
-  durationSeconds Int?
-  pageCount       Int?
-  fileSizeBytes   BigInt?
-  version         Int               @default(1)
-  sortOrder       Int               @default(0)
-  isFeatured      Boolean           @default(false)
-  viewCount       Int               @default(0)
-  downloadCount   Int               @default(0)
-  publishedAt     DateTime?
-  reviewedAt      DateTime?
-  moderationNote  String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  title            String
+  titleHindi       String?
+  slug             String
+  description      String?
+  language         ContentLanguage   @default(ENGLISH)
+  format           ResourceFormat
+  access           ResourceAccess    @default(FREE)
+  status           PublicationStatus @default(DRAFT)
+  contentUrl       String?
+  externalUrl      String?
+  thumbnailUrl     String?
+  textContent      String?
+  durationSeconds  Int?
+  pageCount        Int?
+  fileSizeBytes    BigInt?
+  version          Int               @default(1)
+  sortOrder        Int               @default(0)
+  isFeatured       Boolean           @default(false)
+  viewCount        Int               @default(0)
+  downloadCount    Int               @default(0)
+  publishedAt      DateTime?
+  reviewedAt       DateTime?
+  moderationNote   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   resourceType ResourceType @relation(fields: [resourceTypeId], references: [id], onDelete: Restrict)
   chapter      Chapter?     @relation(fields: [chapterId], references: [id], onDelete: Cascade)
@@ -470,6 +477,7 @@ model Resource {
   reviewedBy   User?        @relation("ResourceReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   teachers  ResourceTeacher[]
+  assets    ResourceAsset[]
   bookmarks ResourceBookmark[]
   progress  StudentResourceProgress[]
 
@@ -488,6 +496,29 @@ model Resource {
   @@index([isFeatured])
   @@index([sortOrder])
   @@index([publishedAt])
+}
+
+model ResourceAsset {
+  id               String              @id @default(cuid())
+  resourceId       String
+  provider         String
+  objectKey        String
+  originalFileName String
+  mimeType         String
+  sizeBytes        BigInt
+  checksum         String?
+  status           ResourceAssetStatus @default(UPLOADING)
+  isPrimary        Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, objectKey])
+  @@index([resourceId])
+  @@index([status])
+  @@index([isPrimary])
+  @@index([provider])
 }
 
 model ResourceTeacher {

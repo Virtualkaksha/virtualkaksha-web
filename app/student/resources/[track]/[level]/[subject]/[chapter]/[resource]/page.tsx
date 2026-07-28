@@ -316,6 +316,7 @@ export default async function ResourceViewerPage({
     notFound();
   }
 
+  const chapterSlug = selectedResource.chapter.slug;
   const { board, classLevel, subject: selectedSubject } =
     selectedResource.chapter.boardClassSubject;
 
@@ -575,7 +576,7 @@ export default async function ResourceViewerPage({
             {relatedResources.map((relatedResource) => (
               <Link
                 key={relatedResource.id}
-                href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedResource.chapter.slug}/${relatedResource.slug}`}
+                href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${chapterSlug}/${relatedResource.slug}`}
                 className="rounded-2xl border border-slate-200 p-5 transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-sm"
               >
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
@@ -604,7 +605,7 @@ export default async function ResourceViewerPage({
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Link
-          href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${selectedResource.chapter.slug}`}
+          href={`/student/resources/${board.slug}/${classLevel.slug}/${selectedSubject.slug}/${chapterSlug}`}
           className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
         >
           ← Back to chapter
