@@ -19,6 +19,7 @@ type TeacherResourcePrismaClient = {
     create: (args: { data: Record<string, unknown> }) => Promise<{ id: string }>;
     update: (args: { where: { id: string }; data: Record<string, unknown> }) => Promise<unknown>;
     updateMany: (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => Promise<unknown>;
+    delete: (args: { where: { id: string } }) => Promise<unknown>;
   };
 };
 
@@ -64,20 +65,38 @@ async function revalidateResourcePaths() {
 export async function createTeacherResourceCore({ user, formData, prismaClient, uploadHandler = async ({ user: uploadUser, resourceId, file }) => uploadResourceAsset({ user: uploadUser, resourceId, file }) }: CreateTeacherResourceCoreInput): Promise<TeacherResourceActionResult> {
   const runtimePrisma = prismaClient ?? await getPrismaClient();
   try {
+    if (!user.id) {
+      return { ok: false, code: "UNAUTHENTICATED", message: "You need to sign in before creating a resource.", retryable: false };
+    }
+    if (!user.roles.includes("TEACHER") && !user.roles.includes("ADMIN")) {
+      return { ok: false, code: "FORBIDDEN", message: "Only teachers and admins can create resources.", retryable: false };
+    }
     const chapterId = required(formData, "chapterId");
     const resourceTypeId = required(formData, "resourceTypeId");
     const title = required(formData, "title");
     const format = required(formData, "format") as ResourceFormat;
-    const sourceType = optional(formData, "sourceType") || "external-url";
+    const sourceType = optional(formData, "sourceType") || (format === "PDF" ? "native-pdf" : "external-url");
     const contentUrl = optional(formData, "contentUrl");
     const externalUrl = optional(formData, "externalUrl");
     const textContent = optional(formData, "textContent");
     const thumbnailUrl = optional(formData, "thumbnailUrl");
     if (![contentUrl, externalUrl, thumbnailUrl].every(isHttpUrl)) throw new Error("All URLs must start with http:// or https://.");
-    if (format === "ARTICLE" && !textContent) throw new Error("Article content is required.");
-    if (format === "EXTERNAL_LINK" && !externalUrl) throw new Error("External URL is required.");
-    if (format === "PDF" && sourceType === "native-pdf") {
-      // File is validated during the upload step after the draft resource is created.
+    if (format === "PDF") {
+      if (!["native-pdf", "external-url"].includes(sourceType)) {
+        throw new Error("Selected PDF source type is invalid.");
+      }
+      if (sourceType === "native-pdf") {
+        const file = formData.get("file");
+        if (!(file instanceof File) || file.size === 0) {
+          return { ok: false, code: "INVALID_FILE", message: "Please select a PDF file to upload.", retryable: false };
+        }
+      } else if (!externalUrl) {
+        throw new Error("PDF URL is required for external PDF resources.");
+      }
+    } else if (format === "ARTICLE" && !textContent) {
+      throw new Error("Article content is required.");
+    } else if (format === "EXTERNAL_LINK" && !externalUrl) {
+      throw new Error("External URL is required.");
     } else if (!["ARTICLE", "EXTERNAL_LINK"].includes(format) && !contentUrl) {
       throw new Error("Content URL is required for this format.");
     }
@@ -107,8 +126,8 @@ export async function createTeacherResourceCore({ user, formData, prismaClient, 
       format,
       access: required(formData, "access") as ResourceAccess,
       status: initialStatus,
-      contentUrl: format === "PDF" && sourceType === "native-pdf" ? null : contentUrl,
-      externalUrl,
+      contentUrl: format === "PDF" ? null : contentUrl,
+      externalUrl: format === "PDF" && sourceType === "native-pdf" ? null : externalUrl,
       thumbnailUrl,
       textContent,
       pageCount: optionalInt(formData, "pageCount"),
@@ -121,15 +140,14 @@ export async function createTeacherResourceCore({ user, formData, prismaClient, 
     if (format === "PDF" && sourceType === "native-pdf") {
       const file = formData.get("file");
       if (!(file instanceof File)) {
-        await runtimePrisma.resource.update({ where: { id: createdResource.id }, data: { status: "DRAFT", updatedAt: new Date() } });
-        await revalidateResourcePaths();
-        return { ok: false, code: "INVALID_FILE", message: "Please select a PDF file to upload.", resourceId: createdResource.id, retryable: true };
+        await runtimePrisma.resource.delete({ where: { id: createdResource.id } });
+        return { ok: false, code: "INVALID_FILE", message: "Please select a PDF file to upload.", retryable: false };
       }
       const uploadResult = await uploadHandler({ user, resourceId: createdResource.id, file });
       if (!uploadResult.ok) {
-        await runtimePrisma.resource.update({ where: { id: createdResource.id }, data: { status: "DRAFT", updatedAt: new Date() } });
+        await runtimePrisma.resource.delete({ where: { id: createdResource.id } });
         await revalidateResourcePaths();
-        return { ok: false, code: uploadResult.code, message: uploadResult.message, resourceId: createdResource.id, retryable: true };
+        return { ok: false, code: uploadResult.code, message: uploadResult.message, retryable: true };
       }
       if (safeStatus !== "DRAFT") {
         await runtimePrisma.resource.update({ where: { id: createdResource.id }, data: { status: safeStatus, publishedAt: safeStatus === "PUBLISHED" ? new Date() : null, updatedAt: new Date() } });
@@ -162,7 +180,17 @@ export async function uploadTeacherResourcePdf(formData: FormData) {
     return { ok: false as const, code: "INVALID_FILE", message: "Please select a PDF file to upload." };
   }
 
-  return uploadResourceAsset({ user, resourceId, file });
+  const result = await uploadResourceAsset({ user, resourceId, file });
+
+  if (!result.ok) {
+    return result;
+  }
+
+  return {
+    ok: true as const,
+    assetId: result.assetId,
+    message: "PDF uploaded successfully.",
+  };
 }
 
 export async function archiveTeacherResource(formData: FormData) {

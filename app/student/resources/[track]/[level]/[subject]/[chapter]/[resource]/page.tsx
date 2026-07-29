@@ -178,11 +178,18 @@ function ResourceContent({
     ["PDF", "DOCUMENT", "INTERACTIVE"].includes(resource.format)
   ) {
     return (
-      <iframe
-        src={sourceUrl}
-        title={resource.title}
-        className="h-[72vh] min-h-[560px] w-full rounded-2xl border border-slate-200 bg-white"
-      />
+      <div className="space-y-3">
+        {resource.format === "PDF" ? (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-800">
+            This PDF is hosted externally, so page progress cannot be tracked automatically.
+          </p>
+        ) : null}
+        <iframe
+          src={sourceUrl}
+          title={resource.title}
+          className="h-[72vh] min-h-[560px] w-full rounded-2xl border border-slate-200 bg-white"
+        />
+      </div>
     );
   }
 

@@ -145,7 +145,7 @@ export async function uploadResourceAsset({ user, resourceId, file }: UploadReso
 
     const objectKey = buildObjectKey(resourceId, file.name);
     const provider = process.env.RESOURCE_STORAGE_PROVIDER ?? "local";
-    const mimeType = file.type?.trim() || "application/pdf";
+    const mimeType = "application/pdf";
 
     const asset = await prismaClient.resourceAsset.create({
       data: {
@@ -186,7 +186,7 @@ export async function uploadResourceAsset({ user, resourceId, file }: UploadReso
       await prismaClient.resource.update({
         where: { id: resourceId },
         data: {
-          contentUrl: storageResult.readUrl,
+          contentUrl: null,
           fileSizeBytes: BigInt(storageResult.sizeBytes),
           updatedAt: new Date(),
         },

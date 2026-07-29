@@ -295,7 +295,7 @@ export function resolveResourceSearchHref(resource: {
   detailUrl?: string | null;
 }) {
   if (resource.format === "PDF") {
-    if (resource.hasReadyPrimaryAsset) return `/api/student/resources/${resource.id}/asset`;
+    if (resource.hasReadyPrimaryAsset) return resource.detailUrl ?? "#";
     return isExternalHttpUrl(resource.externalUrl) ? resource.externalUrl! : "#";
   }
   if (resource.detailUrl) return resource.detailUrl;

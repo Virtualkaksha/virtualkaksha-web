@@ -122,8 +122,9 @@ test("out-of-range pages fetch rows using the clamped final-page offset", () => 
   assert.equal(args.rows.take, 12);
 });
 
-test("READY native PDFs use only the protected student asset URL", () => {
-  assert.equal(resolveResourceSearchHref({ id: "res-1", format: "PDF", externalUrl: "https://example.com/fallback.pdf", hasReadyPrimaryAsset: true, detailUrl: "/student/resources/cbse/class-9/science/force/file" }), "/api/student/resources/res-1/asset");
+test("READY native PDFs open the application detail viewer", () => {
+  assert.equal(resolveResourceSearchHref({ id: "res-1", format: "PDF", externalUrl: "https://example.com/fallback.pdf", hasReadyPrimaryAsset: true, detailUrl: "/student/resources/cbse/class-9/science/force/file" }), "/student/resources/cbse/class-9/science/force/file");
+  assert.equal(resolveResourceSearchHref({ id: "res-1", format: "PDF", externalUrl: null, hasReadyPrimaryAsset: true }), "#");
 });
 
 test("not-ready native PDFs never fall back to legacy contentUrl", () => {

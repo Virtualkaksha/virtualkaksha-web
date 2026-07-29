@@ -85,10 +85,14 @@ test("oversized file is rejected", async () => {
 test("successful upload creates a READY asset", async () => {
   const storage = new InMemoryStorage();
   const createdAssets: Array<Record<string, unknown>> = [];
+  const resourceUpdates: Array<Record<string, unknown>> = [];
   const prismaClient = {
     resource: {
       findUnique: async () => ({ id: "res-1", format: "PDF", createdByUserId: "teacher-1", teachers: [] }),
-      update: async () => undefined,
+      update: async (input: { data: Record<string, unknown> }) => {
+        resourceUpdates.push(input.data);
+        return undefined;
+      },
     },
     resourceAsset: {
       create: async (input: { data: Record<string, unknown> }) => {
@@ -106,6 +110,9 @@ test("successful upload creates a READY asset", async () => {
   assert.equal(result.ok, true);
   assert.equal(storage.uploaded.length, 1);
   assert.equal(createdAssets[0].status, "READY");
+  assert.equal(createdAssets[0].mimeType, "application/pdf");
+  assert.equal(resourceUpdates[0].contentUrl, null);
+  assert.equal(resourceUpdates[0].fileSizeBytes, BigInt(6));
 });
 
 test("failed upload does not leave a READY database record", async () => {

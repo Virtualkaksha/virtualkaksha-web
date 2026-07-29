@@ -41,7 +41,7 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
   const [subject, setSubject] = useState("");
   const filteredChapters = useMemo(() => chapters.filter((c) => c.boardClassSubject.board.shortName === board && (!classLevel || c.boardClassSubject.classLevel.name === classLevel) && (!subject || c.boardClassSubject.subject.name === subject)), [chapters, board, classLevel, subject]);
   const [format, setFormat] = useState("PDF");
-  const [sourceType, setSourceType] = useState<SourceType>("external-url");
+  const [sourceType, setSourceType] = useState<SourceType>("native-pdf");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
@@ -53,21 +53,31 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
   function resetBelowBoard(nextBoard: string) { setBoard(nextBoard); setClassLevel(""); setSubject(""); }
   function resetBelowClass(nextClass: string) { setClassLevel(nextClass); setSubject(""); }
 
-  const needsContentUrl = ["PDF", "VIDEO", "IMAGE", "DOCUMENT", "INTERACTIVE"].includes(format);
+  const needsContentUrl = ["VIDEO", "IMAGE", "DOCUMENT", "INTERACTIVE"].includes(format);
   const needsExternalUrl = format === "EXTERNAL_LINK";
   const needsArticle = format === "ARTICLE";
   const isPdfNativeUpload = format === "PDF" && sourceType === "native-pdf";
+  const isPdfExternalUrl = format === "PDF" && sourceType === "external-url";
+
+  function clearSourceState() {
+    setSelectedFile(null);
+    setFileError(null);
+    setResultMessage(null);
+    setResultState("idle");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
 
   function updateFormat(nextFormat: string) {
     setFormat(nextFormat);
-    if (nextFormat !== "PDF") {
-      setSourceType("external-url");
-      setSelectedFile(null);
-      setFileError(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
+    setSourceType(nextFormat === "PDF" ? "native-pdf" : "external-url");
+    clearSourceState();
+  }
+
+  function updateSourceType(nextSourceType: SourceType) {
+    setSourceType(nextSourceType);
+    clearSourceState();
   }
 
   function handleFileSelection(event: React.ChangeEvent<HTMLInputElement>) {
@@ -131,6 +141,10 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
     }
 
     const formData = new FormData(formRef.current);
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    if (submitter instanceof HTMLButtonElement && submitter.name) {
+      formData.set(submitter.name, submitter.value);
+    }
     if (isPdfNativeUpload && selectedFile) {
       formData.set("file", selectedFile);
     }
@@ -182,13 +196,14 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
           {format === "PDF" ? <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4">
             <label className="flex items-center justify-between gap-3">
               <span className="text-sm font-semibold text-slate-700">Source type</span>
-              <select name="sourceType" value={sourceType} onChange={(e) => setSourceType(e.target.value as SourceType)} className={`${field} max-w-xs`}>
-                <option value="external-url">External URL</option>
+              <select name="sourceType" value={sourceType} onChange={(e) => updateSourceType(e.target.value as SourceType)} className={`${field} max-w-xs`}>
                 <option value="native-pdf">Native PDF Upload</option>
+                <option value="external-url">External URL</option>
               </select>
             </label>
           </div> : null}
-          {needsContentUrl && !isPdfNativeUpload ? <Field label={format === "VIDEO" ? "Video URL" : `${format.replaceAll("_", " ")} URL`}><div className="relative"><Link2 className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-slate-400"/><input name="contentUrl" type="url" required className={`${field} pl-12`} placeholder={format === "VIDEO" ? "YouTube, Vimeo or hosted video URL" : "https://..."} /></div></Field> : null}
+          {needsContentUrl ? <Field label={format === "VIDEO" ? "Video URL" : `${format.replaceAll("_", " ")} URL`}><div className="relative"><Link2 className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-slate-400"/><input name="contentUrl" type="url" required className={`${field} pl-12`} placeholder={format === "VIDEO" ? "YouTube, Vimeo or hosted video URL" : "https://..."} /></div></Field> : null}
+          {isPdfExternalUrl ? <Field label="PDF URL"><div className="relative"><Link2 className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-slate-400"/><input name="externalUrl" type="url" required className={`${field} pl-12`} placeholder="https://.../resource.pdf" /></div></Field> : null}
           {needsExternalUrl ? <Field label="External URL"><input name="externalUrl" type="url" required className={field} placeholder="https://..." /></Field> : null}
           {needsArticle ? <Field label="Article content"><textarea name="textContent" required rows={10} className={field} placeholder="Write the complete article here..." /></Field> : null}
           {isPdfNativeUpload ? <div className="mt-5 rounded-2xl border border-dashed border-blue-300 bg-blue-50/70 p-4">
@@ -203,7 +218,7 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
               <UploadCloud className="h-8 w-8 text-blue-700" />
               <span className="mt-3 text-sm font-semibold text-slate-900">Choose a PDF file</span>
               <span className="mt-1 text-sm text-slate-500">Or drop a PDF here in supported browsers</span>
-              <input ref={fileInputRef} id="resource-pdf-upload" name="file" type="file" accept="application/pdf,.pdf" className="sr-only" onChange={handleFileSelection} />
+              <input ref={fileInputRef} id="resource-pdf-upload" name="file" type="file" accept="application/pdf,.pdf" required className="sr-only" onChange={handleFileSelection} />
             </label>
             {selectedFile ? <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -221,8 +236,8 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
           </div> : null}
           <div className="mt-5 grid gap-5 lg:grid-cols-3">
             <Field label="Thumbnail URL (optional)"><input name="thumbnailUrl" type="url" className={field} placeholder="https://...image" /></Field>
-            <Field label="Pages"><input name="pageCount" type="number" min="0" className={field} /></Field>
-            <Field label="Duration (minutes)"><input name="durationMinutes" type="number" min="0" className={field} /></Field>
+            {format === "PDF" ? <Field label="Pages"><input name="pageCount" type="number" min="0" className={field} /></Field> : null}
+            {format === "VIDEO" ? <Field label="Duration (minutes)"><input name="durationMinutes" type="number" min="0" className={field} /></Field> : null}
           </div>
           <input type="hidden" name="sortOrder" value="0" />
         </div>
