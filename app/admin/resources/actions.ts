@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth/session";
+import {
+  transitionAdminResource,
+} from "@/lib/admin/resource-moderation-policy";
 import prisma from "@/lib/prisma";
 
 function field(formData: FormData, name: string) {
@@ -27,9 +30,10 @@ async function refresh(resourceId: string) {
 export async function approveResource(formData: FormData) {
   const admin = await requireAdmin(); const resourceId = field(formData, "resourceId");
   if (!resourceId) throw new Error("Resource ID is required.");
-  await prisma.resource.update({ where: { id: resourceId }, data: {
-    status: "PUBLISHED", publishedAt: new Date(), reviewedAt: new Date(), reviewedByUserId: admin.id, moderationNote: null,
-  } });
+  await transitionAdminResource(
+    { resourceId, adminId: admin.id, action: "APPROVE" },
+    (update) => prisma.resource.updateMany(update),
+  );
   await refresh(resourceId); redirect(`/admin/resources/${resourceId}?approved=true`);
 }
 
@@ -37,17 +41,19 @@ export async function rejectResource(formData: FormData) {
   const admin = await requireAdmin(); const resourceId = field(formData, "resourceId"); const reason = field(formData, "reason");
   if (!resourceId) throw new Error("Resource ID is required.");
   if (reason.length < 10) throw new Error("Rejection reason must contain at least 10 characters.");
-  await prisma.resource.update({ where: { id: resourceId }, data: {
-    status: "REJECTED", publishedAt: null, reviewedAt: new Date(), reviewedByUserId: admin.id, moderationNote: reason,
-  } });
+  await transitionAdminResource(
+    { resourceId, adminId: admin.id, action: "REJECT", reason },
+    (update) => prisma.resource.updateMany(update),
+  );
   await refresh(resourceId); redirect(`/admin/resources/${resourceId}?rejected=true`);
 }
 
 export async function archiveResource(formData: FormData) {
   const admin = await requireAdmin(); const resourceId = field(formData, "resourceId");
   if (!resourceId) throw new Error("Resource ID is required.");
-  await prisma.resource.update({ where: { id: resourceId }, data: {
-    status: "ARCHIVED", publishedAt: null, reviewedAt: new Date(), reviewedByUserId: admin.id,
-  } });
+  await transitionAdminResource(
+    { resourceId, adminId: admin.id, action: "ARCHIVE" },
+    (update) => prisma.resource.updateMany(update),
+  );
   await refresh(resourceId); redirect("/admin/resources?archived=true");
 }

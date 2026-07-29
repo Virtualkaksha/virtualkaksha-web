@@ -1,7 +1,8 @@
 import "server-only";
 
-import { getResourceSearchFacets, getTeacherResourceSummary, searchTeacherResources } from "@/lib/resources/resource-search";
+import { getResourceSearchFacets, getTeacherResourceSummary } from "@/lib/resources/resource-search";
 import type { TeacherResourceSearchQuery } from "@/lib/resources/resource-search-query";
+import { getTeacherManagedResources } from "@/lib/teacher/resource-management";
 import { findTeacherWorkspaceMetadata } from "@/repositories/teacher-cms.repository";
 
 function displayNameOf(data: Awaited<ReturnType<typeof findTeacherWorkspaceMetadata>>) {
@@ -16,7 +17,7 @@ function displayNameOf(data: Awaited<ReturnType<typeof findTeacherWorkspaceMetad
 export async function getTeacherCms(userId: string, query: TeacherResourceSearchQuery) {
   const [data, search, facets] = await Promise.all([
     findTeacherWorkspaceMetadata(userId),
-    searchTeacherResources(userId, query),
+    getTeacherManagedResources(userId, query),
     getResourceSearchFacets(),
   ]);
   return { ...data, displayName: displayNameOf(data), search, facets };

@@ -197,12 +197,7 @@ export function buildTeacherResourceWhere(userId: string, query: TeacherResource
   const academic = academicPredicate(query, false);
   return {
     AND: [
-      {
-        OR: [
-          { createdByUserId: userId },
-          { teachers: { some: { teacherProfile: { is: { userId } } } } },
-        ],
-      },
+      { createdByUserId: userId },
       statusPredicate,
       ...(search ? [search] : []),
       ...(academic ? [academic] : []),
@@ -214,12 +209,7 @@ export function buildTeacherResourceWhere(userId: string, query: TeacherResource
 export function buildTeacherDashboardWhere(userId: string): Prisma.ResourceWhereInput {
   return {
     AND: [
-      {
-        OR: [
-          { createdByUserId: userId },
-          { teachers: { some: { teacherProfile: { is: { userId } } } } },
-        ],
-      },
+      { createdByUserId: userId },
       { status: { not: "ARCHIVED" } },
     ],
   };

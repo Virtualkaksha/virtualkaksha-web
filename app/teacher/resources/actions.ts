@@ -1,8 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { ContentLanguage, PublicationStatus, ResourceAccess, ResourceFormat } from "@/app/generated/prisma/client";
 import { uploadResourceAsset, type UploadResourceAssetResult } from "@/lib/resources/upload-service";
+import { transitionTeacherResource, updateTeacherResourceMetadata } from "@/lib/teacher/resource-management";
+import type { TeacherResourceTransition } from "@/lib/teacher/resource-management-policy";
 
 type TeacherResourcePrismaClient = {
   teacherProfile: {
@@ -57,6 +60,7 @@ async function revalidateResourcePaths() {
     revalidatePath("/teacher");
     revalidatePath("/teacher/resources");
     revalidatePath("/student/resources");
+    revalidatePath("/admin/resources");
   } catch {
     // noop in non-Next runtime environments such as tests
   }
@@ -193,10 +197,49 @@ export async function uploadTeacherResourcePdf(formData: FormData) {
   };
 }
 
-export async function archiveTeacherResource(formData: FormData) {
+async function transitionTeacherResourceAction(formData: FormData, transition: TeacherResourceTransition): Promise<void> {
   const { requireTeacher } = await import("@/lib/auth/session");
-  const user = await requireTeacher(); const resourceId = required(formData, "resourceId");
-  const runtimePrisma = await getPrismaClient();
-  await runtimePrisma.resource.updateMany({ where: { id: resourceId, OR: [{ createdByUserId: user.id }, { teachers: { some: { teacherProfile: { userId: user.id } } } }] }, data: { status: "ARCHIVED" } });
+  const user = await requireTeacher();
+  const resourceId = required(formData, "resourceId");
+  const result = await transitionTeacherResource({ user, resourceId, transition });
+  if (!result.ok) throw new Error(result.message);
   await revalidateResourcePaths();
+  revalidatePath(`/teacher/resources/${resourceId}`);
+}
+
+export async function submitTeacherResource(formData: FormData) {
+  await transitionTeacherResourceAction(formData, "SUBMIT");
+}
+
+export async function resubmitTeacherResource(formData: FormData) {
+  await transitionTeacherResourceAction(formData, "RESUBMIT");
+}
+
+export async function unpublishTeacherResource(formData: FormData) {
+  await transitionTeacherResourceAction(formData, "UNPUBLISH");
+}
+
+export async function archiveTeacherResource(formData: FormData) {
+  await transitionTeacherResourceAction(formData, "ARCHIVE");
+}
+
+export async function updateTeacherResource(formData: FormData) {
+  const { requireTeacher } = await import("@/lib/auth/session");
+  const user = await requireTeacher();
+  const resourceId = required(formData, "resourceId");
+  const { findEditableTeacherManagedResource } = await import("@/repositories/teacher-resource.repository");
+  const current = await findEditableTeacherManagedResource(resourceId, user.id);
+  if (!current) redirect(`/teacher/resources/${resourceId}?error=not-editable`);
+  const result = await updateTeacherResourceMetadata({
+    user,
+    resourceId,
+    format: current.format,
+    currentStatus: current.status,
+    formData,
+  });
+  if (!result.ok) redirect(`/teacher/resources/${resourceId}/edit?error=${encodeURIComponent(result.message)}`);
+  await revalidateResourcePaths();
+  revalidatePath(`/teacher/resources/${resourceId}`);
+  revalidatePath(`/teacher/resources/${resourceId}/edit`);
+  redirect(`/teacher/resources/${resourceId}?updated=true`);
 }

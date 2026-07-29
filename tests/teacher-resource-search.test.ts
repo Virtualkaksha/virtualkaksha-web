@@ -8,17 +8,12 @@ import {
   parseTeacherSearchQuery,
 } from "@/lib/resources/resource-search-query";
 
-test("teacher predicate keeps created and linked ownership inside the first AND clause", () => {
+test("teacher predicate keeps creator ownership inside the first AND clause", () => {
   const query = parseTeacherSearchQuery({ q: "motion", status: "DRAFT" });
   const where = buildTeacherResourceWhere("teacher-1", query);
   const and = where.AND as Array<Record<string, unknown>>;
   assert.ok(Array.isArray(and));
-  assert.deepEqual(and[0], {
-    OR: [
-      { createdByUserId: "teacher-1" },
-      { teachers: { some: { teacherProfile: { is: { userId: "teacher-1" } } } } },
-    ],
-  });
+  assert.deepEqual(and[0], { createdByUserId: "teacher-1" });
   assert.equal("OR" in and[1], false);
   assert.match(JSON.stringify(and.slice(1)), /motion/);
 });
@@ -28,7 +23,7 @@ test("ownership scope cannot match an unrelated teacher id", () => {
   assert.match(serialized, /teacher-1/);
   assert.doesNotMatch(serialized, /teacher-2/);
   assert.match(serialized, /createdByUserId/);
-  assert.match(serialized, /teacherProfile/);
+  assert.doesNotMatch(serialized, /teacherProfile|teachers/);
 });
 
 test("all supported teacher status filters are accepted", () => {
