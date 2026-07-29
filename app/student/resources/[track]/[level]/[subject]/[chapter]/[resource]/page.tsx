@@ -2,10 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import prisma from "@/lib/prisma";
+import { STUDENT_READABLE_RESOURCE_WHERE } from "@/lib/resources/resource-access-policy";
+import { findStudentProfileIdByUserId, isStudentResourceBookmarked } from "@/repositories/student-learning.repository";
 import StudentPdfViewer from "@/components/student/StudentPdfViewer";
 import {
   getCurrentUserIdentity,
   getStudentResourceProgress,
+  resolveStudentResourceDownloadUrl,
   resolveStudentResourceViewerState,
 } from "@/lib/resources/student-resource-service";
 
@@ -227,27 +230,20 @@ export default async function ResourceViewerPage({
 
   const selectedResource = await prisma.resource.findFirst({
     where: {
-      slug: resource,
-      status: "PUBLISHED",
-      chapter: {
-        slug: chapter,
-        isActive: true,
-        boardClassSubject: {
-          isActive: true,
-          board: {
-            slug: track,
-            isActive: true,
-          },
-          classLevel: {
-            slug: level,
-            isActive: true,
-          },
-          subject: {
-            slug: subject,
-            isActive: true,
+      AND: [
+        STUDENT_READABLE_RESOURCE_WHERE,
+        {
+          slug: resource,
+          chapter: {
+            slug: chapter,
+            boardClassSubject: {
+              board: { slug: track },
+              classLevel: { slug: level },
+              subject: { slug: subject },
+            },
           },
         },
-      },
+      ],
     },
     select: {
       id: true,
@@ -359,11 +355,10 @@ export default async function ResourceViewerPage({
 
   const relatedResources = await prisma.resource.findMany({
     where: {
-      chapterId: selectedResource.chapter.id,
-      status: "PUBLISHED",
-      id: {
-        not: selectedResource.id,
-      },
+      AND: [
+        STUDENT_READABLE_RESOURCE_WHERE,
+        { chapterId: selectedResource.chapter.id, id: { not: selectedResource.id } },
+      ],
     },
     select: {
       id: true,
@@ -394,6 +389,12 @@ export default async function ResourceViewerPage({
   });
 
   const currentUser = await getCurrentUserIdentity();
+  const studentProfile = currentUser?.roles.includes("STUDENT")
+    ? await findStudentProfileIdByUserId(currentUser.id)
+    : null;
+  const initialBookmarked = studentProfile
+    ? await isStudentResourceBookmarked(studentProfile.id, selectedResource.id)
+    : false;
   const progressResult = currentUser
     ? await getStudentResourceProgress({
         user: currentUser,
@@ -406,14 +407,22 @@ export default async function ResourceViewerPage({
       status: selectedResource.status,
       format: selectedResource.format,
       contentUrl: selectedResource.contentUrl,
+      externalUrl: selectedResource.externalUrl,
       access: selectedResource.access,
     },
     asset: selectedResource.assets[0] ?? null,
   });
-  const downloadUrl =
-    viewerState.viewerType === "native"
-      ? viewerState.sourceUrl
-      : selectedResource.externalUrl ?? selectedResource.contentUrl;
+  const downloadUrl = resolveStudentResourceDownloadUrl({
+    resource: {
+      id: selectedResource.id,
+      status: selectedResource.status,
+      format: selectedResource.format,
+      contentUrl: selectedResource.contentUrl,
+      externalUrl: selectedResource.externalUrl,
+      access: selectedResource.access,
+    },
+    asset: selectedResource.assets[0] ?? null,
+  });
   const duration = formatDuration(selectedResource.durationSeconds);
   const fileSize =
     selectedResource.fileSizeBytes !== null
@@ -512,6 +521,9 @@ export default async function ResourceViewerPage({
           <ResourceActions
             title={selectedResource.title}
             downloadUrl={downloadUrl}
+            resourceId={selectedResource.id}
+            initialBookmarked={initialBookmarked}
+            showBookmark={Boolean(studentProfile)}
           />
         </div>
       </section>

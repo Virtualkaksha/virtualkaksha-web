@@ -5,13 +5,14 @@ import { handleStudentAssetRequest } from "@/app/api/student/resources/[resource
 import {
   authorizeStudentResourceAssetAccess,
   getStudentResourceProgress,
+  resolveStudentResourceDownloadUrl,
   resolveStudentResourceViewerState,
   saveStudentResourceProgress,
   type StudentUser,
 } from "@/lib/resources/student-resource-service";
 
 const student: StudentUser = { id: "student-1", roles: ["STUDENT"] };
-const publishedPdf = { id: "res-1", status: "PUBLISHED", format: "PDF", contentUrl: null, access: "FREE", pageCount: 10 };
+const publishedPdf = { id: "res-1", status: "PUBLISHED", format: "PDF", contentUrl: null, externalUrl: null, access: "FREE", pageCount: 10 };
 const readyAsset = { id: "asset-1", status: "READY", isPrimary: true, provider: "local", mimeType: "application/pdf", objectKey: "resources/res-1/file.pdf" };
 
 function assetResource(overrides: Record<string, unknown> = {}) {
@@ -27,7 +28,7 @@ function progressClient(options: {
   const existing = options.existing === undefined ? { lastPosition: 3, progressPercent: 30, status: "IN_PROGRESS" } : options.existing;
   return {
     studentProfile: { findUnique: async () => ({ id: "profile-1" }) },
-    resource: { findUnique: async () => resource },
+    resource: { findFirst: async () => resource },
     studentResourceProgress: {
       findUnique: async () => existing,
       findFirst: async () => existing,
@@ -92,15 +93,38 @@ test("READY published local PDF resolves to the protected URL", () => {
   assert.equal(result.readUrl, "/api/student/resources/res-1/asset");
   assert.equal(result.contentType, "application/pdf");
   assert.doesNotMatch(result.readUrl, /storage\//i);
+  const state = resolveStudentResourceViewerState({ resource: { ...publishedPdf, contentUrl: "/raw/storage/file.pdf", externalUrl: "https://example.com/fallback.pdf" }, asset: readyAsset });
+  assert.equal(state.sourceUrl, "/api/student/resources/res-1/asset");
+  assert.equal(resolveStudentResourceDownloadUrl({ resource: publishedPdf, asset: readyAsset }), "/api/student/resources/res-1/asset");
 });
 
-test("external URL resources still render", () => {
+test("failed, deleted, and not-ready native PDFs never fall back to contentUrl", () => {
+  for (const status of ["FAILED", "DELETED", "UPLOADING"]) {
+    const asset = { ...readyAsset, status };
+    const resource = { ...publishedPdf, contentUrl: "https://storage.example.com/raw.pdf" };
+    const state = resolveStudentResourceViewerState({ resource, asset });
+    assert.equal(state.sourceUrl, "", status);
+    assert.equal(resolveStudentResourceDownloadUrl({ resource, asset }), null, status);
+  }
+});
+
+test("legitimate external PDF uses only validated externalUrl for viewing and download", () => {
   const state = resolveStudentResourceViewerState({
-    resource: { ...publishedPdf, contentUrl: "https://example.com/file.pdf" },
+    resource: { ...publishedPdf, contentUrl: "https://storage.example.com/raw.pdf", externalUrl: "https://example.com/file.pdf" },
     asset: null,
   });
   assert.equal(state.viewerType, "external");
   assert.equal(state.sourceUrl, "https://example.com/file.pdf");
+  assert.equal(resolveStudentResourceDownloadUrl({ resource: { ...publishedPdf, externalUrl: "https://example.com/file.pdf" }, asset: null }), "https://example.com/file.pdf");
+});
+
+test("invalid external PDF URL and missing usable source fail safely", () => {
+  for (const externalUrl of ["file:///private/file.pdf", "javascript:alert(1)", "not-a-url", null]) {
+    const resource = { ...publishedPdf, contentUrl: "https://storage.example.com/raw.pdf", externalUrl };
+    const state = resolveStudentResourceViewerState({ resource, asset: null });
+    assert.equal(state.sourceUrl, "", String(externalUrl));
+    assert.equal(resolveStudentResourceDownloadUrl({ resource, asset: null }), null, String(externalUrl));
+  }
 });
 
 test("asset route returns 401 for unauthenticated access", async () => {

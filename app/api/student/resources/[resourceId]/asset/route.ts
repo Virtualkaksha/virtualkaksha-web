@@ -12,7 +12,6 @@ type AssetResource = {
   format: string;
   access: string;
   status: string;
-  contentUrl: string | null;
   assets: Array<{
     id: string;
     objectKey: string;
@@ -47,7 +46,6 @@ export async function handleStudentAssetRequest(resourceId: string, dependencies
         format: true,
         access: true,
         status: true,
-        contentUrl: true,
         assets: {
           where: { isPrimary: true },
           orderBy: { createdAt: "asc" },

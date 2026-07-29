@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { STUDENT_RESOURCE_ACCESS } from "./resource-access-policy";
+import {
+  STUDENT_RESOURCE_ACCESS,
+  STUDENT_READABLE_RESOURCE_WHERE,
+} from "./resource-access-policy";
 
 export type StudentUser = {
   id: string;
@@ -55,7 +58,8 @@ type ResourceLike = {
   id: string;
   status: string;
   format: string;
-  contentUrl: string | null;
+  contentUrl?: string | null;
+  externalUrl?: string | null;
   access: string;
   pageCount?: number | null;
 };
@@ -99,7 +103,7 @@ type ProgressPrismaClient = {
     findUnique: (args: { where: { userId: string }; select: { id: true } }) => Promise<{ id: string } | null>;
   };
   resource: {
-    findUnique: (args: { where: { id: string }; select: Record<string, unknown> }) => Promise<ProgressResourceRecord | null>;
+    findFirst: (args: { where: Record<string, unknown>; select: Record<string, unknown> }) => Promise<ProgressResourceRecord | null>;
   };
   studentResourceProgress: {
     findUnique: (args: { where: Record<string, unknown>; select: Record<string, unknown> }) => Promise<StoredProgressRecord | null>;
@@ -136,6 +140,16 @@ function toProgress(record: StoredProgressRecord): ProgressRecord {
   };
 }
 
+function validHttpUrl(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function resolveStudentResourceViewerState({ resource, asset }: { resource: ResourceLike; asset: AssetLike | null }): ResourceViewerState {
   if (resource.format === "PDF" && asset?.status === "READY" && asset.isPrimary) {
     return {
@@ -148,14 +162,29 @@ export function resolveStudentResourceViewerState({ resource, asset }: { resourc
     };
   }
 
+  if (resource.format === "PDF") {
+    return {
+      viewerType: "external",
+      sourceUrl: validHttpUrl(resource.externalUrl) ?? "",
+      assetId: null,
+      contentType: null,
+      resourceId: resource.id,
+      isPdf: true,
+    };
+  }
+
   return {
     viewerType: "external",
-    sourceUrl: resource.contentUrl ?? "",
+    sourceUrl: validHttpUrl(resource.externalUrl) ?? validHttpUrl(resource.contentUrl) ?? "",
     assetId: null,
     contentType: null,
     resourceId: resource.id,
-    isPdf: resource.format === "PDF" && Boolean(resource.contentUrl),
+    isPdf: false,
   };
+}
+
+export function resolveStudentResourceDownloadUrl({ resource, asset }: { resource: ResourceLike; asset: AssetLike | null }) {
+  return resolveStudentResourceViewerState({ resource, asset }).sourceUrl || null;
 }
 
 export function authorizeStudentResourceAssetAccess({
@@ -214,6 +243,12 @@ export async function getStudentResourceProgress({
   const studentProfile = await runtimePrisma.studentProfile.findUnique({ where: { userId: studentUser.id }, select: { id: true } });
   if (!studentProfile) return { ok: false, code: "NOT_FOUND", message: "Progress unavailable." };
 
+  const resource = await runtimePrisma.resource.findFirst({
+    where: { AND: [{ id: resourceId }, STUDENT_READABLE_RESOURCE_WHERE] },
+    select: { id: true, status: true, format: true, access: true, pageCount: true },
+  });
+  if (!resource) return { ok: false, code: "FORBIDDEN", message: "Progress unavailable." };
+
   const progressRecord = await runtimePrisma.studentResourceProgress.findFirst({
     where: { studentProfileId: studentProfile.id, resourceId },
     select: { lastPosition: true, progressPercent: true, status: true },
@@ -248,8 +283,8 @@ export async function saveStudentResourceProgress({
   }
 
   const runtimePrisma = (prismaClient ?? (await import("@/lib/prisma").then((mod) => mod.default))) as ProgressPrismaClient;
-  const resource = await runtimePrisma.resource.findUnique({
-    where: { id: resourceId },
+  const resource = await runtimePrisma.resource.findFirst({
+    where: { AND: [{ id: resourceId }, STUDENT_READABLE_RESOURCE_WHERE] },
     select: { id: true, status: true, format: true, access: true, pageCount: true },
   });
   if (!resource) {

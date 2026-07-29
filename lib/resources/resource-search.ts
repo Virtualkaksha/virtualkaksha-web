@@ -8,13 +8,14 @@ import {
   type ResourceSearchRecord,
 } from "@/repositories/resource-search.repository";
 import { buildSearchPagination, resolveResourceSearchHref, type ResourceSearchQuery, type TeacherResourceSearchQuery } from "./resource-search-query";
+import { findBookmarkedResourceIds, findStudentProfileIdByUserId } from "@/repositories/student-learning.repository";
 
 function teacherName(record: ResourceSearchRecord) {
   const teacher = record.teachers[0]?.teacherProfile.user;
   return teacher?.displayName ?? ([teacher?.firstName, teacher?.lastName].filter(Boolean).join(" ") || null);
 }
 
-function mapResource(record: ResourceSearchRecord) {
+function mapResource(record: ResourceSearchRecord, bookmarked = false) {
   const school = record.chapter?.boardClassSubject;
   const exam = record.examTopic?.examSubject;
   const detailUrl = record.chapter
@@ -23,7 +24,6 @@ function mapResource(record: ResourceSearchRecord) {
   const href = resolveResourceSearchHref({
     id: record.id,
     format: record.format,
-    contentUrl: record.contentUrl,
     externalUrl: record.externalUrl,
     hasReadyPrimaryAsset: record.assets.some((asset) => asset.status === "READY"),
     detailUrl,
@@ -43,6 +43,7 @@ function mapResource(record: ResourceSearchRecord) {
     updatedAt: record.updatedAt,
     viewCount: record.viewCount,
     moderationNote: record.moderationNote,
+    bookmarked,
     resourceType: record.resourceType,
     teacherName: teacherName(record),
     academicLabel: record.chapter
@@ -53,17 +54,21 @@ function mapResource(record: ResourceSearchRecord) {
   };
 }
 
-export async function searchStudentResources(query: ResourceSearchQuery) {
+export async function searchStudentResources(query: ResourceSearchQuery, userId?: string) {
   const [{ total, rows, page }, facets] = await Promise.all([
     findStudentResourceSearchPage(query),
     findResourceSearchFacets(),
   ]);
-  return { items: rows.map(mapResource), facets, pagination: buildSearchPagination(total, page, query.pageSize) };
+  const profile = userId ? await findStudentProfileIdByUserId(userId) : null;
+  const bookmarkedIds = profile
+    ? new Set(await findBookmarkedResourceIds(profile.id, rows.map((row) => row.id)))
+    : new Set<string>();
+  return { items: rows.map((row) => mapResource(row, bookmarkedIds.has(row.id))), facets, pagination: buildSearchPagination(total, page, query.pageSize) };
 }
 
 export async function searchTeacherResources(userId: string, query: TeacherResourceSearchQuery) {
   const { total, rows, page } = await findTeacherResourceSearchPage(userId, query);
-  return { items: rows.map(mapResource), pagination: buildSearchPagination(total, page, query.pageSize) };
+  return { items: rows.map((row) => mapResource(row)), pagination: buildSearchPagination(total, page, query.pageSize) };
 }
 
 export function getResourceSearchFacets() {
@@ -72,7 +77,7 @@ export function getResourceSearchFacets() {
 
 export async function getTeacherResourceSummary(userId: string) {
   const summary = await findTeacherResourceSummary(userId);
-  return { ...summary, items: summary.recent.map(mapResource) };
+  return { ...summary, items: summary.recent.map((row) => mapResource(row)) };
 }
 
 export type ResourceSearchResultItem = ReturnType<typeof mapResource>;

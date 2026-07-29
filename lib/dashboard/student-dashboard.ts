@@ -5,6 +5,7 @@ import {
   getStudentDashboardSnapshot,
   type DashboardResourceRecord,
 } from "@/repositories/student-dashboard.repository";
+import { resolveStudentResumeHref } from "@/lib/resources/student-learning-query";
 
 const WEEK_IN_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
@@ -25,7 +26,8 @@ export type DashboardResource = {
   };
   subjectName: string | null;
   chapterName: string | null;
-  href: string | null;
+  academicLabel: string;
+  href: string;
 };
 
 export type ContinueLearningItem = DashboardResource & {
@@ -37,6 +39,7 @@ export type ContinueLearningItem = DashboardResource & {
 export type RecentLearningItem = DashboardResource & {
   progressPercent: number;
   progressStatus: string;
+  lastPosition: number | null;
   lastAccessedAt: Date | null;
 };
 
@@ -70,6 +73,7 @@ export type StudentDashboardData = {
   };
   continueLearning: ContinueLearningItem | null;
   recentlyViewed: RecentLearningItem[];
+  continueLearningItems: RecentLearningItem[];
   bookmarks: DashboardResource[];
   recommendations: DashboardResource[];
 };
@@ -81,25 +85,9 @@ export class StudentDashboardNotFoundError extends Error {
   }
 }
 
-function buildResourceHref(resource: DashboardResourceRecord): string | null {
-  if (!resource.chapter) {
-    return null;
-  }
-
-  const { board, classLevel, subject } =
-    resource.chapter.boardClassSubject;
-
-  return [
-    "/student/resources",
-    board.slug,
-    classLevel.slug,
-    subject.slug,
-    resource.chapter.slug,
-    resource.slug,
-  ].join("/");
-}
-
-function mapResource(resource: DashboardResourceRecord): DashboardResource {
+function mapResource(resource: DashboardResourceRecord, lastPosition?: number | null): DashboardResource {
+  const school = resource.chapter?.boardClassSubject;
+  const exam = resource.examTopic?.examSubject;
   return {
     id: resource.id,
     title: resource.title,
@@ -111,9 +99,18 @@ function mapResource(resource: DashboardResourceRecord): DashboardResource {
     durationSeconds: resource.durationSeconds,
     pageCount: resource.pageCount,
     resourceType: resource.resourceType,
-    subjectName: resource.chapter?.boardClassSubject.subject.name ?? null,
-    chapterName: resource.chapter?.name ?? null,
-    href: buildResourceHref(resource),
+    subjectName: school?.subject.name ?? exam?.subject.name ?? null,
+    chapterName: resource.chapter?.name ?? resource.examTopic?.name ?? null,
+    academicLabel: [school?.subject.name ?? exam?.subject.name, resource.chapter?.name ?? resource.examTopic?.name].filter(Boolean).join(" · ") || "Learning resource",
+    href: resolveStudentResumeHref({
+      id: resource.id,
+      slug: resource.slug,
+      format: resource.format,
+      externalUrl: resource.externalUrl,
+      hasReadyPrimaryAsset: resource.assets.some((asset) => asset.status === "READY" && asset.isPrimary),
+      chapter: resource.chapter,
+      lastPosition,
+    }),
   };
 }
 
@@ -184,7 +181,7 @@ export async function getStudentDashboard(
     },
     continueLearning: snapshot.continueLearningProgress
       ? {
-          ...mapResource(snapshot.continueLearningProgress.resource),
+          ...mapResource(snapshot.continueLearningProgress.resource, snapshot.continueLearningProgress.lastPosition),
           progressPercent:
             snapshot.continueLearningProgress.progressPercent,
           lastPosition: snapshot.continueLearningProgress.lastPosition,
@@ -193,9 +190,17 @@ export async function getStudentDashboard(
         }
       : null,
     recentlyViewed: snapshot.recentProgress.map((item) => ({
-      ...mapResource(item.resource),
+      ...mapResource(item.resource, item.lastPosition),
       progressPercent: item.progressPercent,
       progressStatus: item.status,
+      lastPosition: item.lastPosition,
+      lastAccessedAt: item.lastAccessedAt,
+    })),
+    continueLearningItems: snapshot.recentProgress.map((item) => ({
+      ...mapResource(item.resource, item.lastPosition),
+      progressPercent: item.progressPercent,
+      progressStatus: item.status,
+      lastPosition: item.lastPosition,
       lastAccessedAt: item.lastAccessedAt,
     })),
     bookmarks: snapshot.bookmarkRows.map((item) =>
