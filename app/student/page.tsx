@@ -4,7 +4,6 @@ import {
   Bookmark,
   BookOpenCheck,
   CheckCircle2,
-  Clock3,
   Flame,
   LibraryBig,
   Play,

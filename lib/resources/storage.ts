@@ -22,6 +22,7 @@ export interface ResourceStorageProvider {
   upload(input: ResourceStorageUploadInput): Promise<ResourceStorageUploadResult>;
   delete(objectKey: string): Promise<void>;
   getReadUrl(objectKey: string): Promise<string>;
+  readFile(objectKey: string): Promise<Buffer>;
 }
 
 export function computeChecksum(buffer: Buffer) {

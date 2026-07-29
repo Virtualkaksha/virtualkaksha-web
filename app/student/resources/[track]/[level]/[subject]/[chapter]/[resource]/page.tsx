@@ -2,6 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import prisma from "@/lib/prisma";
+import StudentPdfViewer from "@/components/student/StudentPdfViewer";
+import {
+  getCurrentUserIdentity,
+  getStudentResourceProgress,
+  resolveStudentResourceViewerState,
+} from "@/lib/resources/student-resource-service";
 
 import ResourceActions from "./ResourceActions";
 
@@ -76,8 +82,12 @@ function getVimeoEmbedUrl(url: string) {
 
 function ResourceContent({
   resource,
+  viewerState,
+  pageCount,
+  initialPage,
 }: {
   resource: {
+    id: string;
     title: string;
     format:
       | "PDF"
@@ -91,6 +101,9 @@ function ResourceContent({
     externalUrl: string | null;
     textContent: string | null;
   };
+  viewerState: ReturnType<typeof resolveStudentResourceViewerState>;
+  pageCount: number | null;
+  initialPage: number | null;
 }) {
   const sourceUrl = resource.contentUrl ?? resource.externalUrl;
 
@@ -143,6 +156,18 @@ function ResourceContent({
         </video>
       );
     }
+  }
+
+  if (resource.format === "PDF" && viewerState.viewerType === "native") {
+    return (
+      <StudentPdfViewer
+        key={resource.id}
+        resourceId={resource.id}
+        viewerState={viewerState}
+        initialPage={initialPage}
+        pageCount={pageCount}
+      />
+    );
   }
 
   if (
@@ -230,12 +255,24 @@ export default async function ResourceViewerPage({
       slug: true,
       description: true,
       format: true,
+      status: true,
       language: true,
       access: true,
       contentUrl: true,
       externalUrl: true,
       thumbnailUrl: true,
       textContent: true,
+      assets: {
+        where: {
+          isPrimary: true,
+          status: "READY",
+        },
+        select: {
+          id: true,
+          status: true,
+          isPrimary: true,
+        },
+      },
       durationSeconds: true,
       pageCount: true,
       fileSizeBytes: true,
@@ -356,7 +393,27 @@ export default async function ResourceViewerPage({
     take: 6,
   });
 
-  const downloadUrl = selectedResource.contentUrl;
+  const currentUser = await getCurrentUserIdentity();
+  const progressResult = currentUser
+    ? await getStudentResourceProgress({
+        user: currentUser,
+        resourceId: selectedResource.id,
+      })
+    : { ok: false as const, code: "NOT_FOUND" as const, message: "Progress unavailable." };
+  const viewerState = resolveStudentResourceViewerState({
+    resource: {
+      id: selectedResource.id,
+      status: selectedResource.status,
+      format: selectedResource.format,
+      contentUrl: selectedResource.contentUrl,
+      access: selectedResource.access,
+    },
+    asset: selectedResource.assets[0] ?? null,
+  });
+  const downloadUrl =
+    viewerState.viewerType === "native"
+      ? viewerState.sourceUrl
+      : selectedResource.externalUrl ?? selectedResource.contentUrl;
   const duration = formatDuration(selectedResource.durationSeconds);
   const fileSize =
     selectedResource.fileSizeBytes !== null
@@ -461,7 +518,19 @@ export default async function ResourceViewerPage({
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
         <main className="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <ResourceContent resource={selectedResource} />
+          <ResourceContent
+            resource={{
+              id: selectedResource.id,
+              title: selectedResource.title,
+              format: selectedResource.format,
+              contentUrl: selectedResource.contentUrl,
+              externalUrl: selectedResource.externalUrl,
+              textContent: selectedResource.textContent,
+            }}
+            viewerState={viewerState}
+            pageCount={selectedResource.pageCount}
+            initialPage={progressResult.ok ? progressResult.progress.page : null}
+          />
         </main>
 
         <aside className="space-y-6">

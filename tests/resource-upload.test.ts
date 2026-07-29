@@ -13,7 +13,7 @@ type TestFile = {
 const createBufferFile = (name: string, type: string, bytes: Buffer): TestFile => ({
   name,
   type,
-  arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  arrayBuffer: async () => Uint8Array.from(bytes).buffer,
 });
 
 class InMemoryStorage implements ResourceStorageProvider {
@@ -31,6 +31,14 @@ class InMemoryStorage implements ResourceStorageProvider {
 
   async getReadUrl(objectKey: string) {
     return `/files/${objectKey}`;
+  }
+
+  async readFile(objectKey: string) {
+    const uploaded = this.uploaded.find((item) => item.objectKey === objectKey);
+    if (!uploaded) {
+      throw new Error("missing");
+    }
+    return uploaded.buffer;
   }
 }
 
@@ -101,7 +109,6 @@ test("successful upload creates a READY asset", async () => {
 });
 
 test("failed upload does not leave a READY database record", async () => {
-  const storage = new InMemoryStorage();
   const prismaClient = {
     resource: {
       findUnique: async () => ({ id: "res-1", format: "PDF", createdByUserId: "teacher-1", teachers: [] }),
@@ -113,7 +120,7 @@ test("failed upload does not leave a READY database record", async () => {
       delete: async () => undefined,
     },
   };
-  const result = await uploadResourceAsset({ user: { id: "teacher-1", roles: ["TEACHER"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: { providerName: "broken", upload: async () => { throw new Error("boom"); }, delete: async () => undefined, getReadUrl: async () => "" } });
+  const result = await uploadResourceAsset({ user: { id: "teacher-1", roles: ["TEACHER"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: { providerName: "broken", upload: async () => { throw new Error("boom"); }, delete: async () => undefined, getReadUrl: async () => "", readFile: async () => { throw new Error("missing"); } } });
   assert.equal(result.ok, false);
   assert.equal(result.code, "UPLOAD_FAILED");
 });
