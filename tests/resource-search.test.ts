@@ -123,18 +123,18 @@ test("out-of-range pages fetch rows using the clamped final-page offset", () => 
 });
 
 test("READY native PDFs use only the protected student asset URL", () => {
-  assert.equal(resolveResourceSearchHref({ id: "res-1", format: "PDF", contentUrl: "/api/resources/raw-key", externalUrl: "https://example.com/fallback.pdf", hasReadyPrimaryAsset: true, detailUrl: "/student/resources/cbse/class-9/science/force/file" }), "/api/student/resources/res-1/asset");
+  assert.equal(resolveResourceSearchHref({ id: "res-1", format: "PDF", externalUrl: "https://example.com/fallback.pdf", hasReadyPrimaryAsset: true, detailUrl: "/student/resources/cbse/class-9/science/force/file" }), "/api/student/resources/res-1/asset");
 });
 
 test("not-ready native PDFs never fall back to legacy contentUrl", () => {
   for (const status of ["FAILED", "DELETED", "UPLOADING"]) {
-    assert.equal(resolveResourceSearchHref({ id: `res-${status}`, format: "PDF", contentUrl: "/api/resources/raw-key", externalUrl: null, hasReadyPrimaryAsset: false }), "#");
+    assert.equal(resolveResourceSearchHref({ id: `res-${status}`, format: "PDF", externalUrl: null, hasReadyPrimaryAsset: false }), "#");
   }
 });
 
 test("external PDFs use only a legitimate externalUrl", () => {
-  assert.equal(resolveResourceSearchHref({ id: "external", format: "PDF", contentUrl: "/api/resources/raw-key", externalUrl: "https://cdn.example.com/file.pdf", hasReadyPrimaryAsset: false }), "https://cdn.example.com/file.pdf");
-  assert.equal(resolveResourceSearchHref({ id: "missing", format: "PDF", contentUrl: "https://storage.example.com/raw.pdf", externalUrl: null, hasReadyPrimaryAsset: false }), "#");
+  assert.equal(resolveResourceSearchHref({ id: "external", format: "PDF", externalUrl: "https://cdn.example.com/file.pdf", hasReadyPrimaryAsset: false }), "https://cdn.example.com/file.pdf");
+  assert.equal(resolveResourceSearchHref({ id: "missing", format: "PDF", externalUrl: null, hasReadyPrimaryAsset: false }), "#");
 });
 
 test("exam-topic facets are offered only for the selected exam context", () => {

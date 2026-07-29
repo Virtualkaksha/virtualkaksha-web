@@ -1,5 +1,8 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import { STUDENT_RESOURCE_ACCESS } from "./resource-access-policy";
+import {
+  STUDENT_RESOURCE_ACCESS,
+  STUDENT_READABLE_RESOURCE_WHERE,
+} from "./resource-access-policy";
 
 export const RESOURCE_SEARCH_PAGE_SIZE = 12;
 export const RESOURCE_SEARCH_MAX_PAGE_SIZE = 48;
@@ -173,48 +176,12 @@ function academicPredicate(query: Pick<ResourceSearchQuery, "track" | "trackType
   };
 }
 
-const activeAcademicPredicate: Prisma.ResourceWhereInput = {
-  OR: [
-    {
-      chapter: {
-        is: {
-          isActive: true,
-          boardClassSubject: {
-            is: {
-              isActive: true,
-              board: { is: { isActive: true } },
-              classLevel: { is: { isActive: true } },
-              subject: { is: { isActive: true } },
-            },
-          },
-        },
-      },
-    },
-    {
-      examTopic: {
-        is: {
-          isActive: true,
-          examSubject: {
-            is: {
-              isActive: true,
-              exam: { is: { isActive: true } },
-              subject: { is: { isActive: true } },
-            },
-          },
-        },
-      },
-    },
-  ],
-};
-
 export function buildStudentResourceWhere(query: ResourceSearchQuery): Prisma.ResourceWhereInput {
   const search = textPredicate(query.q);
   const academic = academicPredicate(query, true);
   return {
     AND: [
-      { status: "PUBLISHED" },
-      { access: STUDENT_RESOURCE_ACCESS },
-      activeAcademicPredicate,
+      STUDENT_READABLE_RESOURCE_WHERE,
       ...(search ? [search] : []),
       ...(academic ? [academic] : []),
       ...(query.type ? [{ resourceType: { is: { slug: query.type, isActive: true } } }] : []),
@@ -323,7 +290,6 @@ function isExternalHttpUrl(value: string | null | undefined) {
 export function resolveResourceSearchHref(resource: {
   id: string;
   format: string;
-  contentUrl: string | null;
   externalUrl: string | null;
   hasReadyPrimaryAsset: boolean;
   detailUrl?: string | null;
@@ -334,7 +300,6 @@ export function resolveResourceSearchHref(resource: {
   }
   if (resource.detailUrl) return resource.detailUrl;
   if (isExternalHttpUrl(resource.externalUrl)) return resource.externalUrl!;
-  if (isExternalHttpUrl(resource.contentUrl)) return resource.contentUrl!;
   return "#";
 }
 

@@ -7,9 +7,9 @@ import { searchStudentResources } from "@/lib/resources/resource-search";
 import { buildResourceSearchUrl, parseStudentSearchQuery, type RawSearchParams } from "@/lib/resources/resource-search-query";
 
 export default async function StudentResourceSearchPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
-  await requireStudent();
+  const user = await requireStudent();
   const query = parseStudentSearchQuery(await searchParams);
-  const result = await searchStudentResources(query);
+  const result = await searchStudentResources(query, user.id);
   const { page, totalPages, total } = result.pagination;
 
   return (

@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Prisma } from "@/app/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import { STUDENT_READABLE_RESOURCE_WHERE } from "@/lib/resources/resource-access-policy";
 
 const RECENT_RESOURCE_LIMIT = 6;
 const RECOMMENDATION_LIMIT = 6;
@@ -17,12 +18,17 @@ export const dashboardResourceSelect = {
   thumbnailUrl: true,
   durationSeconds: true,
   pageCount: true,
+  externalUrl: true,
   resourceType: {
     select: {
       name: true,
       code: true,
       iconName: true,
     },
+  },
+  assets: {
+    where: { isPrimary: true },
+    select: { id: true, status: true, isPrimary: true },
   },
   chapter: {
     select: {
@@ -46,6 +52,18 @@ export const dashboardResourceSelect = {
               slug: true,
             },
           },
+        },
+      },
+    },
+  },
+  examTopic: {
+    select: {
+      name: true,
+      slug: true,
+      examSubject: {
+        select: {
+          exam: { select: { shortName: true, slug: true } },
+          subject: { select: { name: true, slug: true } },
         },
       },
     },
@@ -139,12 +157,7 @@ export async function getStudentDashboardSnapshot(input: {
 }) {
   const { studentProfileId, weekStartedAt, recommendationContext } = input;
 
-  const recommendationWhere: Prisma.ResourceWhereInput = {
-    status: "PUBLISHED",
-    chapterId: {
-      not: null,
-    },
-    ...(recommendationContext.boardId && recommendationContext.classLevelId
+  const recommendationContextWhere: Prisma.ResourceWhereInput = recommendationContext.boardId && recommendationContext.classLevelId
       ? {
           chapter: {
             is: {
@@ -161,7 +174,17 @@ export async function getStudentDashboardSnapshot(input: {
         }
       : {
           isFeatured: true,
-        }),
+        };
+  const recommendationWhere: Prisma.ResourceWhereInput = {
+    AND: [STUDENT_READABLE_RESOURCE_WHERE, recommendationContextWhere],
+  };
+  const accessibleProgressWhere: Prisma.StudentResourceProgressWhereInput = {
+    studentProfileId,
+    resource: STUDENT_READABLE_RESOURCE_WHERE,
+  };
+  const accessibleBookmarkWhere: Prisma.ResourceBookmarkWhereInput = {
+    studentProfileId,
+    resource: STUDENT_READABLE_RESOURCE_WHERE,
   };
 
   const [
@@ -176,24 +199,24 @@ export async function getStudentDashboardSnapshot(input: {
   ] = await prisma.$transaction([
     prisma.studentResourceProgress.count({
       where: {
-        studentProfileId,
+        ...accessibleProgressWhere,
         status: "COMPLETED",
       },
     }),
     prisma.studentResourceProgress.count({
       where: {
-        studentProfileId,
+        ...accessibleProgressWhere,
         status: "IN_PROGRESS",
       },
     }),
     prisma.resourceBookmark.count({
       where: {
-        studentProfileId,
+        ...accessibleBookmarkWhere,
       },
     }),
     prisma.studentResourceProgress.count({
       where: {
-        studentProfileId,
+        ...accessibleProgressWhere,
         status: "COMPLETED",
         completedAt: {
           gte: weekStartedAt,
@@ -202,11 +225,9 @@ export async function getStudentDashboardSnapshot(input: {
     }),
     prisma.studentResourceProgress.findFirst({
       where: {
-        studentProfileId,
+        ...accessibleProgressWhere,
         status: "IN_PROGRESS",
-        resource: {
-          status: "PUBLISHED",
-        },
+        lastAccessedAt: { not: null },
       },
       orderBy: [
         {
@@ -227,21 +248,17 @@ export async function getStudentDashboardSnapshot(input: {
     }),
     prisma.studentResourceProgress.findMany({
       where: {
-        studentProfileId,
+        ...accessibleProgressWhere,
         lastAccessedAt: {
           not: null,
         },
-        resource: {
-          status: "PUBLISHED",
-        },
       },
       take: RECENT_RESOURCE_LIMIT,
-      orderBy: {
-        lastAccessedAt: "desc",
-      },
+      orderBy: [{ lastAccessedAt: "desc" }, { updatedAt: "desc" }, { id: "asc" }],
       select: {
         status: true,
         progressPercent: true,
+        lastPosition: true,
         lastAccessedAt: true,
         resource: {
           select: dashboardResourceSelect,
@@ -250,10 +267,7 @@ export async function getStudentDashboardSnapshot(input: {
     }),
     prisma.resourceBookmark.findMany({
       where: {
-        studentProfileId,
-        resource: {
-          status: "PUBLISHED",
-        },
+        ...accessibleBookmarkWhere,
       },
       take: BOOKMARK_LIMIT,
       orderBy: {

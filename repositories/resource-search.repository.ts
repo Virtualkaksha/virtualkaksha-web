@@ -19,7 +19,6 @@ export const resourceSearchSelect = {
   format: true,
   access: true,
   status: true,
-  contentUrl: true,
   externalUrl: true,
   thumbnailUrl: true,
   durationSeconds: true,

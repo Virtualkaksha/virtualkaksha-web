@@ -26,8 +26,8 @@ export const studentNavigationItems = [
   { label: "Courses", icon: GraduationCap, href: "/student/courses" },
   { label: "Teachers", icon: UsersRound, href: "/student/teachers" },
   { label: "Institutes", icon: School, href: "/student/coachings" },
-  { label: "Saved", icon: Bookmark, href: "/student/saved" },
-  { label: "Progress", icon: BarChart3, href: "/student/progress" },
+  { label: "Saved", icon: Bookmark, href: "/student/bookmarks" },
+  { label: "Continue Learning", icon: BarChart3, href: "/student/continue-learning" },
 ];
 
 export function isStudentNavigationActive(pathname: string, href: string) {

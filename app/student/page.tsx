@@ -14,6 +14,7 @@ import {
 import EmptyState from "@/app/components/student/dashboard/EmptyState";
 import ResourceCard from "@/app/components/student/dashboard/ResourceCard";
 import StatCard from "@/app/components/student/dashboard/StatCard";
+import StudentResourceCard from "@/components/student/StudentResourceCard";
 import {
   getStudentDashboard,
   StudentDashboardNotFoundError,
@@ -462,19 +463,41 @@ function PersonalizedDashboard({ data }: { data: StudentDashboardData }) {
 
       <section className="space-y-5">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
-            Recently viewed
-          </p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
-            Return to your recent lessons
-          </h2>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
+                Continue Learning
+              </p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+                Return to your recent lessons
+              </h2>
+            </div>
+            <Link href="/student/continue-learning" className="text-sm font-semibold text-blue-700">View all</Link>
+          </div>
         </div>
 
-        <DashboardResourceGrid
-          resources={data.recentlyViewed}
-          emptyTitle="No recent activity yet"
-          emptyDescription="Resources you open will appear here automatically, ordered by your latest activity."
-        />
+        {data.continueLearningItems.length ? (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {data.continueLearningItems.map((item) => (
+              <StudentResourceCard
+                key={item.id}
+                item={{
+                  ...item,
+                  progress: {
+                    status: item.progressStatus,
+                    percent: item.progressPercent,
+                    lastPosition: item.lastPosition,
+                    lastAccessedAt: item.lastAccessedAt,
+                  },
+                }}
+                bookmarked={false}
+                showBookmark={false}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No recent activity yet" description="Resources you open will appear here automatically, ordered by your latest activity." actionLabel="Browse resources" actionHref="/student/resources" />
+        )}
       </section>
 
       <section className="space-y-5">

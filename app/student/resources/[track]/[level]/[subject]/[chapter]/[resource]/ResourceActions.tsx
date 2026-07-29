@@ -1,15 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import BookmarkButton from "@/components/student/BookmarkButton";
 
 type ResourceActionsProps = {
   title: string;
   downloadUrl: string | null;
+  resourceId: string;
+  initialBookmarked: boolean;
+  showBookmark: boolean;
 };
 
 export default function ResourceActions({
   title,
   downloadUrl,
+  resourceId,
+  initialBookmarked,
+  showBookmark,
 }: ResourceActionsProps) {
   const [shareLabel, setShareLabel] = useState("Share");
 
@@ -43,6 +50,7 @@ export default function ResourceActions({
 
   return (
     <div className="flex w-full flex-wrap gap-3 lg:w-auto lg:justify-end">
+      {showBookmark ? <BookmarkButton resourceId={resourceId} initialBookmarked={initialBookmarked} /> : null}
       <button
         type="button"
         onClick={handleShare}
