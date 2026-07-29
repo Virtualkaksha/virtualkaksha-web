@@ -2,11 +2,11 @@ import Link from "next/link";
 import { ArrowRight, BookOpenCheck, Clock3, Eye, FileText } from "lucide-react";
 
 import { requireTeacher } from "@/lib/auth/session";
-import { getTeacherCms } from "@/lib/teacher/teacher-cms";
+import { getTeacherDashboardCms } from "@/lib/teacher/teacher-cms";
 
 export default async function TeacherDashboardPage() {
   const user = await requireTeacher();
-  const cms = await getTeacherCms(user.id);
+  const cms = await getTeacherDashboardCms(user.id);
 
   return (
     <main className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">

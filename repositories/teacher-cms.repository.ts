@@ -2,8 +2,8 @@ import "server-only";
 
 import prisma from "@/lib/prisma";
 
-export async function findTeacherWorkspace(userId: string) {
-  const [teacherProfile, resourceTypes, chapters, resources] = await Promise.all([
+export async function findTeacherWorkspaceMetadata(userId: string) {
+  const [teacherProfile, resourceTypes, chapters] = await Promise.all([
     prisma.teacherProfile.findUnique({
       where: { userId },
       select: {
@@ -55,42 +55,9 @@ export async function findTeacherWorkspace(userId: string) {
         },
       },
     }),
-    prisma.resource.findMany({
-      where: {
-        OR: [
-          { createdByUserId: userId },
-          { teachers: { some: { teacherProfile: { userId } } } },
-        ],
-        status: { not: "ARCHIVED" },
-      },
-      orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        format: true,
-        access: true,
-        updatedAt: true,
-        viewCount: true,
-        moderationNote: true,
-        resourceType: { select: { name: true } },
-        chapter: {
-          select: {
-            name: true,
-            boardClassSubject: {
-              select: {
-                board: { select: { shortName: true } },
-                classLevel: { select: { name: true } },
-                subject: { select: { name: true } },
-              },
-            },
-          },
-        },
-      },
-    }),
   ]);
 
-  return { teacherProfile, resourceTypes, chapters, resources };
+  return { teacherProfile, resourceTypes, chapters };
 }
 
 export async function findEditableTeacherResource(resourceId: string, userId: string) {
