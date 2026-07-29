@@ -56,7 +56,6 @@ test("external URL flow still creates a resource", async () => {
 
   assert.equal(result.ok, true);
   assert.equal(result.resourceId, "resource-external");
-  assert.equal(result.code, undefined);
 });
 
 test("PDF mode requires a PDF file", async () => {

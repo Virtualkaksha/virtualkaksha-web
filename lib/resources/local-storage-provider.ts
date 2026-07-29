@@ -1,5 +1,5 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { mkdir, readFile as readFileFromDisk, rm, writeFile } from "node:fs/promises";
+import { join, normalize, relative, resolve } from "node:path";
 
 import type { ResourceStorageProvider, ResourceStorageUploadInput, ResourceStorageUploadResult } from "./storage";
 import { computeChecksum } from "./storage";
@@ -12,6 +12,15 @@ function resolveDefaultRootPath() {
 
   const currentDir = process.cwd();
   return join(currentDir, "storage", "resources");
+}
+
+function sanitizeObjectKey(objectKey: string) {
+  const normalized = normalize(objectKey).replace(/^\\+/, "");
+  if (!normalized || normalized.includes("..") || normalized.startsWith("/")) {
+    throw new Error("Invalid object key.");
+  }
+
+  return normalized;
 }
 
 export class LocalResourceStorageProvider implements ResourceStorageProvider {
@@ -37,10 +46,28 @@ export class LocalResourceStorageProvider implements ResourceStorageProvider {
   }
 
   async delete(objectKey: string): Promise<void> {
-    await rm(join(this.rootPath, objectKey), { force: true });
+    await rm(this.resolveStoragePath(objectKey), { force: true });
   }
 
   async getReadUrl(objectKey: string): Promise<string> {
     return `/api/resources/${objectKey}`;
+  }
+
+  async readFile(objectKey: string): Promise<Buffer> {
+    const targetPath = this.resolveStoragePath(objectKey);
+    return readFileFromDisk(targetPath);
+  }
+
+  private resolveStoragePath(objectKey: string) {
+    const safeObjectKey = sanitizeObjectKey(objectKey);
+    const rootPath = resolve(this.rootPath);
+    const targetPath = resolve(rootPath, safeObjectKey);
+    const relativePath = relative(rootPath, targetPath);
+
+    if (relativePath.startsWith("..") || relativePath === ".." || relativePath.includes("..")) {
+      throw new Error("Invalid object key.");
+    }
+
+    return targetPath;
   }
 }

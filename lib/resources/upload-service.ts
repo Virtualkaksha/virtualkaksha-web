@@ -27,15 +27,6 @@ type ResourceLookup = {
 
 type ResourceAssetRecord = {
   id: string;
-  resourceId: string;
-  provider: string;
-  objectKey: string;
-  originalFileName: string;
-  mimeType: string;
-  sizeBytes: bigint;
-  checksum: string | null;
-  status: string;
-  isPrimary: boolean;
 };
 
 type UploadDependencies = {
