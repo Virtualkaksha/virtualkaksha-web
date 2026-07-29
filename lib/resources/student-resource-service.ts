@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { STUDENT_RESOURCE_ACCESS } from "./resource-access-policy";
+
 export type StudentUser = {
   id: string;
   roles: string[];
@@ -119,7 +121,7 @@ function resourceAccessError(resource: Pick<ResourceLike, "status" | "format" | 
     return { ok: false as const, code: "RESOURCE_UNAVAILABLE" as const, message: "This PDF is not available yet." };
   }
 
-  if (resource.access !== "FREE") {
+  if (resource.access !== STUDENT_RESOURCE_ACCESS) {
     return { ok: false as const, code: "FORBIDDEN" as const, message: "You do not have access to this resource." };
   }
 
