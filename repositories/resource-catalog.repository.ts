@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Prisma } from "@/app/generated/prisma/client";
 import prisma from "@/lib/prisma";
+import { buildBoardClassSubjectWhere } from "@/lib/resources/resource-catalog-query";
 
 const boardSelect = {
   id: true,
@@ -248,15 +249,16 @@ export function findBoardClassCatalogBySlug(
 
 export function findBoardClassSubjects(
   boardSlug: string,
-  classSlug: string,
+  classSlug: string | undefined,
 ): Promise<BoardClassSubjectCatalogRecord[]> {
+  const where = buildBoardClassSubjectWhere(boardSlug, classSlug);
+
+  if (!where) {
+    return Promise.resolve([]);
+  }
+
   return prisma.boardClassSubject.findMany({
-    where: {
-      isActive: true,
-      board: { slug: boardSlug, isActive: true },
-      classLevel: { slug: classSlug, isActive: true },
-      subject: { isActive: true },
-    },
+    where,
     orderBy: [
       { subject: { sortOrder: "asc" } },
       { subject: { name: "asc" } },

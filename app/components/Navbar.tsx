@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Navbar() {
   return (
     <nav className="w-full bg-white shadow-md sticky top-0 z-50">
@@ -16,9 +18,9 @@ export default function Navbar() {
           <a href="#">Contact</a>
         </div>
 
-        <button className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700">
+        <Link href="/login" className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700">
           Login
-        </button>
+        </Link>
 
       </div>
     </nav>
