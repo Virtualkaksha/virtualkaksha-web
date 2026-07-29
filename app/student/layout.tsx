@@ -2,12 +2,15 @@ import type { ReactNode } from "react";
 
 import StudentSidebar from "../components/student/StudentSidebar";
 import StudentTopbar from "../components/student/StudentTopbar";
+import { requireStudent } from "@/lib/auth/session";
 
 type StudentLayoutProps = {
   children: ReactNode;
 };
 
-export default function StudentLayout({ children }: StudentLayoutProps) {
+export default async function StudentLayout({ children }: StudentLayoutProps) {
+  await requireStudent();
+
   return (
     <div className="min-h-screen bg-[#f7f8fa]">
       <div className="flex min-h-screen">

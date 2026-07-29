@@ -35,7 +35,7 @@ export default function LoginForm() {
           autoComplete="email"
           required
           className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-          placeholder="student@example.com"
+          placeholder="you@example.com"
         />
         {state.fieldErrors?.email?.map((message) => (
           <p key={message} className="mt-1.5 text-xs font-medium text-red-600">

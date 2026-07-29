@@ -1,13 +1,15 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { Prisma } from "@/app/generated/prisma/client";
 
-import { signIn } from "@/auth";
+import { signIn, signOut } from "@/auth";
 import { hashPassword } from "@/lib/auth/password";
+import { resolvePostLoginRedirect } from "@/lib/auth/role-routing";
 import { loginSchema, signupSchema } from "@/lib/auth/validation";
-import { createStudentUser } from "@/repositories/auth.repository";
+import { createStudentUser, findAuthUserByEmail } from "@/repositories/auth.repository";
 
 export type AuthActionState = {
   status: "idle" | "error";
@@ -15,7 +17,11 @@ export type AuthActionState = {
   fieldErrors?: Record<string, string[]>;
 };
 
-async function getSafeLoginRedirect(formData: FormData): Promise<string> {
+export async function logoutAction() {
+  await signOut({ redirectTo: "/login" });
+}
+
+async function getRequestedLoginRedirect(formData: FormData) {
   const requestHeaders = await headers();
   const referer = requestHeaders.get("referer");
 
@@ -37,7 +43,7 @@ async function getSafeLoginRedirect(formData: FormData): Promise<string> {
   }
 
   if (typeof callbackUrl !== "string" || !callbackUrl.trim()) {
-    return "/student";
+    return { callbackUrl: null, applicationOrigin };
   }
 
   const normalizedCallbackUrl = callbackUrl.trim();
@@ -47,7 +53,7 @@ async function getSafeLoginRedirect(formData: FormData): Promise<string> {
     normalizedCallbackUrl.startsWith("/") &&
     !normalizedCallbackUrl.startsWith("//")
   ) {
-    return normalizedCallbackUrl;
+    return { callbackUrl: normalizedCallbackUrl, applicationOrigin };
   }
 
   // Allow absolute callback URLs only when they belong to this application.
@@ -58,13 +64,13 @@ async function getSafeLoginRedirect(formData: FormData): Promise<string> {
       applicationOrigin &&
       parsedCallbackUrl.origin === applicationOrigin
     ) {
-      return `${parsedCallbackUrl.pathname}${parsedCallbackUrl.search}${parsedCallbackUrl.hash}`;
+      return { callbackUrl: parsedCallbackUrl.toString(), applicationOrigin };
     }
   } catch {
-    return "/student";
+    return { callbackUrl: null, applicationOrigin };
   }
 
-  return "/student";
+  return { callbackUrl: null, applicationOrigin };
 }
 
 export async function loginAction(
@@ -84,17 +90,13 @@ export async function loginAction(
     };
   }
 
-  const redirectTo = await getSafeLoginRedirect(formData);
+  const requestedRedirect = await getRequestedLoginRedirect(formData);
 
   try {
     await signIn("credentials", {
       ...parsed.data,
-      redirectTo,
+      redirect: false,
     });
-
-    return {
-      status: "idle",
-    };
   } catch (error) {
     if (error instanceof AuthError) {
       return {
@@ -105,6 +107,17 @@ export async function loginAction(
 
     throw error;
   }
+
+  const authenticatedUser = await findAuthUserByEmail(parsed.data.email);
+  const roles = authenticatedUser?.status === "ACTIVE"
+    ? authenticatedUser.roles.map(({ role }) => role.name)
+    : [];
+
+  redirect(resolvePostLoginRedirect(
+    roles,
+    requestedRedirect.callbackUrl,
+    requestedRedirect.applicationOrigin,
+  ));
 }
 
 export async function signupAction(

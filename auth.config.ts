@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import type { RoleName } from "@/app/generated/prisma/enums";
+import { getAuthenticatedRouteRedirect } from "@/lib/auth/role-routing";
 
 function getRoles(value: unknown): RoleName[] {
   if (!Array.isArray(value)) {
@@ -31,29 +32,15 @@ export const authConfig = {
       const roles = getRoles(auth?.user?.roles);
       const isAuthenticated = Boolean(userId);
 
-      const isStudentRoute = nextUrl.pathname.startsWith("/student");
-      const isAdminRoute = nextUrl.pathname.startsWith("/admin");
-      const isAuthRoute =
-        nextUrl.pathname === "/login" ||
-        nextUrl.pathname === "/signup";
+      const destination = getAuthenticatedRouteRedirect(
+        nextUrl.pathname,
+        isAuthenticated,
+        roles,
+      );
 
-      if (isStudentRoute) {
-        return isAuthenticated && roles.includes("STUDENT");
-      }
-
-      if (isAdminRoute) {
-        return isAuthenticated && roles.includes("ADMIN");
-      }
-
-      if (isAuthRoute && isAuthenticated) {
-        const destination = roles.includes("ADMIN")
-          ? "/admin"
-          : "/student";
-
-        return Response.redirect(new URL(destination, nextUrl));
-      }
-
-      return true;
+      return destination
+        ? Response.redirect(new URL(destination, nextUrl))
+        : true;
     },
 
     jwt({ token, user }) {

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Menu, Search, X } from "lucide-react";
+import { Bell, LogOut, Menu, Search, X } from "lucide-react";
 import { useState } from "react";
 
 import { isStudentNavigationActive, studentNavigationItems } from "./StudentSidebar";
+import { logoutAction } from "@/app/(auth)/actions";
 
 export default function StudentTopbar() {
   const pathname = usePathname();
@@ -71,6 +72,12 @@ export default function StudentTopbar() {
                 );
               })}
             </nav>
+            <form action={logoutAction} className="mt-5 border-t border-slate-200 pt-4">
+              <button type="submit" className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-rose-700">
+                <LogOut className="h-[18px] w-[18px]" />
+                Logout
+              </button>
+            </form>
           </aside>
         </div>
       ) : null}

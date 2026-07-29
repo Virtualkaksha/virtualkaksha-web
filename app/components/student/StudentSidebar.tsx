@@ -9,6 +9,7 @@ import {
   GraduationCap,
   Home,
   LibraryBig,
+  LogOut,
   PlaySquare,
   School,
   Settings,
@@ -16,6 +17,8 @@ import {
   UserRound,
   UsersRound,
 } from "lucide-react";
+
+import { logoutAction } from "@/app/(auth)/actions";
 
 export const studentNavigationItems = [
   { label: "Dashboard", icon: Home, href: "/student" },
@@ -83,6 +86,12 @@ export default function StudentSidebar() {
             <Settings className="h-[18px] w-[18px]" aria-hidden="true" />
             Settings
           </Link>
+          <form action={logoutAction}>
+            <button type="submit" className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-rose-700">
+              <LogOut className="h-[18px] w-[18px]" aria-hidden="true" />
+              Logout
+            </button>
+          </form>
         </div>
       </div>
     </aside>
