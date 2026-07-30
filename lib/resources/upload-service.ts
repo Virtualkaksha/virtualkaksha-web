@@ -1,4 +1,6 @@
-import { LocalResourceStorageProvider } from "./local-storage-provider";
+import { randomUUID } from "node:crypto";
+
+import { createResourceStorageProvider } from "./storage-provider-factory";
 import { computeChecksum } from "./storage";
 import type { ResourceStorageProvider } from "./storage";
 
@@ -54,9 +56,8 @@ function sanitizeFileName(fileName: string) {
 }
 
 function buildObjectKey(resourceId: string, fileName: string) {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const safeName = sanitizeFileName(fileName).toLowerCase();
-  return `resources/${resourceId}/${timestamp}-${safeName}`;
+  sanitizeFileName(fileName);
+  return `resources/${resourceId}/${randomUUID()}.pdf`;
 }
 
 async function readFileBuffer(file: UploadFileLike) {
@@ -109,9 +110,8 @@ export async function uploadResourceAsset({ user, resourceId, file }: UploadReso
 
   const runtimePrismaClient = dependencies.prismaClient ?? (await import("@/lib/prisma").then((mod) => mod.default));
   const prismaClient = runtimePrismaClient as NonNullable<typeof dependencies.prismaClient>;
-  const storage = dependencies.storageProvider ?? new LocalResourceStorageProvider();
-
   try {
+    const storage = dependencies.storageProvider ?? createResourceStorageProvider();
     const resource = await prismaClient.resource.findUnique({
       where: { id: resourceId },
       select: {
@@ -144,13 +144,12 @@ export async function uploadResourceAsset({ user, resourceId, file }: UploadReso
     }
 
     const objectKey = buildObjectKey(resourceId, file.name);
-    const provider = process.env.RESOURCE_STORAGE_PROVIDER ?? "local";
     const mimeType = "application/pdf";
 
     const asset = await prismaClient.resourceAsset.create({
       data: {
         resourceId,
-        provider,
+        provider: storage.providerName,
         objectKey,
         originalFileName: file.name,
         mimeType,

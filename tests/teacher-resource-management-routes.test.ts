@@ -53,12 +53,43 @@ test("non-PDF, non-ready, unsupported and missing assets fail safely", async () 
   for (const resource of [
     { ...readyPdf, format: "VIDEO" },
     { ...readyPdf, assets: [{ ...readyPdf.assets[0], status: "FAILED" }] },
-    { ...readyPdf, assets: [{ ...readyPdf.assets[0], provider: "s3" }] },
+    { ...readyPdf, assets: [{ ...readyPdf.assets[0], provider: "public-url" }] },
     { ...readyPdf, assets: [] },
   ]) {
     const response = await handleTeacherAssetRequest("resource-1", {
       getCurrentUser: async () => ({ id: "teacher-1", roles: ["TEACHER"] }),
       findResource: async () => resource,
+    });
+    assert.equal(response.status, 404);
+  }
+});
+
+test("creator-owned S3 PDF is read through the protected teacher response", async () => {
+  const response = await handleTeacherAssetRequest("resource-1", {
+    getCurrentUser: async () => ({ id: "teacher-1", roles: ["TEACHER"] }),
+    findResource: async () => ({ ...readyPdf, assets: [{ ...readyPdf.assets[0], provider: "s3" }] }),
+    readFile: async (provider, objectKey) => {
+      assert.equal(provider, "s3");
+      assert.equal(objectKey, readyPdf.assets[0].objectKey);
+      return Buffer.from("%PDF-private-s3");
+    },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/pdf");
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+});
+
+test("missing and non-PDF S3 objects fail safely", async () => {
+  const resource = { ...readyPdf, assets: [{ ...readyPdf.assets[0], provider: "s3" }] };
+  for (const readFile of [
+    async () => { throw new Error("NoSuchKey"); },
+    async () => Buffer.from("not-a-pdf"),
+  ]) {
+    const response = await handleTeacherAssetRequest("resource-1", {
+      getCurrentUser: async () => ({ id: "teacher-1", roles: ["TEACHER"] }),
+      findResource: async () => resource,
+      readFile,
     });
     assert.equal(response.status, 404);
   }

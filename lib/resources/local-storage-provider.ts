@@ -1,8 +1,9 @@
 import { mkdir, readFile as readFileFromDisk, rm, writeFile } from "node:fs/promises";
-import { join, normalize, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 
 import type { ResourceStorageProvider, ResourceStorageUploadInput, ResourceStorageUploadResult } from "./storage";
 import { computeChecksum } from "./storage";
+import { validateStorageObjectKey } from "./storage";
 
 function resolveDefaultRootPath() {
   const configuredPath = process.env.LOCAL_RESOURCE_STORAGE_PATH;
@@ -12,15 +13,6 @@ function resolveDefaultRootPath() {
 
   const currentDir = process.cwd();
   return join(currentDir, "storage", "resources");
-}
-
-function sanitizeObjectKey(objectKey: string) {
-  const normalized = normalize(objectKey).replace(/^\\+/, "");
-  if (!normalized || normalized.includes("..") || normalized.startsWith("/")) {
-    throw new Error("Invalid object key.");
-  }
-
-  return normalized;
 }
 
 export class LocalResourceStorageProvider implements ResourceStorageProvider {
@@ -59,7 +51,7 @@ export class LocalResourceStorageProvider implements ResourceStorageProvider {
   }
 
   private resolveStoragePath(objectKey: string) {
-    const safeObjectKey = sanitizeObjectKey(objectKey);
+    const safeObjectKey = validateStorageObjectKey(objectKey);
     const rootPath = resolve(this.rootPath);
     const targetPath = resolve(rootPath, safeObjectKey);
     const relativePath = relative(rootPath, targetPath);

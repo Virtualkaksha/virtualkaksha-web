@@ -4,6 +4,7 @@ import {
   STUDENT_RESOURCE_ACCESS,
   STUDENT_READABLE_RESOURCE_WHERE,
 } from "./resource-access-policy";
+import { isSupportedResourceStorageProviderName } from "./storage";
 
 export type StudentUser = {
   id: string;
@@ -209,7 +210,7 @@ export function authorizeStudentResourceAssetAccess({
   if (!asset || asset.status !== "READY" || !asset.isPrimary) {
     return { ok: false, code: "ASSET_NOT_READY", message: "This PDF is not ready to view yet." };
   }
-  if (asset.provider !== "local") {
+  if (!asset.provider || !isSupportedResourceStorageProviderName(asset.provider)) {
     return { ok: false, code: "UNSUPPORTED_PROVIDER", message: "This PDF storage provider is not supported." };
   }
   if (!asset.mimeType || !PDF_MIME_TYPES.has(asset.mimeType.toLowerCase())) {

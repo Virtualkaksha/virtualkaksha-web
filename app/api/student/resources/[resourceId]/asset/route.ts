@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { LocalResourceStorageProvider } from "@/lib/resources/local-storage-provider";
+import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
 import {
   authorizeStudentResourceAssetAccess,
   getCurrentUserIdentity,
@@ -25,6 +25,7 @@ type AssetResource = {
 type AssetRouteDependencies = {
   getCurrentUser?: () => Promise<StudentUser | null>;
   findResource?: (resourceId: string) => Promise<AssetResource | null>;
+  readFile?: (provider: string, objectKey: string) => Promise<Buffer>;
   readLocalFile?: (objectKey: string) => Promise<Buffer>;
 };
 
@@ -63,8 +64,10 @@ export async function handleStudentAssetRequest(resourceId: string, dependencies
     return NextResponse.json({ error: authorization.message }, { status: accessStatus(authorization.code) });
   }
 
-  const readLocalFile = dependencies.readLocalFile ?? ((objectKey: string) => new LocalResourceStorageProvider().readFile(objectKey));
-  const buffer = await readLocalFile(asset!.objectKey).catch(() => null);
+  const readFile = dependencies.readFile
+    ?? (dependencies.readLocalFile ? (_provider: string, objectKey: string) => dependencies.readLocalFile!(objectKey) : null)
+    ?? ((provider: string, objectKey: string) => createResourceStorageProvider(provider).readFile(objectKey));
+  const buffer = await readFile(asset!.provider!, asset!.objectKey).catch(() => null);
   if (!buffer || !buffer.subarray(0, 4).equals(Buffer.from("%PDF"))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

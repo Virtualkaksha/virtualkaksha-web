@@ -79,12 +79,19 @@ test("missing and non-READY assets are rejected", () => {
 });
 
 test("unsupported provider and invalid MIME are rejected", () => {
-  const provider = authorizeStudentResourceAssetAccess({ user: student, resource: publishedPdf, asset: { ...readyAsset, provider: "s3" } });
+  const provider = authorizeStudentResourceAssetAccess({ user: student, resource: publishedPdf, asset: { ...readyAsset, provider: "public-url" } });
   const mime = authorizeStudentResourceAssetAccess({ user: student, resource: publishedPdf, asset: { ...readyAsset, mimeType: "text/html" } });
   assert.equal(provider.ok, false);
   assert.equal(provider.code, "UNSUPPORTED_PROVIDER");
   assert.equal(mime.ok, false);
   assert.equal(mime.code, "INVALID_ASSET");
+});
+
+test("S3 assets retain the same protected student URL", () => {
+  const result = authorizeStudentResourceAssetAccess({ user: student, resource: publishedPdf, asset: { ...readyAsset, provider: "s3" } });
+  assert.equal(result.ok, true);
+  if (!result.ok) assert.fail("Expected S3 asset authorization to succeed.");
+  assert.equal(result.readUrl, "/api/student/resources/res-1/asset");
 });
 
 test("READY published local PDF resolves to the protected URL", () => {

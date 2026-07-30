@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { getCurrentUserIdentity, type StudentUser } from "@/lib/resources/student-resource-service";
-import { LocalResourceStorageProvider } from "@/lib/resources/local-storage-provider";
+import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
+import { isSupportedResourceStorageProviderName } from "@/lib/resources/storage";
 
 type TeacherAssetResource = {
   id: string;
@@ -14,6 +15,7 @@ type Dependencies = {
   getCurrentUser?: () => Promise<StudentUser | null>;
   findResource?: (resourceId: string) => Promise<TeacherAssetResource | null>;
   readLocalFile?: (objectKey: string) => Promise<Buffer>;
+  readFile?: (provider: string, objectKey: string) => Promise<Buffer>;
 };
 
 function error(status: number) {
@@ -47,10 +49,12 @@ export async function handleTeacherAssetRequest(resourceId: string, dependencies
   if (!user.roles.includes("ADMIN") && resource.createdByUserId !== user.id) return error(404);
   const asset = resource.assets[0];
   if (resource.format !== "PDF" || !asset || asset.status !== "READY" || !asset.isPrimary) return error(404);
-  if (asset.provider !== "local" || !["application/pdf", "application/x-pdf"].includes(asset.mimeType.toLowerCase())) return error(404);
+  if (!isSupportedResourceStorageProviderName(asset.provider) || !["application/pdf", "application/x-pdf"].includes(asset.mimeType.toLowerCase())) return error(404);
 
-  const readLocalFile = dependencies.readLocalFile ?? ((objectKey: string) => new LocalResourceStorageProvider().readFile(objectKey));
-  const buffer = await readLocalFile(asset.objectKey).catch(() => null);
+  const readFile = dependencies.readFile
+    ?? (dependencies.readLocalFile ? (_provider: string, objectKey: string) => dependencies.readLocalFile!(objectKey) : null)
+    ?? ((provider: string, objectKey: string) => createResourceStorageProvider(provider).readFile(objectKey));
+  const buffer = await readFile(asset.provider, asset.objectKey).catch(() => null);
   if (!buffer || !buffer.subarray(0, 4).equals(Buffer.from("%PDF"))) return error(404);
 
   return new NextResponse(new Uint8Array(buffer), {
