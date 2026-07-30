@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import {
   transitionAdminResource,
 } from "@/lib/admin/resource-moderation-policy";
+import { limitAdminModeration, type AdminModerationAction } from "@/lib/admin/moderation-rate-limit";
 import prisma from "@/lib/prisma";
 
 function field(formData: FormData, name: string) {
@@ -27,9 +28,15 @@ async function refresh(resourceId: string) {
   if (chapter) revalidatePath(`/student/resources/${chapter.boardClassSubject.board.slug}/${chapter.boardClassSubject.classLevel.slug}/${chapter.boardClassSubject.subject.slug}/${chapter.slug}`);
 }
 
+async function enforceAdminMutation(adminId: string, resourceId: string, action: AdminModerationAction) {
+  const result = await limitAdminModeration(adminId, resourceId, action);
+  if (!result.allowed) redirect(`/admin/resources/${resourceId}?rateLimited=true&retryAfter=${result.retryAfterSeconds}`);
+}
+
 export async function approveResource(formData: FormData) {
   const admin = await requireAdmin(); const resourceId = field(formData, "resourceId");
   if (!resourceId) throw new Error("Resource ID is required.");
+  await enforceAdminMutation(admin.id, resourceId, "APPROVE");
   await transitionAdminResource(
     { resourceId, adminId: admin.id, action: "APPROVE" },
     (update) => prisma.resource.updateMany(update),
@@ -41,6 +48,7 @@ export async function rejectResource(formData: FormData) {
   const admin = await requireAdmin(); const resourceId = field(formData, "resourceId"); const reason = field(formData, "reason");
   if (!resourceId) throw new Error("Resource ID is required.");
   if (reason.length < 10) throw new Error("Rejection reason must contain at least 10 characters.");
+  await enforceAdminMutation(admin.id, resourceId, "REJECT");
   await transitionAdminResource(
     { resourceId, adminId: admin.id, action: "REJECT", reason },
     (update) => prisma.resource.updateMany(update),
@@ -51,6 +59,7 @@ export async function rejectResource(formData: FormData) {
 export async function archiveResource(formData: FormData) {
   const admin = await requireAdmin(); const resourceId = field(formData, "resourceId");
   if (!resourceId) throw new Error("Resource ID is required.");
+  await enforceAdminMutation(admin.id, resourceId, "ARCHIVE");
   await transitionAdminResource(
     { resourceId, adminId: admin.id, action: "ARCHIVE" },
     (update) => prisma.resource.updateMany(update),

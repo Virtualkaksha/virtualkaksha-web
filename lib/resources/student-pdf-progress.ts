@@ -48,3 +48,17 @@ export async function postStudentPdfProgress(
     body: JSON.stringify(payload),
   });
 }
+
+export function getStudentPdfProgressRetryAfterMs(response: Response, now = Date.now()) {
+  if (response.status !== 429) return 0;
+  const value = response.headers.get("retry-after")?.trim();
+  if (!value) return 1_000;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(86_400_000, Math.max(1_000, Math.ceil(seconds * 1_000)));
+  }
+  const resetAt = Date.parse(value);
+  return Number.isFinite(resetAt)
+    ? Math.min(86_400_000, Math.max(1_000, resetAt - now))
+    : 1_000;
+}

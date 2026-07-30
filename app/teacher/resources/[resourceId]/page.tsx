@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { requireTeacher } from "@/lib/auth/session";
 import { getTeacherManagedResource, validExternalHttpUrl } from "@/lib/teacher/resource-management";
 import { archiveTeacherResource, resubmitTeacherResource, submitTeacherResource, unpublishTeacherResource } from "../actions";
+import MutationSubmitButton from "@/components/MutationSubmitButton";
 
-type Props = { params: Promise<{ resourceId: string }>; searchParams: Promise<{ updated?: string; error?: string }> };
+type Props = { params: Promise<{ resourceId: string }>; searchParams: Promise<{ updated?: string; error?: string; retryAfter?: string }> };
 
 export default async function TeacherResourceDetailPage({ params, searchParams }: Props) {
   const user = await requireTeacher();
@@ -18,7 +19,7 @@ export default async function TeacherResourceDetailPage({ params, searchParams }
   return <main className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
     <Link href="/teacher/resources" className="text-sm font-semibold text-blue-700">← My Resources</Link>
     {query.updated === "true" ? <p className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">Resource updated successfully.</p> : null}
-    {query.error ? <p className="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">This resource cannot be edited in its current state.</p> : null}
+    {query.error === "rate-limited" ? <p className="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">Too many requests. Please wait before trying again.{query.retryAfter ? ` Retry in about ${query.retryAfter} seconds.` : ""}</p> : query.error ? <p className="rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-800">This resource cannot be edited in its current state.</p> : null}
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-sm font-semibold text-blue-700">{resource.status.replaceAll("_", " ")}</p><h1 className="mt-2 text-3xl font-bold text-slate-950">{resource.title}</h1>{resource.titleHindi ? <p className="mt-2 text-lg text-slate-600">{resource.titleHindi}</p> : null}</div><div className="flex flex-wrap gap-2">{resource.actions.includes("EDIT") ? <Link href={`/teacher/resources/${resource.id}/edit`} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold">Edit</Link> : null}<StatusActions resourceId={resource.id} actions={resource.actions}/></div></div>
       {resource.description ? <p className="mt-6 leading-7 text-slate-600">{resource.description}</p> : null}
@@ -35,5 +36,5 @@ function StatusActions({ resourceId, actions }: { resourceId: string; actions: r
   const forms = [
     ["SUBMIT", "Submit", submitTeacherResource], ["RESUBMIT", "Resubmit", resubmitTeacherResource], ["UNPUBLISH", "Unpublish", unpublishTeacherResource], ["ARCHIVE", "Archive", archiveTeacherResource],
   ] as const;
-  return <>{forms.filter(([key]) => actions.includes(key)).map(([key, label, action]) => <form action={action} key={key}><input type="hidden" name="resourceId" value={resourceId}/><button type="submit" className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold">{label}</button></form>)}</>;
+  return <>{forms.filter(([key]) => actions.includes(key)).map(([key, label, action]) => <form action={action} key={key}><input type="hidden" name="resourceId" value={resourceId}/><MutationSubmitButton className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold">{label}</MutationSubmitButton></form>)}</>;
 }

@@ -8,6 +8,7 @@ import type { ResourceViewerState } from "@/lib/resources/student-resource-servi
 import {
   buildStudentPdfProgressPayload,
   buildStudentPdfViewerUrl,
+  getStudentPdfProgressRetryAfterMs,
   postStudentPdfProgress,
   STUDENT_PDF_PROGRESS_SAVE_DELAY_MS,
 } from "@/lib/resources/student-pdf-progress";
@@ -41,11 +42,13 @@ export default function StudentPdfViewer({ resourceId, viewerState, initialPage 
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [saveRateLimited, setSaveRateLimited] = useState(false);
   const [useIframeFallback, setUseIframeFallback] = useState(false);
   const saveTimerRef = useRef<number | null>(null);
   const pdfLoadTimerRef = useRef<number | null>(null);
   const isPdfLoadingRef = useRef(true);
   const hasChangedPageRef = useRef(false);
+  const progressWriteBlockedUntilRef = useRef(0);
 
   useEffect(() => {
     if (viewerState.viewerType !== "native" || !hasChangedPageRef.current) {
@@ -56,9 +59,23 @@ export default function StudentPdfViewer({ resourceId, viewerState, initialPage 
       window.clearTimeout(saveTimerRef.current);
     }
 
+    if (Date.now() < progressWriteBlockedUntilRef.current) {
+      setSaveRateLimited(true);
+      return undefined;
+    }
+    setSaveRateLimited(false);
+
     saveTimerRef.current = window.setTimeout(() => {
       const payload = buildStudentPdfProgressPayload(resourceId, page, resolvedPageCount);
       void postStudentPdfProgress(fetch, payload).then((response) => {
+        const retryAfterMs = getStudentPdfProgressRetryAfterMs(response);
+        if (retryAfterMs > 0) {
+          progressWriteBlockedUntilRef.current = Date.now() + retryAfterMs;
+          setSaveRateLimited(true);
+          setSaveError(false);
+          return;
+        }
+        setSaveRateLimited(false);
         setSaveError(!response.ok);
       }).catch(() => setSaveError(true));
     }, STUDENT_PDF_PROGRESS_SAVE_DELAY_MS);
@@ -138,6 +155,9 @@ export default function StudentPdfViewer({ resourceId, viewerState, initialPage 
           <p role="status" className="text-xs text-amber-700">
             Your page could not be saved. You can keep reading and try another page.
           </p>
+        ) : null}
+        {saveRateLimited ? (
+          <p role="status" className="text-xs text-slate-500">Reading position will resume saving shortly.</p>
         ) : null}
       </div>
     );
@@ -240,6 +260,9 @@ export default function StudentPdfViewer({ resourceId, viewerState, initialPage 
         <p role="status" className="text-xs text-amber-700">
           Your page could not be saved. You can keep reading and try another page.
         </p>
+      ) : null}
+      {saveRateLimited ? (
+        <p role="status" className="text-xs text-slate-500">Reading position will resume saving shortly.</p>
       ) : null}
     </div>
   );

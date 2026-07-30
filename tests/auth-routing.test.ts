@@ -48,10 +48,12 @@ test("login authenticates before database-role routing without an intermediate s
 
 test("credentials provider still rejects invalid and inactive users and returns database roles", async () => {
   const auth = await readFile("auth.ts", "utf8");
-  assert.match(auth, /if \(!user \|\| !user\.passwordHash \|\| user\.status !== "ACTIVE"\)/);
-  assert.match(auth, /const passwordMatches = await verifyPassword/);
-  assert.match(auth, /if \(!passwordMatches\) \{\s*return null/);
-  assert.match(auth, /roles: user\.roles\.map/);
+  const service = await readFile("lib/auth/credentials-authentication.ts", "utf8");
+  assert.match(auth, /authorize\(rawCredentials, request\)/);
+  assert.match(auth, /authorizeCredentials\(rawCredentials, request\)/);
+  assert.match(service, /user\?\.passwordHash && user\.status === "ACTIVE"/);
+  assert.match(service, /DUMMY_PASSWORD_HASH/);
+  assert.match(service, /roles: usableUser\.roles\.map/);
 });
 
 test("signup remains explicitly student-only", async () => {
@@ -60,7 +62,10 @@ test("signup remains explicitly student-only", async () => {
   assert.match(repository, /name: "STUDENT"/);
   assert.match(repository, /studentProfile:\s*\{\s*create: \{\}/);
   assert.match(action, /export async function signupAction/);
-  assert.match(action, /redirectTo: "\/student"/);
+  assert.match(action, /redirect\("\/login\?signup=received"\)/);
+  assert.doesNotMatch(action, /account with this email already exists/i);
+  const loginPage = await readFile("app/(auth)/login/page.tsx", "utf8");
+  assert.match(loginPage, /If registration could be completed, you can now sign in\./);
 });
 
 test("each authenticated role visiting login is sent to its own home", () => {

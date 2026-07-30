@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getRateLimitAdapter, rateLimitResponse, type RateLimitAdapter } from "@/lib/rate-limit";
 import { mutateStudentBookmark } from "@/lib/resources/student-learning";
 import {
   getCurrentUserIdentity,
@@ -9,6 +10,7 @@ import {
 type BookmarkRouteDependencies = {
   getCurrentUser?: () => Promise<StudentUser | null>;
   mutateBookmark?: typeof mutateStudentBookmark;
+  rateLimit?: RateLimitAdapter;
 };
 
 export function isSameOriginMutation(request: Request) {
@@ -39,6 +41,12 @@ export async function handleBookmarkMutation(
   }
   if (!isSameOriginMutation(request)) {
     return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
+  try {
+    const decision = await (dependencies.rateLimit ?? getRateLimitAdapter()).check("bookmark-user", user.id);
+    if (!decision.allowed && decision.reason !== "backend-unavailable") return rateLimitResponse(decision);
+  } catch {
+    // Bookmark writes intentionally fail open when the distributed limiter is unavailable.
   }
   const result = await (dependencies.mutateBookmark ?? mutateStudentBookmark)({
     user,

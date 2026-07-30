@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import {
   buildStudentPdfProgressPayload,
   buildStudentPdfViewerUrl,
+  getStudentPdfProgressRetryAfterMs,
   postStudentPdfProgress,
   STUDENT_PDF_PROGRESS_SAVE_DELAY_MS,
 } from "@/lib/resources/student-pdf-progress";
@@ -56,6 +57,12 @@ test("unknown page count omits percent and never marks completion", () => {
     completed: false,
   });
   assert.equal("percent" in payload, false);
+});
+
+test("progress Retry-After parsing suppresses writes without aggressive retries", () => {
+  assert.equal(getStudentPdfProgressRetryAfterMs(new Response(null, { status: 200 })), 0);
+  assert.equal(getStudentPdfProgressRetryAfterMs(new Response(null, { status: 429, headers: { "Retry-After": "15" } })), 15_000);
+  assert.equal(getStudentPdfProgressRetryAfterMs(new Response(null, { status: 429 })), 1_000);
 });
 
 test("viewer URL restores the saved page and requests hidden native controls", () => {
@@ -194,6 +201,10 @@ test("viewer source keeps initial load passive and save failure visible", async 
   assert.doesNotMatch(source, /onLoad=\{[^}]*postStudentPdfProgress/);
   assert.match(source, /setSaveError\(!response\.ok\)/);
   assert.match(source, /Your page could not be saved/);
+  assert.match(source, /progressWriteBlockedUntilRef/);
+  assert.match(source, /getStudentPdfProgressRetryAfterMs/);
+  assert.match(source, /Date\.now\(\) < progressWriteBlockedUntilRef\.current/);
+  assert.match(source, /Reading position will resume saving shortly/);
   assert.match(source, /Tracked page navigation/);
   assert.match(source, /Use Previous and Next here to save your reading position/);
 });

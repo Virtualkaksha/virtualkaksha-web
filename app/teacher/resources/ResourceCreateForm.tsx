@@ -150,7 +150,22 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
     }
 
     startTransition(async () => {
-      const result = await action(formData);
+      let result: TeacherResourceActionResult;
+      if (isPdfNativeUpload) {
+        const response = await fetch("/api/teacher/resources", {
+          method: "POST",
+          credentials: "same-origin",
+          body: formData,
+        });
+        if (response.status === 429) {
+          const retryAfter = Math.max(1, Number.parseInt(response.headers.get("retry-after") ?? "1", 10) || 1);
+          result = { ok: false, code: "RATE_LIMITED", message: `Too many requests. Please wait ${retryAfter} seconds before trying again.`, retryable: true };
+        } else {
+          result = await response.json().catch(() => ({ ok: false, code: "UPLOAD_FAILED", message: "The resource could not be saved. Please try again.", retryable: true })) as TeacherResourceActionResult;
+        }
+      } else {
+        result = await action(formData);
+      }
       if (result.ok) {
         setResultState("success");
         setResultMessage(result.message);

@@ -8,6 +8,7 @@ import {
   buildBookmarkPageArguments,
   parseStudentLearningQuery,
 } from "@/lib/resources/student-learning-query";
+import type { RateLimitAdapter, RateLimitDecision } from "@/lib/rate-limit";
 
 const student = { id: "student-user-1", roles: ["STUDENT"] };
 
@@ -133,6 +134,50 @@ test("successful DELETE response exposes only resourceId and bookmarked", async 
   });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { resourceId: "resource-1", bookmarked: false });
+});
+
+test("bookmark mutation within its user limit preserves PUT behavior", async () => {
+  let mutated = false;
+  const rateLimit: RateLimitAdapter = {
+    check: async () => ({ allowed: true, limit: 60, remaining: 59, retryAfterSeconds: 0 }),
+    reset: async () => undefined,
+  };
+  const request = new Request("https://virtual.test/api/student/resources/resource-1/bookmark", { method: "PUT", headers: { origin: "https://virtual.test" } });
+  const response = await handleBookmarkMutation(request, "resource-1", true, {
+    getCurrentUser: async () => student,
+    rateLimit,
+    mutateBookmark: async () => { mutated = true; return { ok: true, resourceId: "resource-1", bookmarked: true }; },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(mutated, true);
+});
+
+test("bookmark over limit returns 429 and Retry-After before mutation", async () => {
+  let mutated = false;
+  const decision: RateLimitDecision = { allowed: false, limit: 60, remaining: 0, retryAfterSeconds: 17, reason: "limited" };
+  const request = new Request("https://virtual.test/api/student/resources/resource-1/bookmark", { method: "DELETE", headers: { origin: "https://virtual.test" } });
+  const response = await handleBookmarkMutation(request, "resource-1", false, {
+    getCurrentUser: async () => student,
+    rateLimit: { check: async () => decision, reset: async () => undefined },
+    mutateBookmark: async () => { mutated = true; return { ok: true, resourceId: "resource-1", bookmarked: false }; },
+  });
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("retry-after"), "17");
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(await response.json(), { error: "Too many requests. Please try again later." });
+  assert.equal(mutated, false);
+});
+
+test("bookmark limiter outage fails open after authorization and same-origin validation", async () => {
+  let mutated = false;
+  const request = new Request("https://virtual.test/api/student/resources/resource-1/bookmark", { method: "PUT", headers: { origin: "https://virtual.test" } });
+  const response = await handleBookmarkMutation(request, "resource-1", true, {
+    getCurrentUser: async () => student,
+    rateLimit: { check: async () => { throw new Error("unavailable"); }, reset: async () => undefined },
+    mutateBookmark: async () => { mutated = true; return { ok: true, resourceId: "resource-1", bookmarked: true }; },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(mutated, true);
 });
 
 test("bookmark list pagination is strict, bounded, clamped, and uses equivalent predicates", () => {

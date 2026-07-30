@@ -2,10 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { ContentLanguage, PublicationStatus, ResourceAccess, ResourceFormat } from "@/app/generated/prisma/client";
 import { uploadResourceAsset, type UploadResourceAssetResult } from "@/lib/resources/upload-service";
 import { transitionTeacherResource, updateTeacherResourceMetadata } from "@/lib/teacher/resource-management";
 import type { TeacherResourceTransition } from "@/lib/teacher/resource-management-policy";
+import { enforceRateLimitChecks, resolveTrustedClientIp } from "@/lib/rate-limit";
+import { authorizeTeacherMutation } from "@/lib/teacher/mutation-rate-limit";
 
 type TeacherResourcePrismaClient = {
   teacherProfile: {
@@ -38,7 +41,7 @@ async function getPrismaClient(): Promise<TeacherResourcePrismaClient> {
 
 export type TeacherResourceActionResult =
   | { ok: true; message: string; resourceId: string }
-  | { ok: false; code: string; message: string; resourceId?: string; retryable: boolean };
+  | { ok: false; code: string; message: string; resourceId?: string; retryable: boolean; retryAfterSeconds?: number };
 
 type TeacherUser = { id: string; roles: string[] };
 
@@ -171,12 +174,33 @@ export async function createTeacherResourceCore({ user, formData, prismaClient, 
 export async function createTeacherResource(formData: FormData): Promise<TeacherResourceActionResult> {
   const { requireTeacher } = await import("@/lib/auth/session");
   const user = await requireTeacher();
+  const request = new Request("http://rate-limit.internal", { headers: await headers() });
+  const ip = resolveTrustedClientIp({ request });
+  if (!ip.ok) return { ok: false, code: "RATE_LIMITED", message: "Too many requests. Please wait before trying again.", retryable: true, retryAfterSeconds: 1 };
+  const nativePdf = formData.get("format") === "PDF" && formData.get("sourceType") === "native-pdf";
+  const decision = await enforceRateLimitChecks([
+    { policy: "resource-create-user", identifier: user.id },
+    { policy: "resource-create-ip", identifier: ip.address },
+    ...(nativePdf ? [
+      { policy: "pdf-upload-user" as const, identifier: user.id },
+      { policy: "pdf-upload-ip" as const, identifier: ip.address },
+    ] : []),
+  ]);
+  if (decision) return { ok: false, code: "RATE_LIMITED", message: "Too many requests. Please wait before trying again.", retryable: true, retryAfterSeconds: Math.max(1, decision.retryAfterSeconds) };
   return createTeacherResourceCore({ user, formData });
 }
 
 export async function uploadTeacherResourcePdf(formData: FormData) {
   const { requireTeacher } = await import("@/lib/auth/session");
   const user = await requireTeacher();
+  const request = new Request("http://rate-limit.internal", { headers: await headers() });
+  const ip = resolveTrustedClientIp({ request });
+  if (!ip.ok) return { ok: false as const, code: "RATE_LIMITED", message: "Too many requests. Please wait before trying again.", retryAfterSeconds: 1 };
+  const decision = await enforceRateLimitChecks([
+    { policy: "pdf-upload-user", identifier: user.id },
+    { policy: "pdf-upload-ip", identifier: ip.address },
+  ]);
+  if (decision) return { ok: false as const, code: "RATE_LIMITED", message: "Too many requests. Please wait before trying again.", retryAfterSeconds: Math.max(1, decision.retryAfterSeconds) };
   const resourceId = required(formData, "resourceId");
   const file = formData.get("file");
 
@@ -201,6 +225,9 @@ async function transitionTeacherResourceAction(formData: FormData, transition: T
   const { requireTeacher } = await import("@/lib/auth/session");
   const user = await requireTeacher();
   const resourceId = required(formData, "resourceId");
+  const authorization = await authorizeTeacherMutation(user, resourceId, transition);
+  if (authorization.code === "NOT_FOUND") redirect("/teacher/resources?error=not-found");
+  if (authorization.code === "RATE_LIMITED") redirect(`/teacher/resources/${resourceId}?error=rate-limited&retryAfter=${authorization.retryAfterSeconds}`);
   const result = await transitionTeacherResource({ user, resourceId, transition });
   if (!result.ok) throw new Error(result.message);
   await revalidateResourcePaths();
@@ -230,6 +257,8 @@ export async function updateTeacherResource(formData: FormData) {
   const { findEditableTeacherManagedResource } = await import("@/repositories/teacher-resource.repository");
   const current = await findEditableTeacherManagedResource(resourceId, user.id);
   if (!current) redirect(`/teacher/resources/${resourceId}?error=not-editable`);
+  const authorization = await authorizeTeacherMutation(user, resourceId, "EDIT", { findOwned: async () => current });
+  if (!authorization.ok) redirect(`/teacher/resources/${resourceId}?error=rate-limited&retryAfter=${"retryAfterSeconds" in authorization ? authorization.retryAfterSeconds : 1}`);
   const result = await updateTeacherResourceMetadata({
     user,
     resourceId,

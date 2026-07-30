@@ -1,0 +1,68 @@
+import { NextResponse } from "next/server";
+
+import { createTeacherResourceCore, type TeacherResourceActionResult } from "@/app/teacher/resources/actions";
+import { getCurrentUserIdentity, type StudentUser } from "@/lib/resources/student-resource-service";
+import {
+  enforceRateLimitChecks,
+  rateLimitResponse,
+  resolveTrustedClientIp,
+  type RateLimitAdapter,
+} from "@/lib/rate-limit";
+
+const MAX_MULTIPART_BODY_BYTES = 21 * 1024 * 1024;
+
+type Dependencies = {
+  getCurrentUser?: () => Promise<StudentUser | null>;
+  resolveIp?: (request: Request) => ReturnType<typeof resolveTrustedClientIp>;
+  rateLimit?: RateLimitAdapter;
+  parseFormData?: (request: Request) => Promise<FormData>;
+  createResource?: (user: StudentUser, formData: FormData) => Promise<TeacherResourceActionResult>;
+};
+
+function jsonError(status: number, message: string) {
+  return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "private, no-store" } });
+}
+
+export async function handleNativeTeacherResourceCreation(request: Request, dependencies: Dependencies = {}) {
+  const user = await (dependencies.getCurrentUser ?? getCurrentUserIdentity)();
+  if (!user?.id) return jsonError(401, "Authentication required.");
+  if (!user.roles.includes("TEACHER") && !user.roles.includes("ADMIN")) return jsonError(403, "Forbidden.");
+
+  const ipResult = (dependencies.resolveIp ?? ((value) => resolveTrustedClientIp({ request: value })))(request);
+  if (!ipResult.ok) return jsonError(503, "Resource creation is temporarily unavailable.");
+  const decision = await enforceRateLimitChecks([
+    { policy: "resource-create-user", identifier: user.id },
+    { policy: "resource-create-ip", identifier: ipResult.address },
+    { policy: "pdf-upload-user", identifier: user.id },
+    { policy: "pdf-upload-ip", identifier: ipResult.address },
+  ], dependencies.rateLimit);
+  if (decision) return decision.reason === "limited"
+    ? rateLimitResponse(decision)
+    : jsonError(503, "Resource creation is temporarily unavailable.");
+
+  const rawLength = request.headers.get("content-length");
+  if (rawLength) {
+    const contentLength = Number(rawLength);
+    if (!Number.isSafeInteger(contentLength) || contentLength < 0 || contentLength > MAX_MULTIPART_BODY_BYTES) {
+      return jsonError(413, "The upload is too large.");
+    }
+  }
+
+  const formData = await (dependencies.parseFormData ?? ((value) => value.formData()))(request).catch(() => null);
+  if (!formData) return jsonError(400, "The upload request is invalid.");
+  if (formData.get("format") !== "PDF" || formData.get("sourceType") !== "native-pdf") {
+    return jsonError(400, "This endpoint accepts native PDF resources only.");
+  }
+
+  const result = await (dependencies.createResource
+    ?? ((identity, data) => createTeacherResourceCore({ user: identity, formData: data })))(user, formData);
+  return NextResponse.json(result, {
+    status: result.ok ? 200 : result.code === "UNAUTHENTICATED" ? 401 : result.code === "FORBIDDEN" ? 403 : 400,
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
+export async function POST(request: Request) {
+  return handleNativeTeacherResourceCreation(request);
+}
+

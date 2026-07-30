@@ -3,19 +3,22 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
-import { Prisma } from "@/app/generated/prisma/client";
 
 import { signIn, signOut } from "@/auth";
-import { hashPassword } from "@/lib/auth/password";
+import { registerStudentAccount } from "@/lib/auth/signup-service";
 import { resolvePostLoginRedirect } from "@/lib/auth/role-routing";
 import { loginSchema, signupSchema } from "@/lib/auth/validation";
-import { createStudentUser, findAuthUserByEmail } from "@/repositories/auth.repository";
+import { findAuthUserByEmail } from "@/repositories/auth.repository";
 
 export type AuthActionState = {
   status: "idle" | "error";
   message?: string;
   fieldErrors?: Record<string, string[]>;
 };
+
+function requestFromHeaders(requestHeaders: Headers) {
+  return new Request("http://rate-limit.internal", { headers: requestHeaders });
+}
 
 export async function logoutAction() {
   await signOut({ redirectTo: "/login" });
@@ -140,48 +143,18 @@ export async function signupAction(
     };
   }
 
-  try {
-    await createStudentUser({
-      firstName: parsed.data.firstName,
-      lastName: parsed.data.lastName || undefined,
-      email: parsed.data.email,
-      passwordHash: await hashPassword(parsed.data.password),
-    });
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return {
-        status: "error",
-        message: "An account with this email already exists.",
-        fieldErrors: {
-          email: ["Use a different email or sign in instead."],
-        },
-      };
-    }
-
-    throw error;
-  }
-
-  try {
-    await signIn("credentials", {
-      email: parsed.data.email,
-      password: parsed.data.password,
-      redirectTo: "/student",
-    });
-
+  const result = await registerStudentAccount({
+    firstName: parsed.data.firstName,
+    lastName: parsed.data.lastName || undefined,
+    email: parsed.data.email,
+    password: parsed.data.password,
+    request: requestFromHeaders(await headers()),
+  });
+  if (!result.accepted) {
     return {
-      status: "idle",
+      status: "error",
+      message: "Too many requests. Please try again later.",
     };
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return {
-        status: "error",
-        message: "Your account was created. Please sign in.",
-      };
-    }
-
-    throw error;
   }
+  redirect("/login?signup=received");
 }
