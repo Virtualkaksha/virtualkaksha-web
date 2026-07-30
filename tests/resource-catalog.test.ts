@@ -124,13 +124,14 @@ test("Class 6 query returns only Class 6 subjects and Mathematics once", async (
   );
 });
 
-test("Class 10 Mathematics has 14 chapters and one published resource", async () => {
+test("Class 10 Mathematics returns unique published resources with canonical links", async () => {
   const where = buildBoardClassSubjectWhere("cbse", "class-10");
   assert.ok(where);
 
-  const mathematics = await prisma.boardClassSubject.findFirst({
+  const mathematicsMappings = await prisma.boardClassSubject.findMany({
     where: { AND: [where, { subject: { slug: "mathematics" } }] },
     select: {
+      board: { select: { slug: true } },
       classLevel: { select: { slug: true } },
       subject: { select: { slug: true } },
       _count: {
@@ -139,25 +140,41 @@ test("Class 10 Mathematics has 14 chapters and one published resource", async ()
       chapters: {
         where: { isActive: true },
         select: {
-          _count: {
-            select: { resources: { where: { status: "PUBLISHED" } } },
+          slug: true,
+          resources: {
+            where: { status: "PUBLISHED" },
+            select: { id: true, slug: true, status: true },
           },
         },
       },
     },
   });
 
-  assert.ok(mathematics);
+  assert.equal(mathematicsMappings.length, 1);
+  const mathematics = mathematicsMappings[0];
   assert.equal(mathematics._count.chapters, 14);
+  assert.equal(mathematics.board.slug, "cbse");
+  assert.equal(mathematics.classLevel.slug, "class-10");
+  assert.equal(mathematics.subject.slug, "mathematics");
+
+  const publishedResources = mathematics.chapters.flatMap((chapter) =>
+    chapter.resources.map((resource) => ({ ...resource, chapterSlug: chapter.slug })),
+  );
+  assert.ok(publishedResources.length > 0);
+  assert.ok(publishedResources.every((resource) => resource.status === "PUBLISHED"));
   assert.equal(
-    mathematics.chapters.reduce(
-      (total, chapter) => total + chapter._count.resources,
-      0,
+    new Set(publishedResources.map((resource) => resource.id)).size,
+    publishedResources.length,
+  );
+  assert.ok(
+    publishedResources.every(
+      (resource) =>
+        `/student/resources/${mathematics.board.slug}/${mathematics.classLevel.slug}/${mathematics.subject.slug}/${resource.chapterSlug}/${resource.slug}`
+        === `/student/resources/cbse/class-10/mathematics/${resource.chapterSlug}/${resource.slug}`,
     ),
-    1,
   );
   assert.equal(
-    `/student/resources/cbse/${mathematics.classLevel.slug}/${mathematics.subject.slug}`,
+    `/student/resources/${mathematics.board.slug}/${mathematics.classLevel.slug}/${mathematics.subject.slug}`,
     "/student/resources/cbse/class-10/mathematics",
   );
 });

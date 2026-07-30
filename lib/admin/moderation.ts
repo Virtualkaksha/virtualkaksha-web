@@ -19,5 +19,17 @@ export async function getModerationQueue(status?: string, query?: string) {
 export async function getModerationResource(resourceId: string) {
   const item = await findModerationResource(resourceId);
   if (!item) return null;
-  return { ...item, creatorName: nameOf(item.createdBy), reviewerName: nameOf(item.reviewedBy) };
+  const { assets, ...safeItem } = item;
+  const primaryAsset = assets[0] ?? null;
+  const isNativePdf = safeItem.format === "PDF" && (primaryAsset !== null || !safeItem.externalUrl);
+  return {
+    ...safeItem,
+    creatorName: nameOf(item.createdBy),
+    reviewerName: nameOf(item.reviewedBy),
+    nativePdf: {
+      isNativePdf,
+      hasPrimaryAsset: isNativePdf && primaryAsset !== null,
+      assetStatus: isNativePdf ? primaryAsset?.status ?? "MISSING" : null,
+    },
+  };
 }
