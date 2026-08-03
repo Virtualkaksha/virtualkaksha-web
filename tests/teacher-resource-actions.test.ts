@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import "./helpers/server-only";
+
 import { createTeacherResourceCore } from "@/app/teacher/resources/actions";
 
 type MinimalPrisma = {

@@ -5,20 +5,10 @@ import type { ResourceStorageProvider, ResourceStorageUploadInput, ResourceStora
 import { computeChecksum } from "./storage";
 import { validateStorageObjectKey } from "./storage";
 
-function resolveDefaultRootPath() {
-  const configuredPath = process.env.LOCAL_RESOURCE_STORAGE_PATH;
-  if (configuredPath) {
-    return configuredPath;
-  }
-
-  const currentDir = process.cwd();
-  return join(currentDir, "storage", "resources");
-}
-
 export class LocalResourceStorageProvider implements ResourceStorageProvider {
   readonly providerName = "local";
 
-  constructor(private readonly rootPath = resolveDefaultRootPath()) {}
+  constructor(private readonly rootPath = join(process.cwd(), "storage", "resources")) {}
 
   async upload(input: ResourceStorageUploadInput): Promise<ResourceStorageUploadResult> {
     const targetDir = join(this.rootPath, input.objectKey.split("/").slice(0, -1).join("/"));

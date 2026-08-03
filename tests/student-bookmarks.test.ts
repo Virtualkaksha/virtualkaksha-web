@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import "./helpers/server-only";
+
 import { handleBookmarkMutation } from "@/app/api/student/resources/[resourceId]/bookmark/route";
 import { STUDENT_READABLE_RESOURCE_WHERE } from "@/lib/resources/resource-access-policy";
 import { mutateStudentBookmark, type BookmarkMutationResult } from "@/lib/resources/student-learning";

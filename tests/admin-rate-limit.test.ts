@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import "./helpers/server-only";
+
 import { limitAdminModeration } from "@/lib/admin/moderation-rate-limit";
 import type { RateLimitAdapter, RateLimitDecision, RateLimitPolicy } from "@/lib/rate-limit";
 

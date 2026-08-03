@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import "./helpers/server-only";
+
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 
 import { LocalResourceStorageProvider } from "@/lib/resources/local-storage-provider";
@@ -22,7 +24,11 @@ const s3Config = {
 test("local provider remains available in development and can round-trip a PDF", async () => {
   const root = await mkdtemp(join(tmpdir(), "virtualkaksha-storage-"));
   try {
-    const provider = createResourceStorageProvider("local", { NODE_ENV: "development" });
+    const provider = createResourceStorageProvider("local", {
+      NODE_ENV: "development",
+      LOCAL_RESOURCE_STORAGE_PATH: root,
+      RESOURCE_UPLOAD_MAX_MB: "20",
+    });
     assert.ok(provider instanceof LocalResourceStorageProvider);
 
     const diskProvider = new LocalResourceStorageProvider(root);
@@ -42,11 +48,11 @@ test("local provider remains available in development and can round-trip a PDF",
 
 test("production rejects missing and local storage providers", () => {
   assert.throws(() => createResourceStorageProvider(undefined, { NODE_ENV: "production" }), /RESOURCE_STORAGE_PROVIDER is required/);
-  assert.throws(() => createResourceStorageProvider("local", { NODE_ENV: "production" }), /Local resource storage is not allowed/);
+  assert.throws(() => createResourceStorageProvider("local", { NODE_ENV: "production" }), /must be s3 in production/);
 });
 
 test("unsupported providers and incomplete S3 configuration fail closed", () => {
-  assert.throws(() => createResourceStorageProvider("public-url", { NODE_ENV: "development" }), /Unsupported resource storage provider/);
+  assert.throws(() => createResourceStorageProvider("public-url", { NODE_ENV: "development" }), /must be local or s3/);
   assert.throws(() => createResourceStorageProvider("s3", { NODE_ENV: "production" }), /S3_ENDPOINT/);
   assert.throws(() => createResourceStorageProvider("s3", {
     NODE_ENV: "production",

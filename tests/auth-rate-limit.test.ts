@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import "./helpers/server-only";
+
 import { authorizeCredentials, DUMMY_PASSWORD_HASH } from "@/lib/auth/credentials-authentication";
 import { registerStudentAccount } from "@/lib/auth/signup-service";
 import type { RateLimitAdapter, RateLimitDecision, RateLimitPolicy } from "@/lib/rate-limit";
@@ -134,4 +136,3 @@ test("signup limiter outage fails closed before hashing or creation", async () =
   assert.equal(result.accepted, false);
   assert.equal(touched, false);
 });
-

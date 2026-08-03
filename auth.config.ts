@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 import type { RoleName } from "@/app/generated/prisma/enums";
 import { getAuthenticatedRouteRedirect } from "@/lib/auth/role-routing";
+import { getAuthEnvironment, type EnvironmentSource } from "@/lib/env";
 
 function getRoles(value: unknown): RoleName[] {
   if (!Array.isArray(value)) {
@@ -68,3 +69,16 @@ export const authConfig = {
 
   providers: [],
 } satisfies NextAuthConfig;
+
+export function createAuthRuntimeConfig(
+  environment?: EnvironmentSource,
+): NextAuthConfig {
+  const validated = getAuthEnvironment(environment);
+  const configuredPath = validated.authUrl ? new URL(validated.authUrl).pathname : "/";
+  return {
+    ...authConfig,
+    ...(validated.authSecret ? { secret: validated.authSecret } : {}),
+    ...(validated.authTrustHost === undefined ? {} : { trustHost: validated.authTrustHost }),
+    basePath: configuredPath === "/" ? "/api/auth" : configuredPath,
+  };
+}

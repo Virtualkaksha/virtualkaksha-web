@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "validate:env": "tsx scripts/validate-environment.ts",
     "test:resource-upload": "node --import tsx --test tests/resource-upload.test.ts"
   },
   "dependencies": {

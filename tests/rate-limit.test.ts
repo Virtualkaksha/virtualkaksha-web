@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import "./helpers/server-only";
+
 import {
   createRateLimitAdapter,
   createOpaqueRateLimitKey,
@@ -95,10 +97,10 @@ test("memory adapter supports weighted cost, expiry, reset and deterministic clo
 test("production cannot select the memory adapter", () => {
   assert.throws(
     () => createRateLimitAdapter({ NODE_ENV: "production", RATE_LIMIT_ADAPTER: "memory", RATE_LIMIT_KEY_SECRET: "secret" }),
-    /cannot be used in production/,
+    /must be upstash in production/,
   );
   assert.doesNotThrow(() =>
-    createRateLimitAdapter({ NODE_ENV: "test", RATE_LIMIT_ADAPTER: "memory", RATE_LIMIT_KEY_SECRET: "secret" }),
+    createRateLimitAdapter({ NODE_ENV: "test", RATE_LIMIT_ADAPTER: "memory", RATE_LIMIT_KEY_SECRET: "0123456789abcdef0123456789abcdef", RATE_LIMIT_TRUSTED_PROXY: "test" }),
   );
 });
 

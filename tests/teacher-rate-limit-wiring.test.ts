@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import "./helpers/server-only";
+
 import { handleNativeTeacherResourceCreation } from "@/app/api/teacher/resources/route";
 import type { RateLimitAdapter, RateLimitDecision, RateLimitPolicy } from "@/lib/rate-limit";
 import { authorizeTeacherMutation } from "@/lib/teacher/mutation-rate-limit";
@@ -144,4 +146,3 @@ test("native UI uses the dedicated route while external creation keeps the serve
   assert.match(source, /retry-after/);
   assert.doesNotMatch(source, /@upstash|UPSTASH_REDIS|RATE_LIMIT_KEY_SECRET/);
 });
-

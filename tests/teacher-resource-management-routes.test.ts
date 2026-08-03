@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import "./helpers/server-only";
+
 import { handleTeacherAssetRequest } from "@/app/api/teacher/resources/[resourceId]/asset/route";
 import { updateTeacherResourceMetadata } from "@/lib/teacher/resource-management";
 

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { getStorageEnvironment } from "@/lib/env";
 import { createResourceStorageProvider } from "./storage-provider-factory";
 import { computeChecksum } from "./storage";
 import type { ResourceStorageProvider } from "./storage";
@@ -44,6 +45,7 @@ type UploadDependencies = {
     };
   };
   storageProvider?: ResourceStorageProvider;
+  uploadMaxMb?: number;
 };
 
 const PDF_MAGIC_BYTES = Buffer.from("%PDF");
@@ -138,7 +140,8 @@ export async function uploadResourceAsset({ user, resourceId, file }: UploadReso
     }
 
     const buffer = await readFileBuffer(file);
-    const validation = validatePdfUpload(file, buffer, process.env.RESOURCE_UPLOAD_MAX_MB);
+    const uploadMaxMb = dependencies.uploadMaxMb ?? getStorageEnvironment().uploadMaxMb;
+    const validation = validatePdfUpload(file, buffer, String(uploadMaxMb));
     if (!validation.ok) {
       return validation;
     }

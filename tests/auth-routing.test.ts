@@ -107,7 +107,7 @@ test("proxy covers all protected areas and auth pages", async () => {
   assert.match(source, /export default auth\(/);
   assert.match(source, /applyReportOnlyCsp/);
   assert.match(source, /source: "\/\(\(\?!api\|_next\/static\|_next\/image/);
-  assert.match(source, /NextAuth\(authConfig\)/);
+  assert.match(source, /NextAuth\(async \(\) => createAuthRuntimeConfig\(\)\)/);
 });
 
 test("logout clears the Auth.js session and redirects to login from every navigation", async () => {

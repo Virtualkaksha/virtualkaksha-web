@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import "./helpers/server-only";
+
 import {
   createRateLimitAdapter,
   createUpstashLimiters,
@@ -21,9 +23,10 @@ function limiterMap(limiter: UpstashLimiter) {
 
 const productionEnvironment = {
   NODE_ENV: "production",
+  RATE_LIMIT_ADAPTER: "upstash",
   UPSTASH_REDIS_REST_URL: "https://example.upstash.io",
   UPSTASH_REDIS_REST_TOKEN: "test-token",
-  RATE_LIMIT_KEY_SECRET: "test-key-secret",
+  RATE_LIMIT_KEY_SECRET: "0123456789abcdef0123456789abcdef",
   RATE_LIMIT_TRUSTED_PROXY: "vercel",
   RATE_LIMIT_ENV_PREFIX: "production",
 };
@@ -49,9 +52,9 @@ test("every policy maps to its configured Upstash algorithm, limit and window", 
 });
 
 test("production selects Upstash lazily and development or test may select memory", () => {
-  assert.equal(resolveRateLimitAdapterName({ NODE_ENV: "production" }), "upstash");
-  assert.equal(resolveRateLimitAdapterName({ NODE_ENV: "development" }), "memory");
-  assert.equal(resolveRateLimitAdapterName({ NODE_ENV: "test", RATE_LIMIT_ADAPTER: "memory" }), "memory");
+  assert.equal(resolveRateLimitAdapterName(productionEnvironment), "upstash");
+  assert.equal(resolveRateLimitAdapterName({ ...productionEnvironment, NODE_ENV: "development", RATE_LIMIT_ADAPTER: "memory", RATE_LIMIT_TRUSTED_PROXY: "direct" }), "memory");
+  assert.equal(resolveRateLimitAdapterName({ ...productionEnvironment, NODE_ENV: "test", RATE_LIMIT_ADAPTER: "memory", RATE_LIMIT_TRUSTED_PROXY: "test" }), "memory");
 
   const sentinel = { check: async () => { throw new Error("unused"); }, reset: async () => undefined } satisfies RateLimitAdapter;
   let created = 0;
@@ -65,11 +68,11 @@ test("production selects Upstash lazily and development or test may select memor
 test("production rejects memory and missing or unsafe Upstash configuration", () => {
   assert.throws(
     () => resolveRateLimitAdapterName({ NODE_ENV: "production", RATE_LIMIT_ADAPTER: "memory" }),
-    /cannot be used in production/,
+    /must be upstash in production/,
   );
   assert.throws(
     () => resolveRateLimitAdapterName({ NODE_ENV: "test", RATE_LIMIT_ADAPTER: "unknown" }),
-    /Unsupported rate-limit adapter/,
+    /must be memory or upstash/,
   );
   for (const missing of [
     "UPSTASH_REDIS_REST_URL",
@@ -79,22 +82,23 @@ test("production rejects memory and missing or unsafe Upstash configuration", ()
   ] as const) {
     assert.throws(
       () => validateUpstashEnvironment({ ...productionEnvironment, [missing]: "" }),
-      new RegExp(`missing ${missing}`),
+      new RegExp(missing),
     );
   }
   assert.throws(
     () => validateUpstashEnvironment({ ...productionEnvironment, UPSTASH_REDIS_REST_URL: "not-a-url" }),
-    /must be an HTTP\(S\) URL/,
+    /must be a valid absolute HTTP\(S\) URL/,
   );
   assert.throws(
     () => validateUpstashEnvironment({ ...productionEnvironment, RATE_LIMIT_TRUSTED_PROXY: "test" }),
-    /must be vercel or direct/,
+    /may be test only/,
   );
 });
 
-test("module import and factory selection do not require secrets until adapter creation", () => {
-  assert.equal(resolveRateLimitAdapterName({ NODE_ENV: "production" }), "upstash");
-  assert.throws(() => createRateLimitAdapter({ NODE_ENV: "production" }), /configuration is missing/);
+test("module import is lazy and first factory selection validates configuration", () => {
+  assert.equal(typeof createRateLimitAdapter, "function");
+  assert.throws(() => resolveRateLimitAdapterName({ NODE_ENV: "production" }), /RATE_LIMIT_ADAPTER/);
+  assert.throws(() => createRateLimitAdapter({ NODE_ENV: "production" }), /RATE_LIMIT_ADAPTER/);
 });
 
 test("checks and resets send only the same opaque identifier", async () => {

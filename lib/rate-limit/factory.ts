@@ -1,43 +1,42 @@
+import "server-only";
+
+import {
+  getRateLimitEnvironment,
+  type EnvironmentSource,
+  type RateLimitEnvironment as ValidatedRateLimitEnvironment,
+} from "@/lib/env";
+
 import { MemoryRateLimitAdapter } from "./memory-adapter";
-import { createUpstashRateLimitAdapter, type UpstashEnvironment } from "./upstash-adapter";
+import { createUpstashRateLimitAdapter } from "./upstash-adapter";
 import type { RateLimitAdapter } from "./types";
 
 export type RateLimitAdapterName = "memory" | "upstash";
-export type RateLimitEnvironment = UpstashEnvironment & { RATE_LIMIT_ADAPTER?: string };
+export type RateLimitEnvironment = EnvironmentSource;
 
 type FactoryDependencies = {
-  createUpstash?: (environment: RateLimitEnvironment) => RateLimitAdapter;
+  createUpstash?: (environment: ValidatedRateLimitEnvironment) => RateLimitAdapter;
 };
 
 let cachedProductionAdapter: RateLimitAdapter | null = null;
 
-export function resolveRateLimitAdapterName(environment: RateLimitEnvironment): RateLimitAdapterName {
-  const requested = environment.RATE_LIMIT_ADAPTER?.trim().toLowerCase();
-  if (requested && requested !== "memory" && requested !== "upstash") {
-    throw new Error(`Unsupported rate-limit adapter: ${requested}.`);
-  }
-  if (environment.NODE_ENV === "production") {
-    if (requested === "memory") throw new Error("The in-memory rate-limit adapter cannot be used in production.");
-    return "upstash";
-  }
-  return requested === "upstash" ? "upstash" : "memory";
+export function resolveRateLimitAdapterName(environment: EnvironmentSource): RateLimitAdapterName {
+  return getRateLimitEnvironment(environment).adapter;
 }
 
 export function createRateLimitAdapter(
-  environment: RateLimitEnvironment = process.env,
+  environment?: EnvironmentSource,
   dependencies: FactoryDependencies = {},
 ): RateLimitAdapter {
-  const adapterName = resolveRateLimitAdapterName(environment);
-  if (adapterName === "upstash") {
-    return (dependencies.createUpstash ?? createUpstashRateLimitAdapter)(environment);
+  const validated = getRateLimitEnvironment(environment);
+  if (validated.adapter === "upstash") {
+    return (dependencies.createUpstash ?? createUpstashRateLimitAdapter)(validated);
   }
-  const secret = environment.RATE_LIMIT_KEY_SECRET?.trim();
-  if (!secret) throw new Error("RATE_LIMIT_KEY_SECRET is required.");
-  return new MemoryRateLimitAdapter({ secret });
+  return new MemoryRateLimitAdapter({ secret: validated.keySecret });
 }
 
 export function getRateLimitAdapter(): RateLimitAdapter {
-  if (process.env.NODE_ENV !== "production") return createRateLimitAdapter(process.env);
-  cachedProductionAdapter ??= createRateLimitAdapter(process.env);
+  const validated = getRateLimitEnvironment();
+  if (validated.nodeEnv !== "production") return createRateLimitAdapter();
+  cachedProductionAdapter ??= createRateLimitAdapter();
   return cachedProductionAdapter;
 }

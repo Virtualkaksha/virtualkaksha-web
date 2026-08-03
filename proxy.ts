@@ -1,12 +1,12 @@
 import NextAuth from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 
-import { authConfig } from "@/auth.config";
+import { createAuthRuntimeConfig } from "@/auth.config";
 import { buildContentSecurityPolicy } from "@/lib/security/csp";
 
 const CSP_REPORT_ONLY_HEADER = "Content-Security-Policy-Report-Only";
 const NONCE_REQUEST_HEADER = "x-nonce";
-const { auth } = NextAuth(authConfig);
+const { auth } = NextAuth(async () => createAuthRuntimeConfig());
 
 const EXCLUDED_PAGE_PATHS = new Set([
   "/favicon.ico",

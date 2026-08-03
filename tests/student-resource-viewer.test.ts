@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import "./helpers/server-only";
+
 import { handleStudentAssetRequest } from "@/app/api/student/resources/[resourceId]/asset/route";
 import {
   authorizeStudentResourceAssetAccess,
@@ -146,6 +148,10 @@ test("asset route rejects malicious object keys", async () => {
   const response = await handleStudentAssetRequest("res-1", {
     getCurrentUser: async () => student,
     findResource: async () => assetResource({ assets: [{ ...readyAsset, objectKey: "../secret.pdf" }] }),
+    readFile: async (_provider, objectKey) => {
+      assert.equal(objectKey, "../secret.pdf");
+      throw new Error("Invalid object key");
+    },
   });
   assert.equal(response.status, 404);
 });

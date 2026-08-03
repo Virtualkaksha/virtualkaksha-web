@@ -1,6 +1,11 @@
 import { Ratelimit, type Duration } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
+import {
+  getRateLimitEnvironment,
+  type EnvironmentSource,
+  type RateLimitEnvironment as ValidatedRateLimitEnvironment,
+} from "@/lib/env";
 import { createOpaqueRateLimitKey } from "./keys";
 import { getRateLimitPolicy, RATE_LIMIT_POLICY_NAMES, type RateLimitAlgorithm } from "./policies";
 import type { RateLimitAdapter, RateLimitDecision, RateLimitPolicy } from "./types";
@@ -25,14 +30,7 @@ type UpstashAdapterOptions = {
   clock?: () => number;
 };
 
-export type UpstashEnvironment = {
-  NODE_ENV?: string;
-  UPSTASH_REDIS_REST_URL?: string;
-  UPSTASH_REDIS_REST_TOKEN?: string;
-  RATE_LIMIT_KEY_SECRET?: string;
-  RATE_LIMIT_TRUSTED_PROXY?: string;
-  RATE_LIMIT_ENV_PREFIX?: string;
-};
+export type UpstashEnvironment = EnvironmentSource;
 
 function duration(windowMs: number): Duration {
   return `${windowMs} ms`;
@@ -134,45 +132,25 @@ export class UpstashRateLimitAdapter implements RateLimitAdapter {
 }
 
 export function validateUpstashEnvironment(environment: UpstashEnvironment) {
-  const required = [
-    "UPSTASH_REDIS_REST_URL",
-    "UPSTASH_REDIS_REST_TOKEN",
-    "RATE_LIMIT_KEY_SECRET",
-    "RATE_LIMIT_TRUSTED_PROXY",
-  ] as const;
-  for (const name of required) {
-    if (!environment[name]?.trim()) throw new Error(`Rate-limit configuration is missing ${name}.`);
-  }
-  let redisUrl: URL;
-  try {
-    redisUrl = new URL(environment.UPSTASH_REDIS_REST_URL!);
-  } catch {
-    throw new Error("UPSTASH_REDIS_REST_URL must be an HTTP(S) URL.");
-  }
-  if (redisUrl.protocol !== "https:" && redisUrl.protocol !== "http:") {
-    throw new Error("UPSTASH_REDIS_REST_URL must be an HTTP(S) URL.");
-  }
-  const proxy = environment.RATE_LIMIT_TRUSTED_PROXY!.trim().toLowerCase();
-  if (!(["vercel", "direct"] as const).includes(proxy as "vercel" | "direct")) {
-    throw new Error("Production RATE_LIMIT_TRUSTED_PROXY must be vercel or direct.");
-  }
-  const prefix = (environment.RATE_LIMIT_ENV_PREFIX?.trim().toLowerCase() || environment.NODE_ENV || "development");
-  if (!/^[a-z0-9][a-z0-9_-]{0,47}$/.test(prefix)) {
-    throw new Error("RATE_LIMIT_ENV_PREFIX must contain only lowercase letters, numbers, underscores, or hyphens.");
+  const validated = getRateLimitEnvironment({ ...environment, RATE_LIMIT_ADAPTER: "upstash" });
+  if (!validated.upstashUrl || !validated.upstashToken) {
+    throw new Error("Rate limit environment validation failed: Upstash configuration is required.");
   }
   return {
-    url: environment.UPSTASH_REDIS_REST_URL!,
-    token: environment.UPSTASH_REDIS_REST_TOKEN!,
-    secret: environment.RATE_LIMIT_KEY_SECRET!,
-    environmentPrefix: prefix,
+    url: validated.upstashUrl,
+    token: validated.upstashToken,
+    secret: validated.keySecret,
+    environmentPrefix: validated.environmentPrefix,
   };
 }
 
-export function createUpstashRateLimitAdapter(environment: UpstashEnvironment): RateLimitAdapter {
-  const config = validateUpstashEnvironment(environment);
-  const redis = new Redis({ url: config.url, token: config.token });
+export function createUpstashRateLimitAdapter(environment: ValidatedRateLimitEnvironment): RateLimitAdapter {
+  if (environment.adapter !== "upstash" || !environment.upstashUrl || !environment.upstashToken) {
+    throw new Error("Rate limit environment validation failed: Upstash configuration is required.");
+  }
+  const redis = new Redis({ url: environment.upstashUrl, token: environment.upstashToken });
   return new UpstashRateLimitAdapter({
-    secret: config.secret,
-    limiters: createUpstashLimiters(redis, config.environmentPrefix),
+    secret: environment.keySecret,
+    limiters: createUpstashLimiters(redis, environment.environmentPrefix),
   });
 }

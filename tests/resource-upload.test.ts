@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import "./helpers/server-only";
+
 import { validatePdfUpload, uploadResourceAsset } from "@/lib/resources/upload-service";
 import type { ResourceStorageProvider } from "@/lib/resources/storage";
 
@@ -106,7 +108,7 @@ test("successful upload creates a READY asset", async () => {
       delete: async () => undefined,
     },
   };
-  const result = await uploadResourceAsset({ user: { id: "teacher-1", roles: ["TEACHER"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: storage });
+  const result = await uploadResourceAsset({ user: { id: "teacher-1", roles: ["TEACHER"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: storage, uploadMaxMb: 20 });
   assert.equal(result.ok, true);
   assert.equal(storage.uploaded.length, 1);
   assert.equal(createdAssets[0].status, "READY");
@@ -127,7 +129,7 @@ test("failed upload does not leave a READY database record", async () => {
       delete: async () => undefined,
     },
   };
-  const result = await uploadResourceAsset({ user: { id: "teacher-1", roles: ["TEACHER"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: { providerName: "broken", upload: async () => { throw new Error("boom"); }, delete: async () => undefined, getReadUrl: async () => "", readFile: async () => { throw new Error("missing"); } } });
+  const result = await uploadResourceAsset({ user: { id: "teacher-1", roles: ["TEACHER"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: { providerName: "broken", upload: async () => { throw new Error("boom"); }, delete: async () => undefined, getReadUrl: async () => "", readFile: async () => { throw new Error("missing"); } }, uploadMaxMb: 20 });
   assert.equal(result.ok, false);
   assert.equal(result.code, "UPLOAD_FAILED");
 });
@@ -140,7 +142,7 @@ test("teacher cannot upload to another teacher's resource", async () => {
     },
     resourceAsset: { create: async () => ({ id: "asset-1" }), update: async () => undefined, delete: async () => undefined },
   };
-  const result = await uploadResourceAsset({ user: { id: "teacher-1", roles: ["TEACHER"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient });
+  const result = await uploadResourceAsset({ user: { id: "teacher-1", roles: ["TEACHER"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: new InMemoryStorage(), uploadMaxMb: 20 });
   assert.equal(result.ok, false);
   assert.equal(result.code, "FORBIDDEN");
 });
@@ -158,7 +160,7 @@ test("admin can upload when authorized", async () => {
       delete: async () => undefined,
     },
   };
-  const result = await uploadResourceAsset({ user: { id: "admin-1", roles: ["ADMIN"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: storage });
+  const result = await uploadResourceAsset({ user: { id: "admin-1", roles: ["ADMIN"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: storage, uploadMaxMb: 20 });
   assert.equal(result.ok, true);
   assert.equal(storage.uploaded.length, 1);
 });

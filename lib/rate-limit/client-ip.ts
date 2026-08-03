@@ -1,5 +1,7 @@
 import { isIP } from "node:net";
 
+import { getRateLimitEnvironment, type EnvironmentSource } from "@/lib/env";
+
 export type TrustedProxyMode = "vercel" | "direct" | "test";
 export type ClientIpFailureCode = "INVALID_CONFIGURATION" | "MISSING_IP" | "MALFORMED_IP";
 export type ClientIpResult =
@@ -10,7 +12,7 @@ type ClientIpInput = {
   request?: Request;
   directAddress?: string | null;
   testAddress?: string | null;
-  environment?: { NODE_ENV?: string; RATE_LIMIT_TRUSTED_PROXY?: string };
+  environment?: EnvironmentSource;
 };
 
 function invalid(code: ClientIpFailureCode, message: string): ClientIpResult {
@@ -26,22 +28,22 @@ function validateAddress(value: string | null | undefined): ClientIpResult {
 }
 
 export function readTrustedProxyMode(
-  environment: ClientIpInput["environment"] = process.env,
+  environment?: ClientIpInput["environment"],
 ): TrustedProxyMode | null {
-  const configured = environment?.RATE_LIMIT_TRUSTED_PROXY?.trim().toLowerCase();
-  if (configured === "vercel" || configured === "direct" || configured === "test") return configured;
-  return null;
+  try {
+    return getRateLimitEnvironment(environment).trustedProxy;
+  } catch {
+    return null;
+  }
 }
 
 export function resolveTrustedClientIp(input: ClientIpInput): ClientIpResult {
-  const environment = input.environment ?? process.env;
+  const environment = input.environment;
   const mode = readTrustedProxyMode(environment);
   if (!mode) {
     return invalid(
       "INVALID_CONFIGURATION",
-      environment.NODE_ENV === "production"
-        ? "RATE_LIMIT_TRUSTED_PROXY must be configured in production."
-        : "RATE_LIMIT_TRUSTED_PROXY must select vercel, direct, or test.",
+      "RATE_LIMIT_TRUSTED_PROXY must select a valid mode for the current environment.",
     );
   }
 
@@ -50,9 +52,5 @@ export function resolveTrustedClientIp(input: ClientIpInput): ClientIpResult {
     return validateAddress(firstAddress);
   }
   if (mode === "direct") return validateAddress(input.directAddress);
-  if (environment.NODE_ENV === "production") {
-    return invalid("INVALID_CONFIGURATION", "The test proxy mode is unavailable in production.");
-  }
   return validateAddress(input.testAddress);
 }
-
