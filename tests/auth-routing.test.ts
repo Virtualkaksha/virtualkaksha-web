@@ -132,7 +132,7 @@ test("each protected layout has a server-side role guard", async () => {
   const admin = await readFile("app/admin/layout.tsx", "utf8");
   const teacher = await readFile("app/teacher/layout.tsx", "utf8");
   const student = await readFile("app/student/layout.tsx", "utf8");
-  assert.match(admin, /await requireAdmin\(\)/);
-  assert.match(teacher, /await requireTeacher\(\)/);
-  assert.match(student, /await requireStudent\(\)/);
+  assert.match(admin, /await requireCurrentRole\("ADMIN"\)/);
+  assert.match(teacher, /await requireAnyCurrentRole\(\["TEACHER", "ADMIN"\]\)/);
+  assert.match(student, /await requireCurrentRole\("STUDENT"\)/);
 });

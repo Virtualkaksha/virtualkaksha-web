@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { requireTeacher } from "@/lib/auth/session";
+import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 import { findEditableTeacherManagedResource, findTeacherResourceEditOptions } from "@/repositories/teacher-resource.repository";
 import { updateTeacherResource } from "../../actions";
 
@@ -9,7 +9,7 @@ type Props = { params: Promise<{ resourceId: string }>; searchParams: Promise<{ 
 const field = "mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500";
 
 export default async function EditTeacherResourcePage({ params, searchParams }: Props) {
-  const user = await requireTeacher();
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const { resourceId } = await params;
   const [resource, options] = await Promise.all([
     findEditableTeacherManagedResource(resourceId, user.id),

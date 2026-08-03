@@ -106,20 +106,21 @@ enum LearningProgressStatus {
 // ======================================================
 
 model User {
-  id            String     @id @default(cuid())
-  email         String     @unique
-  phone         String?    @unique
-  firstName     String
-  lastName      String?
-  displayName   String?
-  avatarUrl     String?
-  passwordHash  String?
-  lastLoginAt   DateTime?
-  status        UserStatus @default(PENDING)
-  emailVerified Boolean    @default(false)
-  phoneVerified Boolean    @default(false)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  email          String     @unique
+  phone          String?    @unique
+  firstName      String
+  lastName       String?
+  displayName    String?
+  avatarUrl      String?
+  passwordHash   String?
+  sessionVersion Int        @default(1)
+  lastLoginAt    DateTime?
+  status         UserStatus @default(PENDING)
+  emailVerified  Boolean    @default(false)
+  phoneVerified  Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   roles              UserRole[]
   studentProfile     StudentProfile?

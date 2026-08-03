@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
+import type { RoleName } from "@/app/generated/prisma/enums";
 
-import { getCurrentUserIdentity, type StudentUser } from "@/lib/resources/student-resource-service";
+import type { StudentUser } from "@/lib/resources/student-resource-service";
 import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
 import { isSupportedResourceStorageProviderName } from "@/lib/resources/storage";
+import {
+  CURRENT_IDENTITY_PRIVATE_HEADERS,
+  currentIdentityFailureStatus,
+  resolveCurrentIdentityForApi,
+  type CurrentIdentityResult,
+} from "@/lib/auth/current-identity";
 
 type AdminAssetResource = {
   id: string;
@@ -17,23 +24,46 @@ type AdminAssetResource = {
 };
 
 type AdminAssetDependencies = {
+  resolveIdentity?: () => Promise<CurrentIdentityResult>;
+  /** Test seam for an already-validated current identity. */
   getCurrentUser?: () => Promise<StudentUser | null>;
   findResource?: (resourceId: string) => Promise<AdminAssetResource | null>;
   readFile?: (provider: string, objectKey: string) => Promise<Buffer>;
 };
+
+async function resolveAdminIdentity(dependencies: AdminAssetDependencies): Promise<CurrentIdentityResult> {
+  if (dependencies.resolveIdentity) return dependencies.resolveIdentity();
+  if (dependencies.getCurrentUser) {
+    try {
+      const user = await dependencies.getCurrentUser();
+      if (!user) return { ok: false, code: "NO_SESSION", message: "Authentication is required." };
+      if (!user.roles.includes("ADMIN")) return { ok: false, code: "FORBIDDEN", message: "Access is denied." };
+      return { ok: true, identity: { ...user, roles: user.roles as RoleName[], sessionVersion: 1 } };
+    } catch {
+      return { ok: false, code: "IDENTITY_UNAVAILABLE", message: "Authentication is temporarily unavailable." };
+    }
+  }
+  return resolveCurrentIdentityForApi(["ADMIN"]);
+}
 
 function error(status: 401 | 403 | 404) {
   const message = status === 401 ? "Authentication required" : status === 403 ? "Forbidden" : "Not found";
   return NextResponse.json({ error: message }, { status });
 }
 
+function identityError(result: Extract<CurrentIdentityResult, { ok: false }>) {
+  return NextResponse.json(
+    { error: result.message },
+    { status: currentIdentityFailureStatus(result.code), headers: CURRENT_IDENTITY_PRIVATE_HEADERS },
+  );
+}
+
 export async function handleAdminAssetRequest(
   resourceId: string,
   dependencies: AdminAssetDependencies = {},
 ) {
-  const user = await (dependencies.getCurrentUser ?? getCurrentUserIdentity)();
-  if (!user?.id) return error(401);
-  if (!user.roles.includes("ADMIN")) return error(403);
+  const identity = await resolveAdminIdentity(dependencies);
+  if (!identity.ok) return identityError(identity);
   if (!resourceId.trim()) return error(404);
 
   const findResource = dependencies.findResource ?? (async (id: string) => {

@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
+import type { RoleName } from "@/app/generated/prisma/enums";
 
 import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
 import {
   authorizeStudentResourceAssetAccess,
-  getCurrentUserIdentity,
   type StudentUser,
 } from "@/lib/resources/student-resource-service";
+import {
+  CURRENT_IDENTITY_PRIVATE_HEADERS,
+  currentIdentityFailureStatus,
+  resolveCurrentIdentityForApi,
+  type CurrentIdentityResult,
+} from "@/lib/auth/current-identity";
 
 type AssetResource = {
   id: string;
@@ -23,11 +29,35 @@ type AssetResource = {
 };
 
 type AssetRouteDependencies = {
+  resolveIdentity?: () => Promise<CurrentIdentityResult>;
+  /** Test seam for an already-validated current identity. */
   getCurrentUser?: () => Promise<StudentUser | null>;
   findResource?: (resourceId: string) => Promise<AssetResource | null>;
   readFile?: (provider: string, objectKey: string) => Promise<Buffer>;
   readLocalFile?: (objectKey: string) => Promise<Buffer>;
 };
+
+async function resolveStudentIdentity(dependencies: AssetRouteDependencies): Promise<CurrentIdentityResult> {
+  if (dependencies.resolveIdentity) return dependencies.resolveIdentity();
+  if (dependencies.getCurrentUser) {
+    try {
+      const user = await dependencies.getCurrentUser();
+      if (!user) return { ok: false, code: "NO_SESSION", message: "Authentication is required." };
+      if (!user.roles.includes("STUDENT")) return { ok: false, code: "FORBIDDEN", message: "Access is denied." };
+      return { ok: true, identity: { ...user, roles: user.roles as RoleName[], sessionVersion: 1 } };
+    } catch {
+      return { ok: false, code: "IDENTITY_UNAVAILABLE", message: "Authentication is temporarily unavailable." };
+    }
+  }
+  return resolveCurrentIdentityForApi(["STUDENT"]);
+}
+
+function identityError(result: Extract<CurrentIdentityResult, { ok: false }>) {
+  return NextResponse.json(
+    { error: result.message },
+    { status: currentIdentityFailureStatus(result.code), headers: CURRENT_IDENTITY_PRIVATE_HEADERS },
+  );
+}
 
 function accessStatus(code: string) {
   if (code === "UNAUTHENTICATED") return 401;
@@ -37,7 +67,9 @@ function accessStatus(code: string) {
 }
 
 export async function handleStudentAssetRequest(resourceId: string, dependencies: AssetRouteDependencies = {}) {
-  const user = await (dependencies.getCurrentUser ?? getCurrentUserIdentity)();
+  const identity = await resolveStudentIdentity(dependencies);
+  if (!identity.ok) return identityError(identity);
+  const user = identity.identity;
   const findResource = dependencies.findResource ?? (async (id: string) => {
     const runtimePrisma = await import("@/lib/prisma").then((module) => module.default);
     return runtimePrisma.resource.findUnique({

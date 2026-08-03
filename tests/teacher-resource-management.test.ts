@@ -137,7 +137,7 @@ test("unauthenticated users and students are rejected before repository access",
 test("admin moderation policy remains separate and unchanged", async () => {
   const adminActions = await readFile("app/admin/resources/actions.ts", "utf8");
   const adminPolicy = await readFile("lib/admin/resource-moderation-policy.ts", "utf8");
-  assert.match(adminActions, /await requireAdmin\(\)/);
+  assert.match(adminActions, /await requireCurrentRole\("ADMIN"\)/);
   assert.match(adminActions, /transitionAdminResource/);
   assert.match(adminPolicy, /status: "PUBLISHED"/);
 

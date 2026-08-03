@@ -1,45 +1,39 @@
 import "dotenv/config";
 
+import { pathToFileURL } from "node:url";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../app/generated/prisma/client";
 
-async function main(): Promise<void> {
-  const email = process.argv[2]?.trim().toLowerCase();
-
-  if (!email || !process.env.DATABASE_URL) {
-    throw new Error("Email or DATABASE_URL missing.");
+function readEmail(arguments_: string[]) {
+  const email = arguments_[0]?.trim().toLowerCase();
+  if (!email || !email.includes("@") || /@(example\.com|example\.org|test\.invalid)$/i.test(email)) {
+    throw new Error("Provide a valid account email.");
   }
+  return email;
+}
 
-  const prisma = new PrismaClient({
-    adapter: new PrismaPg({
-      connectionString: process.env.DATABASE_URL,
-    }),
-  });
-
+export async function main(arguments_ = process.argv.slice(2), environment = process.env): Promise<void> {
+  const email = readEmail(arguments_);
+  const connectionString = environment.DATABASE_URL;
+  if (!connectionString) throw new Error("Database configuration is unavailable.");
+  const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   try {
     const user = await prisma.user.findUnique({
       where: { email },
-      select: {
-        email: true,
-        roles: {
-          select: {
-            role: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
-      },
+      select: { roles: { select: { role: { select: { name: true } } } } },
     });
-
-    console.log(JSON.stringify(user, null, 2));
+    if (!user) throw new Error("The requested account is unavailable.");
+    const roles = user.roles.map(({ role }) => role.name).sort();
+    console.log(roles.length ? `Assigned roles: ${roles.join(", ")}.` : "No roles are assigned.");
   } finally {
     await prisma.$disconnect();
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+const invokedPath = process.argv[1] ? pathToFileURL(process.argv[1]).href : "";
+if (import.meta.url === invokedPath) {
+  main().catch(() => {
+    console.error("Role inspection failed.");
+    process.exitCode = 1;
+  });
+}

@@ -3,10 +3,10 @@ import Link from "next/link";
 import { BookOpen, LayoutDashboard, LibraryBig, LogOut } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
-import { requireTeacher } from "@/lib/auth/session";
+import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 
 export default async function TeacherLayout({ children }: { children: ReactNode }) {
-  await requireTeacher();
+  await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
 
   return (
     <div className="min-h-screen bg-slate-50">

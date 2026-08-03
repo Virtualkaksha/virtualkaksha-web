@@ -11,6 +11,7 @@ type AuthUserRecord = {
   displayName: string | null;
   avatarUrl: string | null;
   passwordHash: string | null;
+  sessionVersion: number;
   status: string;
   roles: Array<{ role: { name: "STUDENT" | "TEACHER" | "ADMIN" } }>;
 } | null;
@@ -111,6 +112,7 @@ export async function authorizeCredentials(
     email: usableUser.email,
     name: usableUser.displayName ?? [usableUser.firstName, usableUser.lastName].filter(Boolean).join(" "),
     image: usableUser.avatarUrl,
+    sessionVersion: usableUser.sessionVersion,
     roles: usableUser.roles.map(({ role }) => role.name),
   };
 }

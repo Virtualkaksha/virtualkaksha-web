@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, BookOpenCheck, Clock3, Eye, FileText } from "lucide-react";
 
-import { requireTeacher } from "@/lib/auth/session";
+import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 import { getTeacherDashboardCms } from "@/lib/teacher/teacher-cms";
 
 export default async function TeacherDashboardPage() {
-  const user = await requireTeacher();
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const cms = await getTeacherDashboardCms(user.id);
 
   return (

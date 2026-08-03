@@ -5,8 +5,8 @@ import prisma from "@/lib/prisma";
 import { STUDENT_READABLE_RESOURCE_WHERE } from "@/lib/resources/resource-access-policy";
 import { findStudentProfileIdByUserId, isStudentResourceBookmarked } from "@/repositories/student-learning.repository";
 import StudentPdfViewer from "@/components/student/StudentPdfViewer";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
 import {
-  getCurrentUserIdentity,
   getStudentResourceProgress,
   resolveStudentResourceDownloadUrl,
   resolveStudentResourceViewerState,
@@ -395,7 +395,7 @@ export default async function ResourceViewerPage({
     take: 6,
   });
 
-  const currentUser = await getCurrentUserIdentity();
+  const currentUser = await requireCurrentRole("STUDENT");
   const studentProfile = currentUser?.roles.includes("STUDENT")
     ? await findStudentProfileIdByUserId(currentUser.id)
     : null;

@@ -14,6 +14,7 @@ const ip = { ok: true as const, address: "203.0.113.9" };
 const activeUser = {
   id: "user-1", email: "person@example.com", firstName: "Person", lastName: null,
   displayName: "Person", avatarUrl: null, passwordHash: "real-password-hash", status: "ACTIVE",
+  sessionVersion: 1,
   roles: [{ role: { name: "STUDENT" } }],
 };
 
@@ -79,6 +80,7 @@ test("direct credentials authorization checks all login policies with normalized
 test("successful login resets identity and email buckets but not the IP bucket", async () => {
   const result = await login({});
   assert.equal(result.result?.id, "user-1");
+  assert.equal(result.result?.sessionVersion, 1);
   assert.deepEqual(result.limiter.resets.map(({ policy }) => policy), ["login-identity", "login-email"]);
   assert.equal(result.limiter.resets.some(({ policy }) => policy === "login-ip"), false);
 });

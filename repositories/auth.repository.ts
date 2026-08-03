@@ -15,6 +15,7 @@ export function findAuthUserByEmail(email: string) {
       displayName: true,
       avatarUrl: true,
       passwordHash: true,
+      sessionVersion: true,
       status: true,
       roles: {
         select: {

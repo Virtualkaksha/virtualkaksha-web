@@ -6,6 +6,7 @@ import { AuthError } from "next-auth";
 
 import { signIn, signOut } from "@/auth";
 import { registerStudentAccount } from "@/lib/auth/signup-service";
+import { logOutAllSessions } from "@/lib/auth/account-security";
 import { resolvePostLoginRedirect } from "@/lib/auth/role-routing";
 import { loginSchema, signupSchema } from "@/lib/auth/validation";
 import { findAuthUserByEmail } from "@/repositories/auth.repository";
@@ -21,6 +22,14 @@ function requestFromHeaders(requestHeaders: Headers) {
 }
 
 export async function logoutAction() {
+  await signOut({ redirectTo: "/login" });
+}
+
+export async function logoutAllSessionsAction(): Promise<AuthActionState | void> {
+  const result = await logOutAllSessions();
+  if (!result.ok) {
+    return { status: "error", message: result.message };
+  }
   await signOut({ redirectTo: "/login" });
 }
 

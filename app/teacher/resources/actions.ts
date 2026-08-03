@@ -9,6 +9,7 @@ import { transitionTeacherResource, updateTeacherResourceMetadata } from "@/lib/
 import type { TeacherResourceTransition } from "@/lib/teacher/resource-management-policy";
 import { enforceRateLimitChecks, resolveTrustedClientIp } from "@/lib/rate-limit";
 import { authorizeTeacherMutation } from "@/lib/teacher/mutation-rate-limit";
+import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 
 type TeacherResourcePrismaClient = {
   teacherProfile: {
@@ -172,8 +173,7 @@ export async function createTeacherResourceCore({ user, formData, prismaClient, 
 }
 
 export async function createTeacherResource(formData: FormData): Promise<TeacherResourceActionResult> {
-  const { requireTeacher } = await import("@/lib/auth/session");
-  const user = await requireTeacher();
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const request = new Request("http://rate-limit.internal", { headers: await headers() });
   const ip = resolveTrustedClientIp({ request });
   if (!ip.ok) return { ok: false, code: "RATE_LIMITED", message: "Too many requests. Please wait before trying again.", retryable: true, retryAfterSeconds: 1 };
@@ -191,8 +191,7 @@ export async function createTeacherResource(formData: FormData): Promise<Teacher
 }
 
 export async function uploadTeacherResourcePdf(formData: FormData) {
-  const { requireTeacher } = await import("@/lib/auth/session");
-  const user = await requireTeacher();
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const request = new Request("http://rate-limit.internal", { headers: await headers() });
   const ip = resolveTrustedClientIp({ request });
   if (!ip.ok) return { ok: false as const, code: "RATE_LIMITED", message: "Too many requests. Please wait before trying again.", retryAfterSeconds: 1 };
@@ -222,8 +221,7 @@ export async function uploadTeacherResourcePdf(formData: FormData) {
 }
 
 async function transitionTeacherResourceAction(formData: FormData, transition: TeacherResourceTransition): Promise<void> {
-  const { requireTeacher } = await import("@/lib/auth/session");
-  const user = await requireTeacher();
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const resourceId = required(formData, "resourceId");
   const authorization = await authorizeTeacherMutation(user, resourceId, transition);
   if (authorization.code === "NOT_FOUND") redirect("/teacher/resources?error=not-found");
@@ -251,8 +249,7 @@ export async function archiveTeacherResource(formData: FormData) {
 }
 
 export async function updateTeacherResource(formData: FormData) {
-  const { requireTeacher } = await import("@/lib/auth/session");
-  const user = await requireTeacher();
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const resourceId = required(formData, "resourceId");
   const { findEditableTeacherManagedResource } = await import("@/repositories/teacher-resource.repository");
   const current = await findEditableTeacherManagedResource(resourceId, user.id);

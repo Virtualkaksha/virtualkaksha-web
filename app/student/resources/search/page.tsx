@@ -2,12 +2,12 @@ import Link from "next/link";
 
 import ResourceSearchForm from "@/components/student/ResourceSearchForm";
 import ResourceSearchResults from "@/components/student/ResourceSearchResults";
-import { requireStudent } from "@/lib/auth/session";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
 import { searchStudentResources } from "@/lib/resources/resource-search";
 import { buildResourceSearchUrl, parseStudentSearchQuery, type RawSearchParams } from "@/lib/resources/resource-search-query";
 
 export default async function StudentResourceSearchPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
-  const user = await requireStudent();
+  const user = await requireCurrentRole("STUDENT");
   const query = parseStudentSearchQuery(await searchParams);
   const result = await searchStudentResources(query, user.id);
   const { page, totalPages, total } = result.pagination;

@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
+import type { RoleName } from "@/app/generated/prisma/enums";
 
-import { getCurrentUserIdentity, type StudentUser } from "@/lib/resources/student-resource-service";
+import type { StudentUser } from "@/lib/resources/student-resource-service";
 import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
 import { isSupportedResourceStorageProviderName } from "@/lib/resources/storage";
+import {
+  CURRENT_IDENTITY_PRIVATE_HEADERS,
+  currentIdentityFailureStatus,
+  resolveCurrentIdentityForApi,
+  type CurrentIdentityResult,
+} from "@/lib/auth/current-identity";
 
 type TeacherAssetResource = {
   id: string;
@@ -12,20 +19,46 @@ type TeacherAssetResource = {
 };
 
 type Dependencies = {
+  resolveIdentity?: () => Promise<CurrentIdentityResult>;
+  /** Test seam for an already-validated current identity. */
   getCurrentUser?: () => Promise<StudentUser | null>;
   findResource?: (resourceId: string) => Promise<TeacherAssetResource | null>;
   readLocalFile?: (objectKey: string) => Promise<Buffer>;
   readFile?: (provider: string, objectKey: string) => Promise<Buffer>;
 };
 
+async function resolveTeacherIdentity(dependencies: Dependencies): Promise<CurrentIdentityResult> {
+  if (dependencies.resolveIdentity) return dependencies.resolveIdentity();
+  if (dependencies.getCurrentUser) {
+    try {
+      const user = await dependencies.getCurrentUser();
+      if (!user) return { ok: false, code: "NO_SESSION", message: "Authentication is required." };
+      if (!user.roles.includes("TEACHER") && !user.roles.includes("ADMIN")) {
+        return { ok: false, code: "FORBIDDEN", message: "Access is denied." };
+      }
+      return { ok: true, identity: { ...user, roles: user.roles as RoleName[], sessionVersion: 1 } };
+    } catch {
+      return { ok: false, code: "IDENTITY_UNAVAILABLE", message: "Authentication is temporarily unavailable." };
+    }
+  }
+  return resolveCurrentIdentityForApi(["TEACHER", "ADMIN"]);
+}
+
 function error(status: number) {
   return NextResponse.json({ error: status === 401 ? "Authentication required" : status === 403 ? "Forbidden" : "Not found" }, { status });
 }
 
+function identityError(result: Extract<CurrentIdentityResult, { ok: false }>) {
+  return NextResponse.json(
+    { error: result.message },
+    { status: currentIdentityFailureStatus(result.code), headers: CURRENT_IDENTITY_PRIVATE_HEADERS },
+  );
+}
+
 export async function handleTeacherAssetRequest(resourceId: string, dependencies: Dependencies = {}) {
-  const user = await (dependencies.getCurrentUser ?? getCurrentUserIdentity)();
-  if (!user?.id) return error(401);
-  if (!user.roles.includes("TEACHER") && !user.roles.includes("ADMIN")) return error(403);
+  const identity = await resolveTeacherIdentity(dependencies);
+  if (!identity.ok) return identityError(identity);
+  const user = identity.identity;
   if (!resourceId.trim()) return error(404);
 
   const findResource = dependencies.findResource ?? (async (id: string) => {

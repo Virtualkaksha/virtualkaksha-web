@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
+import type { RoleName } from "@/app/generated/prisma/enums";
 
 import { createTeacherResourceCore, type TeacherResourceActionResult } from "@/app/teacher/resources/actions";
-import { getCurrentUserIdentity, type StudentUser } from "@/lib/resources/student-resource-service";
+import type { StudentUser } from "@/lib/resources/student-resource-service";
+import {
+  CURRENT_IDENTITY_PRIVATE_HEADERS,
+  currentIdentityFailureStatus,
+  resolveCurrentIdentityForApi,
+  type CurrentIdentityResult,
+} from "@/lib/auth/current-identity";
 import {
   enforceRateLimitChecks,
   rateLimitResponse,
@@ -12,6 +19,8 @@ import {
 const MAX_MULTIPART_BODY_BYTES = 21 * 1024 * 1024;
 
 type Dependencies = {
+  resolveIdentity?: () => Promise<CurrentIdentityResult>;
+  /** Test seam for an already-validated current identity. */
   getCurrentUser?: () => Promise<StudentUser | null>;
   resolveIp?: (request: Request) => ReturnType<typeof resolveTrustedClientIp>;
   rateLimit?: RateLimitAdapter;
@@ -19,14 +28,36 @@ type Dependencies = {
   createResource?: (user: StudentUser, formData: FormData) => Promise<TeacherResourceActionResult>;
 };
 
+async function resolveTeacherIdentity(dependencies: Dependencies): Promise<CurrentIdentityResult> {
+  if (dependencies.resolveIdentity) return dependencies.resolveIdentity();
+  if (dependencies.getCurrentUser) {
+    try {
+      const user = await dependencies.getCurrentUser();
+      if (!user) return { ok: false, code: "NO_SESSION", message: "Authentication is required." };
+      if (!user.roles.includes("TEACHER") && !user.roles.includes("ADMIN")) {
+        return { ok: false, code: "FORBIDDEN", message: "Access is denied." };
+      }
+      return { ok: true, identity: { ...user, roles: user.roles as RoleName[], sessionVersion: 1 } };
+    } catch {
+      return { ok: false, code: "IDENTITY_UNAVAILABLE", message: "Authentication is temporarily unavailable." };
+    }
+  }
+  return resolveCurrentIdentityForApi(["TEACHER", "ADMIN"]);
+}
+
 function jsonError(status: number, message: string) {
   return NextResponse.json({ error: message }, { status, headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function handleNativeTeacherResourceCreation(request: Request, dependencies: Dependencies = {}) {
-  const user = await (dependencies.getCurrentUser ?? getCurrentUserIdentity)();
-  if (!user?.id) return jsonError(401, "Authentication required.");
-  if (!user.roles.includes("TEACHER") && !user.roles.includes("ADMIN")) return jsonError(403, "Forbidden.");
+  const identity = await resolveTeacherIdentity(dependencies);
+  if (!identity.ok) {
+    return NextResponse.json(
+      { error: identity.message },
+      { status: currentIdentityFailureStatus(identity.code), headers: CURRENT_IDENTITY_PRIVATE_HEADERS },
+    );
+  }
+  const user = identity.identity;
 
   const ipResult = (dependencies.resolveIp ?? ((value) => resolveTrustedClientIp({ request: value })))(request);
   if (!ipResult.ok) return jsonError(503, "Resource creation is temporarily unavailable.");
@@ -65,4 +96,3 @@ export async function handleNativeTeacherResourceCreation(request: Request, depe
 export async function POST(request: Request) {
   return handleNativeTeacherResourceCreation(request);
 }
-

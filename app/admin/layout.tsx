@@ -3,10 +3,10 @@ import Link from "next/link";
 import { BookOpen, LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  await requireAdmin();
+  await requireCurrentRole("ADMIN");
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">

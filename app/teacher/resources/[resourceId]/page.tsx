@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireTeacher } from "@/lib/auth/session";
+import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 import { getTeacherManagedResource, validExternalHttpUrl } from "@/lib/teacher/resource-management";
 import { archiveTeacherResource, resubmitTeacherResource, submitTeacherResource, unpublishTeacherResource } from "../actions";
 import MutationSubmitButton from "@/components/MutationSubmitButton";
@@ -9,7 +9,7 @@ import MutationSubmitButton from "@/components/MutationSubmitButton";
 type Props = { params: Promise<{ resourceId: string }>; searchParams: Promise<{ updated?: string; error?: string; retryAfter?: string }> };
 
 export default async function TeacherResourceDetailPage({ params, searchParams }: Props) {
-  const user = await requireTeacher();
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const { resourceId } = await params;
   const resource = await getTeacherManagedResource(user, resourceId);
   if (!resource) notFound();

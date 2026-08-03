@@ -4,7 +4,7 @@ import test from "node:test";
 
 import "./helpers/server-only";
 
-import { handleProgressPost } from "@/app/api/student/resources/progress/route";
+import { handleProgressGet, handleProgressPost } from "@/app/api/student/resources/progress/route";
 import type { RateLimitAdapter, RateLimitDecision, RateLimitPolicy } from "@/lib/rate-limit";
 
 const student = { id: "student-1", roles: ["STUDENT"] };
@@ -66,5 +66,22 @@ test("progress GET remains outside rate-limit enforcement", async () => {
   const source = await readFile("app/api/student/resources/progress/route.ts", "utf8");
   const getSource = source.slice(source.indexOf("export async function GET"), source.indexOf("export async function handleProgressPost"));
   assert.doesNotMatch(getSource, /getRateLimitAdapter|\.check\("progress-/);
-  assert.match(getSource, /getStudentResourceProgress/);
+  assert.match(getSource, /handleProgressGet/);
+
+  let read = false;
+  const response = await handleProgressGet(
+    new Request("https://virtual.test/api/student/resources/progress?resourceId=resource-1"),
+    {
+      getCurrentUser: async () => student,
+      getProgress: async () => {
+        read = true;
+        return { ok: true, progress: null } as never;
+      },
+      rateLimit: limiter(() => {
+        assert.fail("GET must not consult the rate limiter");
+      }),
+    },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(read, true);
 });

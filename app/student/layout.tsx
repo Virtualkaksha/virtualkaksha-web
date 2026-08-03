@@ -2,14 +2,14 @@ import type { ReactNode } from "react";
 
 import StudentSidebar from "../components/student/StudentSidebar";
 import StudentTopbar from "../components/student/StudentTopbar";
-import { requireStudent } from "@/lib/auth/session";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
 
 type StudentLayoutProps = {
   children: ReactNode;
 };
 
 export default async function StudentLayout({ children }: StudentLayoutProps) {
-  await requireStudent();
+  await requireCurrentRole("STUDENT");
 
   return (
     <div className="min-h-screen bg-[#f7f8fa]">

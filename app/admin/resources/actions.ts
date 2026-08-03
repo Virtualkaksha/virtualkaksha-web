@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAdmin } from "@/lib/auth/session";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
 import {
   transitionAdminResource,
 } from "@/lib/admin/resource-moderation-policy";
@@ -34,7 +34,7 @@ async function enforceAdminMutation(adminId: string, resourceId: string, action:
 }
 
 export async function approveResource(formData: FormData) {
-  const admin = await requireAdmin(); const resourceId = field(formData, "resourceId");
+  const admin = await requireCurrentRole("ADMIN"); const resourceId = field(formData, "resourceId");
   if (!resourceId) throw new Error("Resource ID is required.");
   await enforceAdminMutation(admin.id, resourceId, "APPROVE");
   await transitionAdminResource(
@@ -45,7 +45,7 @@ export async function approveResource(formData: FormData) {
 }
 
 export async function rejectResource(formData: FormData) {
-  const admin = await requireAdmin(); const resourceId = field(formData, "resourceId"); const reason = field(formData, "reason");
+  const admin = await requireCurrentRole("ADMIN"); const resourceId = field(formData, "resourceId"); const reason = field(formData, "reason");
   if (!resourceId) throw new Error("Resource ID is required.");
   if (reason.length < 10) throw new Error("Rejection reason must contain at least 10 characters.");
   await enforceAdminMutation(admin.id, resourceId, "REJECT");
@@ -57,7 +57,7 @@ export async function rejectResource(formData: FormData) {
 }
 
 export async function archiveResource(formData: FormData) {
-  const admin = await requireAdmin(); const resourceId = field(formData, "resourceId");
+  const admin = await requireCurrentRole("ADMIN"); const resourceId = field(formData, "resourceId");
   if (!resourceId) throw new Error("Resource ID is required.");
   await enforceAdminMutation(admin.id, resourceId, "ARCHIVE");
   await transitionAdminResource(

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Archive, Eye, Pencil, PlusCircle, Send, Undo2 } from "lucide-react";
 
-import { requireTeacher } from "@/lib/auth/session";
+import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 import { buildResourceSearchUrl, getAcademicUnitOptions, parseTeacherSearchQuery, type RawSearchParams } from "@/lib/resources/resource-search-query";
 import { getTeacherCms } from "@/lib/teacher/teacher-cms";
 import { archiveTeacherResource, resubmitTeacherResource, submitTeacherResource, unpublishTeacherResource } from "./actions";
@@ -11,7 +11,7 @@ type Props = { searchParams: Promise<RawSearchParams> };
 const field = "min-h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-500";
 
 export default async function TeacherResourcesPage({ searchParams }: Props) {
-  const user = await requireTeacher();
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const rawParams = await searchParams;
   const query = parseTeacherSearchQuery(rawParams);
   const cms = await getTeacherCms(user.id, query);

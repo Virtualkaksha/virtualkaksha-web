@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import StudentResourceCard from "@/components/student/StudentResourceCard";
-import { requireStudent } from "@/lib/auth/session";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
 import { getStudentBookmarks } from "@/lib/resources/student-learning";
 import { parseStudentLearningQuery, type StudentLearningSearchParams } from "@/lib/resources/student-learning-query";
 
@@ -10,7 +10,7 @@ export default async function StudentBookmarksPage({
 }: {
   searchParams: Promise<StudentLearningSearchParams>;
 }) {
-  const user = await requireStudent();
+  const user = await requireCurrentRole("STUDENT");
   const query = parseStudentLearningQuery(await searchParams);
   const result = await getStudentBookmarks(user.id, query);
 

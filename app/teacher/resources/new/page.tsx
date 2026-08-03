@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-import { requireTeacher } from "@/lib/auth/session";
+import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 import { findTeacherWorkspaceMetadata } from "@/repositories/teacher-cms.repository";
 import { createTeacherResource } from "../actions";
 import ResourceCreateForm from "../ResourceCreateForm";
 
 export default async function NewTeacherResourcePage() {
-  const user = await requireTeacher();
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const metadata = await findTeacherWorkspaceMetadata(user.id);
 
   return (

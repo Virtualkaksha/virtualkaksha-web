@@ -22,7 +22,7 @@ import {
   type StudentDashboardData,
 } from "@/lib/dashboard/student-dashboard";
 import prisma from "@/lib/prisma";
-import { requireStudent } from "@/lib/auth/session";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
 
 type PublicDashboardResource = {
   id: string;
@@ -187,7 +187,7 @@ async function getPublicDashboardData(): Promise<PublicDashboardData> {
 }
 
 async function getDashboardPageState(): Promise<DashboardPageState> {
-  const user = await requireStudent();
+  const user = await requireCurrentRole("STUDENT");
 
   try {
     return {

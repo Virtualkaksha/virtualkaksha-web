@@ -1,35 +1,69 @@
 import { NextResponse } from "next/server";
+import type { RoleName } from "@/app/generated/prisma/enums";
 
 import { getRateLimitAdapter, rateLimitResponse, type RateLimitAdapter } from "@/lib/rate-limit";
-import { getCurrentUserIdentity, getStudentResourceProgress, saveStudentResourceProgress } from "@/lib/resources/student-resource-service";
+import { getStudentResourceProgress, saveStudentResourceProgress, type StudentUser } from "@/lib/resources/student-resource-service";
+import {
+  CURRENT_IDENTITY_PRIVATE_HEADERS,
+  currentIdentityFailureStatus,
+  resolveCurrentIdentityForApi,
+  type CurrentIdentityResult,
+} from "@/lib/auth/current-identity";
 
 type ProgressDependencies = {
-  getCurrentUser?: typeof getCurrentUserIdentity;
+  resolveIdentity?: () => Promise<CurrentIdentityResult>;
+  /** Test seam for an already-validated current identity. */
+  getCurrentUser?: () => Promise<StudentUser | null>;
+  getProgress?: typeof getStudentResourceProgress;
   saveProgress?: typeof saveStudentResourceProgress;
   rateLimit?: RateLimitAdapter;
 };
 
-export async function GET(request: Request) {
-  const user = await getCurrentUserIdentity();
+async function resolveStudentIdentity(dependencies: ProgressDependencies): Promise<CurrentIdentityResult> {
+  if (dependencies.resolveIdentity) return dependencies.resolveIdentity();
+  if (dependencies.getCurrentUser) {
+    try {
+      const user = await dependencies.getCurrentUser();
+      if (!user) return { ok: false, code: "NO_SESSION", message: "Authentication is required." };
+      if (!user.roles.includes("STUDENT")) return { ok: false, code: "FORBIDDEN", message: "Access is denied." };
+      return { ok: true, identity: { ...user, roles: user.roles as RoleName[], sessionVersion: 1 } };
+    } catch {
+      return { ok: false, code: "IDENTITY_UNAVAILABLE", message: "Authentication is temporarily unavailable." };
+    }
+  }
+  return resolveCurrentIdentityForApi(["STUDENT"]);
+}
+
+function identityError(result: Extract<CurrentIdentityResult, { ok: false }>) {
+  return NextResponse.json(
+    { error: result.message },
+    { status: currentIdentityFailureStatus(result.code), headers: CURRENT_IDENTITY_PRIVATE_HEADERS },
+  );
+}
+
+export async function handleProgressGet(request: Request, dependencies: ProgressDependencies = {}) {
+  const identity = await resolveStudentIdentity(dependencies);
   const { searchParams } = new URL(request.url);
   const resourceId = searchParams.get("resourceId");
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!identity.ok) return identityError(identity);
+  const user = identity.identity;
   if (!resourceId) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 
-  const result = await getStudentResourceProgress({ user, resourceId });
+  const result = await (dependencies.getProgress ?? getStudentResourceProgress)({ user, resourceId });
   return NextResponse.json(result, { status: result.ok ? 200 : result.code === "FORBIDDEN" ? 403 : 404 });
 }
 
+export async function GET(request: Request) {
+  return handleProgressGet(request);
+}
+
 export async function handleProgressPost(request: Request, dependencies: ProgressDependencies = {}) {
-  const user = await (dependencies.getCurrentUser ?? getCurrentUserIdentity)();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const identity = await resolveStudentIdentity(dependencies);
+  if (!identity.ok) return identityError(identity);
+  const user = identity.identity;
 
   const payload = await request.json().catch(() => null);
   if (!payload || typeof payload !== "object") {

@@ -46,7 +46,7 @@ test("admin actions authenticate, limit, then retain atomic updateMany transitio
   }
   for (const functionName of ["approveResource", "rejectResource", "archiveResource"]) {
     const actionSource = source.slice(source.indexOf(`export async function ${functionName}`));
-    assert.ok(actionSource.indexOf("requireAdmin()") < actionSource.indexOf("enforceAdminMutation"), functionName);
+    assert.ok(actionSource.indexOf('requireCurrentRole("ADMIN")') < actionSource.indexOf("enforceAdminMutation"), functionName);
   }
   assert.match(source, /prisma\.resource\.updateMany/);
   assert.match(source, /rateLimited=true&retryAfter=/);

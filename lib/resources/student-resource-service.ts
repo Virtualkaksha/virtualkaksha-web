@@ -338,7 +338,6 @@ export async function saveStudentResourceProgress({
 }
 
 export async function getCurrentUserIdentity(): Promise<StudentUser | null> {
-  const { getCurrentSession } = await import("@/lib/auth/session");
-  const session = await getCurrentSession();
-  return session?.user?.id ? { id: session.user.id, roles: session.user.roles } : null;
+  const { getCurrentIdentity } = await import("@/lib/auth/current-identity");
+  return getCurrentIdentity();
 }

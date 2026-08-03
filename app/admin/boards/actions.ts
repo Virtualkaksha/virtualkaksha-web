@@ -3,6 +3,16 @@
 import { BoardType } from "@/app/generated/prisma/client";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
+import { enforceRateLimitChecks } from "@/lib/rate-limit";
+
+async function limitAdminBoardMutation(adminId: string, action: string, target: string) {
+  const decision = await enforceRateLimitChecks([
+    { policy: "admin-mutation-user", identifier: adminId },
+    { policy: "admin-resource-action", identifier: `${adminId}\u0000${target}\u0000${action}` },
+  ]);
+  if (decision) throw new Error("Too many requests. Please try again later.");
+}
 
 function getRequiredString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -68,6 +78,8 @@ function getSortOrder(formData: FormData): number {
 export async function createBoard(
   formData: FormData,
 ): Promise<void> {
+  const admin = await requireCurrentRole("ADMIN");
+  await limitAdminBoardMutation(admin.id, "BOARD_CREATE", "new-board");
   const name = getRequiredString(formData, "name");
 
   const shortName = getRequiredString(
@@ -147,7 +159,9 @@ export async function createBoard(
 export async function updateBoard(
   formData: FormData,
 ): Promise<void> {
+  const admin = await requireCurrentRole("ADMIN");
   const boardId = getRequiredString(formData, "boardId");
+  await limitAdminBoardMutation(admin.id, "BOARD_UPDATE", boardId);
 
   const name = getRequiredString(formData, "name");
 
@@ -246,7 +260,9 @@ export async function updateBoard(
 export async function toggleBoardStatus(
   formData: FormData,
 ): Promise<void> {
+  const admin = await requireCurrentRole("ADMIN");
   const boardId = getRequiredString(formData, "boardId");
+  await limitAdminBoardMutation(admin.id, "BOARD_STATUS", boardId);
 
   const board = await prisma.board.findUnique({
     where: {
@@ -278,7 +294,9 @@ export async function toggleBoardStatus(
 export async function deleteBoard(
   formData: FormData,
 ): Promise<void> {
+  const admin = await requireCurrentRole("ADMIN");
   const boardId = getRequiredString(formData, "boardId");
+  await limitAdminBoardMutation(admin.id, "BOARD_DELETE", boardId);
 
   const board = await prisma.board.findUnique({
     where: {

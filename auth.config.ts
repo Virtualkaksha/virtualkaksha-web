@@ -23,7 +23,8 @@ export const authConfig = {
 
   session: {
     strategy: "jwt",
-    maxAge: 60 * 60 * 24 * 30,
+    // Revocation is database-enforced; a seven-day ceiling also limits exposure of an unused JWT.
+    maxAge: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
 
@@ -47,6 +48,8 @@ export const authConfig = {
     jwt({ token, user }) {
       if (user) {
         token.userId = String(user.id);
+        token.sessionVersion = user.sessionVersion;
+        // JWT roles are navigation hints only. Server authorization must use current database roles.
         token.roles = getRoles(user.roles);
       }
 
@@ -60,6 +63,10 @@ export const authConfig = {
             ? token.userId
             : String(token.sub ?? "");
 
+        if (Number.isSafeInteger(token.sessionVersion) && Number(token.sessionVersion) > 0) {
+          session.user.sessionVersion = Number(token.sessionVersion);
+        }
+        // Session roles remain temporarily for Stage 1 compatibility and are not authoritative.
         session.user.roles = getRoles(token.roles);
       }
 
@@ -74,11 +81,19 @@ export function createAuthRuntimeConfig(
   environment?: EnvironmentSource,
 ): NextAuthConfig {
   const validated = getAuthEnvironment(environment);
+  const secureCookies = validated.nodeEnv === "production";
   const configuredPath = validated.authUrl ? new URL(validated.authUrl).pathname : "/";
   return {
     ...authConfig,
     ...(validated.authSecret ? { secret: validated.authSecret } : {}),
     ...(validated.authTrustHost === undefined ? {} : { trustHost: validated.authTrustHost }),
+    useSecureCookies: secureCookies,
+    cookies: {
+      sessionToken: {
+        name: secureCookies ? "__Secure-authjs.session-token" : "authjs.session-token",
+        options: { httpOnly: true, sameSite: "lax", path: "/", secure: secureCookies },
+      },
+    },
     basePath: configuredPath === "/" ? "/api/auth" : configuredPath,
   };
 }
