@@ -104,9 +104,10 @@ test("role homes and route redirects cannot loop through login", () => {
 
 test("proxy covers all protected areas and auth pages", async () => {
   const source = await readFile("proxy.ts", "utf8");
-  for (const route of ["/student/:path*", "/teacher/:path*", "/admin/:path*", "/login", "/signup"]) {
-    assert.match(source, new RegExp(route.replace(/[/*]/g, "\\$&")));
-  }
+  assert.match(source, /export default auth\(/);
+  assert.match(source, /applyReportOnlyCsp/);
+  assert.match(source, /source: "\/\(\(\?!api\|_next\/static\|_next\/image/);
+  assert.match(source, /NextAuth\(authConfig\)/);
 });
 
 test("logout clears the Auth.js session and redirects to login from every navigation", async () => {

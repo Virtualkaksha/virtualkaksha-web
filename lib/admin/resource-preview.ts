@@ -2,14 +2,15 @@ export type AdminResourcePreview =
   | { kind: "article" }
   | { kind: "native-pdf"; url: string }
   | { kind: "native-pdf-unavailable"; status: string }
-  | { kind: "external"; url: string }
+  | { kind: "external"; url: string; hostname: string }
   | { kind: "unavailable" };
 
 function safeHttpsUrl(value: string | null | undefined) {
   if (!value) return null;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" ? url.toString() : null;
+    if (url.protocol !== "https:" || !url.hostname || url.username || url.password) return null;
+    return { url: url.toString(), hostname: url.hostname };
   } catch {
     return null;
   }
@@ -36,5 +37,5 @@ export function resolveAdminResourcePreview(resource: {
     };
   }
   const externalUrl = safeHttpsUrl(resource.externalUrl);
-  return externalUrl ? { kind: "external", url: externalUrl } : { kind: "unavailable" };
+  return externalUrl ? { kind: "external", ...externalUrl } : { kind: "unavailable" };
 }

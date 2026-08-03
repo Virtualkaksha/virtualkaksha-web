@@ -133,11 +133,11 @@ test("native preview is available only for a READY primary asset", () => {
   );
 });
 
-test("external previews require HTTPS and the moderation iframe is sandboxed", async () => {
+test("external previews require HTTPS and render as hardened links without an iframe", async () => {
   const base = { id: "resource-1", format: "PDF", nativePdf: { isNativePdf: false, hasPrimaryAsset: false, assetStatus: null } };
   assert.deepEqual(
     resolveAdminResourcePreview({ ...base, externalUrl: "https://example.com/resource.pdf" }),
-    { kind: "external", url: "https://example.com/resource.pdf" },
+    { kind: "external", url: "https://example.com/resource.pdf", hostname: "example.com" },
   );
   for (const externalUrl of [
     "http://example.com/resource.pdf",
@@ -150,7 +150,11 @@ test("external previews require HTTPS and the moderation iframe is sandboxed", a
   }
   const page = await readFile("app/admin/resources/[resourceId]/page.tsx", "utf8");
   assert.match(page, /preview\.kind === "external"/);
-  assert.match(page, /sandbox=""/);
+  assert.doesNotMatch(page, /external preview|sandbox=""/);
+  assert.match(page, /preview\.hostname/);
+  assert.match(page, />Open external PDF/);
+  assert.match(page, /target="_blank"/);
+  assert.match(page, /rel="noopener noreferrer"/);
   assert.match(page, /referrerPolicy="no-referrer"/);
   assert.match(page, /preview\.kind === "native-pdf"/);
   assert.match(page, />Preview PDF/);
