@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import "./helpers/server-only";
+
 import { buildContentSecurityPolicy } from "@/lib/security/csp";
 import { buildStaticSecurityHeaders, PROTECTED_PDF_HEADERS } from "@/lib/security/headers";
 import { applyReportOnlyCsp, generateCspNonce, shouldApplyNonceCsp } from "@/proxy";
