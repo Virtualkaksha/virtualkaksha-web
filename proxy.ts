@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
-import { NextRequest, NextResponse } from "next/server";
+import type { NextAuthRequest } from "next-auth";
+import { NextFetchEvent, NextRequest, NextResponse, type NextMiddleware } from "next/server";
 
 import { createAuthRuntimeConfig } from "@/auth.config";
 import { buildContentSecurityPolicy } from "@/lib/security/csp";
@@ -53,7 +54,15 @@ export function applyReportOnlyCsp(request: NextRequest) {
   return response;
 }
 
-export default auth((request) => applyReportOnlyCsp(request));
+const authorizedProxyPromise = auth((request: NextAuthRequest, event: NextFetchEvent) => {
+  void event;
+  return applyReportOnlyCsp(request);
+}) as unknown as Promise<NextMiddleware>;
+
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
+  const authorizedProxy = await authorizedProxyPromise;
+  return authorizedProxy(request, event);
+}
 
 export const config = {
   matcher: [

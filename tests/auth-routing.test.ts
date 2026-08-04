@@ -104,7 +104,10 @@ test("role homes and route redirects cannot loop through login", () => {
 
 test("proxy covers all protected areas and auth pages", async () => {
   const source = await readFile("proxy.ts", "utf8");
-  assert.match(source, /export default auth\(/);
+  assert.match(source, /const authorizedProxyPromise = auth\(/);
+  assert.match(source, /await authorizedProxyPromise/);
+  assert.match(source, /export async function proxy\(/);
+  assert.doesNotMatch(source, /export default/);
   assert.match(source, /applyReportOnlyCsp/);
   assert.match(source, /source: "\/\(\(\?!api\|_next\/static\|_next\/image/);
   assert.match(source, /NextAuth\(async \(\) => createAuthRuntimeConfig\(\)\)/);
