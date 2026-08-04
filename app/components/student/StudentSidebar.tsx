@@ -5,17 +5,10 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Bookmark,
-  BookOpen,
-  GraduationCap,
+  CircleHelp,
   Home,
   LibraryBig,
   LogOut,
-  PlaySquare,
-  School,
-  Settings,
-  TestTube2,
-  UserRound,
-  UsersRound,
 } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
@@ -23,15 +16,15 @@ import { logoutAction } from "@/app/(auth)/actions";
 export const studentNavigationItems = [
   { label: "Dashboard", icon: Home, href: "/student" },
   { label: "Study Resources", icon: LibraryBig, href: "/student/resources" },
-  { label: "NCERT Solutions", icon: BookOpen, href: "/student/ncert-solutions" },
-  { label: "Video Lectures", icon: PlaySquare, href: "/student/video-lectures" },
-  { label: "Tests", icon: TestTube2, href: "/student/tests" },
-  { label: "Courses", icon: GraduationCap, href: "/student/courses" },
-  { label: "Teachers", icon: UsersRound, href: "/student/teachers" },
-  { label: "Institutes", icon: School, href: "/student/coachings" },
   { label: "Saved", icon: Bookmark, href: "/student/bookmarks" },
   { label: "Continue Learning", icon: BarChart3, href: "/student/continue-learning" },
 ];
+
+export const studentSupportNavigationItem = {
+  label: "Help & Support",
+  icon: CircleHelp,
+  href: "/contact",
+};
 
 export function isStudentNavigationActive(pathname: string, href: string) {
   return href === "/student" ? pathname === href : pathname.startsWith(href);
@@ -78,13 +71,9 @@ export default function StudentSidebar() {
         </nav>
 
         <div className="border-t border-slate-200/80 p-4">
-          <Link href="/student/profile" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
-            <UserRound className="h-[18px] w-[18px]" aria-hidden="true" />
-            My profile
-          </Link>
-          <Link href="/student/settings" className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
-            <Settings className="h-[18px] w-[18px]" aria-hidden="true" />
-            Settings
+          <Link href={studentSupportNavigationItem.href} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
+            <CircleHelp className="h-[18px] w-[18px]" aria-hidden="true" />
+            {studentSupportNavigationItem.label}
           </Link>
           <form action={logoutAction}>
             <button type="submit" className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-rose-700">

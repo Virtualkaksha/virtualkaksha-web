@@ -22,7 +22,7 @@ moduleWithHooks.registerHooks({
   },
 });
 
-const SAFE_VALIDATION_MESSAGE = /^(?:Common|Database|Auth|Storage|Rate limit) environment validation failed: [A-Z0-9_]+ [A-Za-z0-9 ()/.,_-]+$/;
+const SAFE_VALIDATION_MESSAGE = /^(?:(?:Common|Database|Auth|Storage|Rate limit) environment validation failed: [A-Z0-9_]+ [A-Za-z0-9 ()/.,_-]+|Public site validation failed: [A-Za-z0-9 ()/.,_-]+)$/;
 
 function sanitizedFailureMessage(error: unknown) {
   if (error instanceof Error && SAFE_VALIDATION_MESSAGE.test(error.message)) {
@@ -49,6 +49,8 @@ async function main() {
     getAuthEnvironment();
     getStorageEnvironment();
     getRateLimitEnvironment();
+    const { validatePublicSiteConfigForProduction } = await import("../lib/public-site-config");
+    validatePublicSiteConfigForProduction();
     console.log("Environment validation succeeded for production deployment.");
   } catch (error) {
     console.error(sanitizedFailureMessage(error));

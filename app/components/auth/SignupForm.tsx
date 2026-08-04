@@ -76,6 +76,17 @@ export default function SignupForm() {
         <FieldError messages={state.fieldErrors?.email} />
       </div>
 
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <p className="text-sm leading-6 text-slate-700">
+          Students under 18 should create an account only with permission from a parent or guardian. This beta acknowledgement is not verified parental consent. Read our <Link href="/terms" className="font-semibold text-blue-700">Terms</Link> and <Link href="/privacy" className="font-semibold text-blue-700">Privacy Policy</Link>.
+        </p>
+        <label className="mt-3 flex items-start gap-3 text-sm font-medium text-slate-800">
+          <input type="checkbox" name="guardianAcknowledgement" required className="mt-1 h-4 w-4" />
+          <span>I confirm that I am 18 or older, or I have permission from my parent or guardian.</span>
+        </label>
+        <FieldError messages={state.fieldErrors?.guardianAcknowledgement} />
+      </div>
+
       <div>
         <label htmlFor="password" className="text-sm font-semibold text-slate-800">
           Password

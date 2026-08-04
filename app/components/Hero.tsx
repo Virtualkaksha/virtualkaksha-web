@@ -5,28 +5,28 @@ const quickResources = [
     title: "Study Notes",
     description: "Chapter-wise concepts",
     icon: "📘",
-    href: "/notes",
+    href: "/search?type=notes",
     background: "bg-blue-50",
   },
   {
     title: "NCERT Solutions",
     description: "Step-by-step answers",
     icon: "📚",
-    href: "/ncert-solutions",
+    href: "/search?type=ncert-solutions",
     background: "bg-emerald-50",
   },
   {
     title: "Mock Tests",
     description: "Test your preparation",
     icon: "📝",
-    href: "/tests",
+    href: "/search?type=mock-test",
     background: "bg-amber-50",
   },
   {
     title: "Video Lectures",
     description: "Learn visually",
     icon: "🎥",
-    href: "/video-lectures",
+    href: "/search?type=video-lecture",
     background: "bg-violet-50",
   },
 ];
@@ -60,7 +60,7 @@ export default function Hero() {
           {/* CTA buttons */}
           <div className="mt-8 flex flex-col gap-4 sm:flex-row">
             <Link
-              href="#choose-class"
+              href="/search"
               className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-7 py-4 font-semibold text-white shadow-lg shadow-blue-600/20 transition duration-300 hover:-translate-y-0.5 hover:bg-blue-700"
             >
               Start Learning
@@ -68,10 +68,10 @@ export default function Hero() {
             </Link>
 
             <Link
-              href="/courses"
+              href="/signup"
               className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-7 py-4 font-semibold text-slate-800 transition duration-300 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
             >
-              Explore Courses
+              Create account
             </Link>
           </div>
 
@@ -133,7 +133,7 @@ export default function Hero() {
 
               <input
                 id="hero-search"
-                name="query"
+                name="q"
                 type="search"
                 placeholder="Search class, subject or chapter..."
                 className="min-w-0 flex-1 rounded-2xl border border-slate-300 bg-slate-50 px-5 py-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"

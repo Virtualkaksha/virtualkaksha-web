@@ -2,6 +2,8 @@ import type { RateLimitAdapter, RateLimitDecision, RateLimitPolicy } from "@/lib
 import { getRateLimitAdapter, resolveTrustedClientIp } from "@/lib/rate-limit";
 import { verifyPassword } from "@/lib/auth/password";
 import { loginSchema } from "@/lib/auth/validation";
+import { getRateLimitEnvironment, type EnvironmentSource } from "@/lib/env";
+import type { LoginRole } from "@/lib/auth/role-routing";
 
 type AuthUserRecord = {
   id: string;
@@ -24,13 +26,40 @@ type CredentialsDependencies = {
   findUser?: (email: string) => Promise<AuthUserRecord>;
   comparePassword?: (password: string, hash: string) => Promise<boolean>;
   recordLogin?: (userId: string) => Promise<unknown>;
+  environment?: EnvironmentSource;
 };
+
+export function resolveCredentialsClientIp(
+  request: Request,
+  environment: EnvironmentSource = process.env,
+) {
+  let directAddress: string | undefined;
+  try {
+    const validated = getRateLimitEnvironment(environment);
+    if (
+      validated.nodeEnv === "development" &&
+      validated.adapter === "memory" &&
+      validated.trustedProxy === "direct"
+    ) {
+      directAddress = "127.0.0.1";
+    }
+  } catch {
+    // The generic resolver returns a sanitized invalid-configuration result.
+  }
+  return resolveTrustedClientIp({ request, directAddress, environment });
+}
 
 function normalizedEmail(rawCredentials: unknown) {
   if (!rawCredentials || typeof rawCredentials !== "object") return "invalid-email";
   const value = (rawCredentials as Record<string, unknown>).email;
   if (typeof value !== "string") return "invalid-email";
   return value.normalize("NFKC").trim().toLowerCase().slice(0, 320) || "invalid-email";
+}
+
+function expectedRole(rawCredentials: unknown): LoginRole | null {
+  if (!rawCredentials || typeof rawCredentials !== "object") return null;
+  const value = (rawCredentials as Record<string, unknown>).expectedRole;
+  return value === "STUDENT" || value === "TEACHER" || value === "ADMIN" ? value : null;
 }
 
 function unavailable(): RateLimitDecision {
@@ -55,7 +84,9 @@ export async function authorizeCredentials(
     && typeof (rawCredentials as Record<string, unknown>).password === "string"
     ? (rawCredentials as Record<string, string>).password
     : "";
-  const ipResult = (dependencies.resolveIp ?? ((value) => resolveTrustedClientIp({ request: value })))(request);
+  const requiredRole = expectedRole(rawCredentials);
+  const ipResult = (dependencies.resolveIp ?? ((value) =>
+    resolveCredentialsClientIp(value, dependencies.environment)))(request);
   if (!ipResult.ok) {
     await (dependencies.comparePassword ?? verifyPassword)(password, DUMMY_PASSWORD_HASH);
     return null;
@@ -87,13 +118,16 @@ export async function authorizeCredentials(
     const repository = await import("@/repositories/auth.repository");
     return repository.findAuthUserByEmail(value);
   });
-  const user = parsed.success ? await findUser(parsed.data.email) : null;
+  const user = parsed.success && requiredRole ? await findUser(parsed.data.email) : null;
   const usableUser = user?.passwordHash && user.status === "ACTIVE" ? user : null;
   const passwordMatches = await (dependencies.comparePassword ?? verifyPassword)(
     password,
     usableUser?.passwordHash ?? DUMMY_PASSWORD_HASH,
   );
-  if (!usableUser || !passwordMatches) return null;
+  const hasRequiredRole = Boolean(
+    requiredRole && usableUser?.roles.some(({ role }) => role.name === requiredRole),
+  );
+  if (!usableUser || !passwordMatches || !hasRequiredRole) return null;
 
   try {
     await limiter.reset("login-identity", identity);

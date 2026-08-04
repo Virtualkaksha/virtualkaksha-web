@@ -1,0 +1,3 @@
+"use client";
+import Link from "next/link";
+export default function GlobalError({ retry }: { error: Error & { digest?: string }; retry: () => void }) { return <html lang="en"><body><title>Something went wrong | VirtualKaksha</title><main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: "24px", fontFamily: "system-ui, sans-serif" }}><div style={{ maxWidth: "560px", textAlign: "center" }}><h1>Something went wrong</h1><p>We could not load this page. No internal error details are shown.</p><div style={{ display: "flex", justifyContent: "center", gap: "12px" }}><button type="button" onClick={() => retry()}>Try again</button><Link href="/">Return home</Link></div></div></main></body></html>; }

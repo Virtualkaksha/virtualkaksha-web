@@ -29,6 +29,9 @@ export const signupSchema = z
     email: z.string().trim().email("Enter a valid email address.").toLowerCase(),
     password: passwordSchema,
     confirmPassword: z.string(),
+    guardianAcknowledgement: z.literal("on", {
+      error: "Please confirm the age or parent/guardian permission requirement.",
+    }),
   })
   .refine((values) => values.password === values.confirmPassword, {
     message: "Passwords do not match.",

@@ -1,5 +1,7 @@
 import type { RoleName } from "@/app/generated/prisma/enums";
 
+export type LoginRole = "STUDENT" | "TEACHER" | "ADMIN";
+
 export function getRoleHome(roles: readonly RoleName[]) {
   if (roles.includes("ADMIN")) return "/admin";
   if (roles.includes("TEACHER")) return "/teacher";
@@ -7,12 +9,26 @@ export function getRoleHome(roles: readonly RoleName[]) {
   return "/";
 }
 
+export const ROLE_LOGIN_CONFIG = Object.freeze({
+  STUDENT: { loginPath: "/login", homePath: "/student" },
+  TEACHER: { loginPath: "/teacher/login", homePath: "/teacher" },
+  ADMIN: { loginPath: "/admin/login", homePath: "/admin" },
+} satisfies Record<LoginRole, { loginPath: string; homePath: string }>);
+
+function loginRoleForPath(pathname: string): LoginRole | null {
+  if (pathname === "/login") return "STUDENT";
+  if (pathname === "/teacher/login") return "TEACHER";
+  if (pathname === "/admin/login") return "ADMIN";
+  return null;
+}
+
 export function getAuthenticatedRouteRedirect(
   pathname: string,
   isAuthenticated: boolean,
   roles: readonly RoleName[],
 ) {
-  const isLoginRoute = pathname === "/login" || pathname === "/signup";
+  const loginRole = loginRoleForPath(pathname);
+  const isSignupRoute = pathname === "/signup";
   const requiredArea = pathname.startsWith("/admin")
     ? "ADMIN"
     : pathname.startsWith("/teacher")
@@ -21,18 +37,49 @@ export function getAuthenticatedRouteRedirect(
         ? "STUDENT"
         : null;
 
-  if (isLoginRoute) {
+  if (loginRole) {
+    return isAuthenticated && roles.includes(loginRole)
+      ? ROLE_LOGIN_CONFIG[loginRole].homePath
+      : null;
+  }
+  if (isSignupRoute) {
     return isAuthenticated ? getRoleHome(roles) : null;
   }
 
   if (!requiredArea) return null;
-  if (!isAuthenticated) return "/login";
+  if (!isAuthenticated) return ROLE_LOGIN_CONFIG[requiredArea].loginPath;
 
-  const hasAccess = requiredArea === "TEACHER"
-    ? roles.includes("TEACHER") || roles.includes("ADMIN")
-    : roles.includes(requiredArea);
+  const hasAccess = roles.includes(requiredArea);
 
   return hasAccess ? null : getRoleHome(roles);
+}
+
+export function resolveRolePostLoginRedirect(
+  expectedRole: LoginRole,
+  callbackUrl?: string | null,
+  applicationOrigin?: string | null,
+) {
+  const roleHome = ROLE_LOGIN_CONFIG[expectedRole].homePath;
+  const candidate = callbackUrl?.trim();
+  if (!candidate) return roleHome;
+
+  let destination: URL;
+  try {
+    if (candidate.startsWith("/") && !candidate.startsWith("//")) {
+      destination = new URL(candidate, "https://virtualkaksha.internal");
+    } else {
+      destination = new URL(candidate);
+      if (!applicationOrigin || destination.origin !== applicationOrigin) return roleHome;
+    }
+  } catch {
+    return roleHome;
+  }
+
+  const permitted = destination.pathname === roleHome
+    || destination.pathname.startsWith(`${roleHome}/`);
+  return permitted
+    ? `${destination.pathname}${destination.search}${destination.hash}`
+    : roleHome;
 }
 
 export function resolvePostLoginRedirect(

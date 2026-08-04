@@ -3,15 +3,18 @@
 import Link from "next/link";
 import { useActionState } from "react";
 
-import { loginAction, type AuthActionState } from "@/app/(auth)/actions";
+import { adminLoginAction, studentLoginAction, teacherLoginAction, type AuthActionState } from "@/app/(auth)/actions";
 import AuthSubmitButton from "@/app/components/auth/AuthSubmitButton";
+import type { LoginRole } from "@/lib/auth/role-routing";
 
 const initialState: AuthActionState = {
   status: "idle",
 };
 
-export default function LoginForm() {
-  const [state, action] = useActionState(loginAction, initialState);
+const actions = { STUDENT: studentLoginAction, TEACHER: teacherLoginAction, ADMIN: adminLoginAction } as const;
+
+export default function LoginForm({ expectedRole }: { expectedRole: LoginRole }) {
+  const [state, action] = useActionState(actions[expectedRole], initialState);
 
   return (
     <form action={action} className="mt-8 space-y-5" noValidate>
@@ -66,12 +69,12 @@ export default function LoginForm() {
 
       <AuthSubmitButton label="Sign in" />
 
-      <p className="text-center text-sm text-slate-600">
+      {expectedRole === "STUDENT" ? <p className="text-center text-sm text-slate-600">
         New to VirtualKaksha?{" "}
         <Link href="/signup" className="font-semibold text-blue-700 hover:text-blue-800">
           Create a student account
         </Link>
-      </p>
+      </p> : null}
     </form>
   );
 }

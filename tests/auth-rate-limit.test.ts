@@ -3,7 +3,7 @@ import test from "node:test";
 
 import "./helpers/server-only";
 
-import { authorizeCredentials, DUMMY_PASSWORD_HASH } from "@/lib/auth/credentials-authentication";
+import { authorizeCredentials, DUMMY_PASSWORD_HASH, resolveCredentialsClientIp } from "@/lib/auth/credentials-authentication";
 import { registerStudentAccount } from "@/lib/auth/signup-service";
 import type { RateLimitAdapter, RateLimitDecision, RateLimitPolicy } from "@/lib/rate-limit";
 
@@ -16,6 +16,14 @@ const activeUser = {
   displayName: "Person", avatarUrl: null, passwordHash: "real-password-hash", status: "ACTIVE",
   sessionVersion: 1,
   roles: [{ role: { name: "STUDENT" } }],
+};
+
+const localDirectEnvironment = {
+  NODE_ENV: "development",
+  RATE_LIMIT_ADAPTER: "memory",
+  RATE_LIMIT_KEY_SECRET: "0123456789abcdef0123456789abcdef",
+  RATE_LIMIT_TRUSTED_PROXY: "direct",
+  RATE_LIMIT_ENV_PREFIX: "local-development",
 };
 
 function adapter(options: { decision?: (policy: RateLimitPolicy) => RateLimitDecision; fail?: boolean } = {}) {
@@ -40,7 +48,7 @@ async function login(options: {
   const comparedHashes: string[] = [];
   const limiter = options.limiter ?? adapter();
   const result = await authorizeCredentials(
-    { email: " Person@Example.com ", password: "Password1" },
+    { email: " Person@Example.com ", password: "Password1", expectedRole: "STUDENT" },
     request,
     {
       rateLimit: limiter.value,
@@ -77,6 +85,58 @@ test("direct credentials authorization checks all login policies with normalized
   assert.equal(result.limiter.checks[2].identifier, "person@example.com");
 });
 
+test("local memory credentials use a server-controlled loopback address and reach the real comparison", async () => {
+  const limiter = adapter();
+  const comparedHashes: string[] = [];
+  const result = await authorizeCredentials(
+    { email: "person@example.com", password: "NotARealTestPassword1", expectedRole: "STUDENT" },
+    request,
+    {
+      environment: localDirectEnvironment,
+      rateLimit: limiter.value,
+      findUser: async () => activeUser as never,
+      comparePassword: async (_password, hash) => {
+        comparedHashes.push(hash);
+        return false;
+      },
+    },
+  );
+  assert.equal(result, null);
+  assert.deepEqual(comparedHashes, [activeUser.passwordHash]);
+  assert.equal(limiter.checks[0].identifier, "127.0.0.1");
+});
+
+test("credentials loopback fallback is narrow and forwarded headers cannot spoof direct mode", () => {
+  const spoofed = new Request(request, { headers: { "x-forwarded-for": "203.0.113.55" } });
+  assert.deepEqual(resolveCredentialsClientIp(spoofed, localDirectEnvironment), {
+    ok: true,
+    address: "127.0.0.1",
+  });
+
+  const productionDirect = {
+    ...localDirectEnvironment,
+    NODE_ENV: "production",
+    RATE_LIMIT_ADAPTER: "upstash",
+    UPSTASH_REDIS_REST_URL: "https://redis.example.test",
+    UPSTASH_REDIS_REST_TOKEN: "test-token",
+  };
+  assert.deepEqual(resolveCredentialsClientIp(spoofed, productionDirect), {
+    ok: false,
+    code: "MISSING_IP",
+    message: "A trusted client address is unavailable.",
+  });
+});
+
+test("credentials preserve Vercel trusted-proxy behavior and fail closed without configuration", () => {
+  const forwarded = new Request(request, { headers: { "x-forwarded-for": "203.0.113.10, 198.51.100.1" } });
+  assert.deepEqual(resolveCredentialsClientIp(forwarded, {
+    ...localDirectEnvironment,
+    NODE_ENV: "test",
+    RATE_LIMIT_TRUSTED_PROXY: "vercel",
+  }), { ok: true, address: "203.0.113.10" });
+  assert.equal(resolveCredentialsClientIp(request, { NODE_ENV: "development" }).ok, false);
+});
+
 test("successful login resets identity and email buckets but not the IP bucket", async () => {
   const result = await login({});
   assert.equal(result.result?.id, "user-1");
@@ -90,7 +150,7 @@ test("limiter outage and missing trusted IP fail login closed without leaking de
   assert.equal(outage.result, null);
   assert.doesNotMatch(JSON.stringify(outage.result), /person@example|203\.0\.113|backend|secret/i);
   const missingIp = await authorizeCredentials(
-    { email: "person@example.com", password: "Password1" }, request,
+    { email: "person@example.com", password: "Password1", expectedRole: "STUDENT" }, request,
     { resolveIp: () => ({ ok: false, code: "MISSING_IP", message: "missing" }), comparePassword: async () => false },
   );
   assert.equal(missingIp, null);

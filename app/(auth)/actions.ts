@@ -7,15 +7,11 @@ import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { registerStudentAccount } from "@/lib/auth/signup-service";
 import { logOutAllSessions } from "@/lib/auth/account-security";
-import { resolvePostLoginRedirect } from "@/lib/auth/role-routing";
-import { loginSchema, signupSchema } from "@/lib/auth/validation";
-import { findAuthUserByEmail } from "@/repositories/auth.repository";
+import { executeRoleLoginAction, type RoleLoginActionState } from "@/lib/auth/role-login-action";
+import { signupSchema } from "@/lib/auth/validation";
+import type { LoginRole } from "@/lib/auth/role-routing";
 
-export type AuthActionState = {
-  status: "idle" | "error";
-  message?: string;
-  fieldErrors?: Record<string, string[]>;
-};
+export type AuthActionState = RoleLoginActionState;
 
 function requestFromHeaders(requestHeaders: Headers) {
   return new Request("http://rate-limit.internal", { headers: requestHeaders });
@@ -85,51 +81,34 @@ async function getRequestedLoginRedirect(formData: FormData) {
   return { callbackUrl: null, applicationOrigin };
 }
 
-export async function loginAction(
+async function loginForRoleAction(
+  expectedRole: LoginRole,
   _previousState: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
-  const parsed = loginSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
-
-  if (!parsed.success) {
-    return {
-      status: "error",
-      message: "Please correct the highlighted fields.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
   const requestedRedirect = await getRequestedLoginRedirect(formData);
+  return executeRoleLoginAction(
+    expectedRole,
+    formData,
+    requestedRedirect,
+    {
+      signIn,
+      isAuthenticationError: (error) => error instanceof AuthError,
+      redirect,
+    },
+  );
+}
 
-  try {
-    await signIn("credentials", {
-      ...parsed.data,
-      redirect: false,
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return {
-        status: "error",
-        message: "The email or password is incorrect.",
-      };
-    }
+export async function studentLoginAction(previousState: AuthActionState, formData: FormData) {
+  return await loginForRoleAction("STUDENT", previousState, formData);
+}
 
-    throw error;
-  }
+export async function teacherLoginAction(previousState: AuthActionState, formData: FormData) {
+  return await loginForRoleAction("TEACHER", previousState, formData);
+}
 
-  const authenticatedUser = await findAuthUserByEmail(parsed.data.email);
-  const roles = authenticatedUser?.status === "ACTIVE"
-    ? authenticatedUser.roles.map(({ role }) => role.name)
-    : [];
-
-  redirect(resolvePostLoginRedirect(
-    roles,
-    requestedRedirect.callbackUrl,
-    requestedRedirect.applicationOrigin,
-  ));
+export async function adminLoginAction(previousState: AuthActionState, formData: FormData) {
+  return await loginForRoleAction("ADMIN", previousState, formData);
 }
 
 export async function signupAction(
@@ -142,6 +121,7 @@ export async function signupAction(
     email: formData.get("email"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
+    guardianAcknowledgement: formData.get("guardianAcknowledgement"),
   });
 
   if (!parsed.success) {

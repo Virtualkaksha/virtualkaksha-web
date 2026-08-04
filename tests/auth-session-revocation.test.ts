@@ -75,7 +75,7 @@ test("old pre-migration JWT and removed ADMIN role cannot authorize ADMIN", asyn
 
 test("successful credentials result carries the current sessionVersion", async () => {
   const result = await authorizeCredentials(
-    { email: "person@example.com", password: "Password1" },
+    { email: "person@example.com", password: "Password1", expectedRole: "STUDENT" },
     new Request("https://virtual.test/api/auth/callback/credentials"),
     {
       rateLimit: allowedLimiter,

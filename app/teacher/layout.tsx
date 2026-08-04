@@ -3,10 +3,10 @@ import Link from "next/link";
 import { BookOpen, LayoutDashboard, LibraryBig, LogOut } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
-import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
 
 export default async function TeacherLayout({ children }: { children: ReactNode }) {
-  await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
+  await requireCurrentRole("TEACHER");
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -22,8 +22,8 @@ export default async function TeacherLayout({ children }: { children: ReactNode 
             <Link href="/teacher/resources" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
               <LibraryBig size={17} /> Resources
             </Link>
-            <Link href="/student/resources" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
-              <BookOpen size={17} /> Student site
+            <Link href="/search" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
+              <BookOpen size={17} /> Public resources
             </Link>
             <form action={logoutAction}><button type="submit" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-rose-700"><LogOut size={17} /> Logout</button></form>
           </nav>

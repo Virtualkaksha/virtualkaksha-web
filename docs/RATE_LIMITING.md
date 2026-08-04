@@ -10,6 +10,8 @@ Production always selects the Upstash adapter shared by every application instan
 
 - `vercel` trusts only the first value in Vercel's `x-forwarded-for` header. It never scans later values or fallback headers.
 - `direct` accepts only a remote address supplied by the trusted server runtime. Web `Request` objects do not expose a socket address, so callers must provide it from their runtime integration.
+
+For local Auth.js development only, the credentials boundary supplies `127.0.0.1` when the validated configuration is exactly `development` + `memory` + `direct`. It never reads forwarded headers for this fallback. Production and test runtimes receive no implicit direct address and continue to fail closed unless their trusted runtime supplies one explicitly.
 - `test` accepts explicit deterministic injection and is rejected in production.
 
 Missing and malformed addresses return typed failures. The resolver never trusts `x-real-ip`, `cf-connecting-ip`, or arbitrary client-selected alternatives. Deployments behind any additional proxy must define and review their trust boundary before using it.

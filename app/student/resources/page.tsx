@@ -229,12 +229,9 @@ export default function StudentResourcesPage() {
             </p>
           </div>
 
-          <Link
-            href="/student/teachers"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-white px-5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-          >
-            Explore Teachers
-          </Link>
+          <p className="max-w-sm text-sm font-medium leading-6 text-slate-300 lg:text-right">
+            Teacher names are searchable alongside titles, chapters, and subjects in resource search.
+          </p>
         </div>
       </section>
     </div>

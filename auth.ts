@@ -14,6 +14,10 @@ const credentialsProvider = Credentials({
       label: "Password",
       type: "password",
     },
+    expectedRole: {
+      label: "Workspace role",
+      type: "text",
+    },
   },
   async authorize(rawCredentials, request) {
     return authorizeCredentials(rawCredentials, request);

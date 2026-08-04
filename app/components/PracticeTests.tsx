@@ -1,4 +1,5 @@
 import SectionTitle from "./ui/SectionTitle";
+import Link from "next/link";
 
 const tests = [
   {
@@ -52,9 +53,9 @@ export default function PracticeTests() {
         </div>
 
         <div className="mt-12 flex justify-center">
-          <button className="rounded-2xl bg-blue-600 px-8 py-4 font-semibold text-white transition hover:bg-blue-700">
+          <Link href="/search?type=mock-test" className="rounded-2xl bg-blue-600 px-8 py-4 font-semibold text-white transition hover:bg-blue-700">
             Start Practising
-          </button>
+          </Link>
         </div>
       </div>
     </section>

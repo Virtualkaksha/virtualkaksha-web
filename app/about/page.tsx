@@ -1,0 +1,6 @@
+import type { Metadata } from "next";
+import Footer from "@/app/components/Footer";
+import Navbar from "@/app/components/Navbar";
+
+export const metadata: Metadata = { title: "About", alternates: { canonical: "/about" } };
+export default function AboutPage() { return <><Navbar /><main className="mx-auto w-full max-w-5xl flex-1 px-6 py-16"><p className="font-semibold uppercase tracking-widest text-blue-700">About VirtualKaksha</p><h1 className="mt-3 text-4xl font-bold text-slate-950">Structured learning resources for students and educators</h1><div className="mt-8 space-y-6 leading-8 text-slate-700"><p>VirtualKaksha helps students browse learning resources for Classes 6–12 across CBSE, ICSE, and supported state boards. JEE, NEET, and CUET filters are available where matching content has been published.</p><p>Students can discover resources, read PDFs, bookmark useful material, and continue from saved reading progress. Teachers and coaching institutes can prepare and submit resources through their workspaces.</p><p>Uploaded resources follow a moderation workflow before publication. Public discovery is restricted to eligible published material; private storage details are not exposed.</p></div></main><Footer /></>; }

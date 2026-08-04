@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, LogOut, Menu, Search, X } from "lucide-react";
+import { LogOut, Menu, Search, X } from "lucide-react";
 import { useState } from "react";
 
-import { isStudentNavigationActive, studentNavigationItems } from "./StudentSidebar";
+import { isStudentNavigationActive, studentNavigationItems, studentSupportNavigationItem } from "./StudentSidebar";
 import { logoutAction } from "@/app/(auth)/actions";
 
 export default function StudentTopbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const SupportIcon = studentSupportNavigationItem.icon;
 
   return (
     <>
@@ -38,12 +39,6 @@ export default function StudentTopbar() {
             Search learning resources
           </Link>
 
-          <button type="button" aria-label="Notifications" className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-950">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white" />
-          </button>
-
-          <Link href="/student/profile" aria-label="Open profile" className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-sm font-bold text-white shadow-sm">A</Link>
         </div>
       </header>
 
@@ -72,6 +67,12 @@ export default function StudentTopbar() {
                 );
               })}
             </nav>
+            <div className="mt-5 border-t border-slate-200 pt-4">
+              <Link href={studentSupportNavigationItem.href} onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">
+                <SupportIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+                {studentSupportNavigationItem.label}
+              </Link>
+            </div>
             <form action={logoutAction} className="mt-5 border-t border-slate-200 pt-4">
               <button type="submit" className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-rose-700">
                 <LogOut className="h-[18px] w-[18px]" />

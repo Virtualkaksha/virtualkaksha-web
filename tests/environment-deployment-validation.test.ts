@@ -47,11 +47,11 @@ function runValidation(overrides: Record<string, string | undefined> = {}) {
   });
 }
 
-test("deployment validation succeeds explicitly without contacting backends", () => {
+test("deployment validation reaches the explicit unresolved public-launch gate without contacting backends", () => {
   const result = runValidation();
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), "Environment validation succeeded for production deployment.");
-  assert.equal(result.stderr, "");
+  assert.notEqual(result.status, 0);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /Public site validation failed: legal effective date requires owner confirmation\./);
 });
 
 test("deployment validation requires production mode and every subsystem", () => {
