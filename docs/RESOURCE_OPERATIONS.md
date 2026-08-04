@@ -32,8 +32,16 @@ The existing upload service must not be used to replace an asset. It creates ano
 
 ## Future stages
 
-1. Admin metadata editor with audit history.
-2. Staged, versioned PDF replacement with rollback.
+## Stage B: version-aware ADMIN metadata editing
+
+The ADMIN editor allows only title, Hindi title, description, resource type, language, access, and—when the resource is not published—academic mapping corrections. Every meaningful edit uses the displayed resource version as an optimistic-concurrency condition, increments it once, and writes a sanitized immutable audit event in the same transaction. A stale form cannot overwrite newer work.
+
+Published metadata edits return the resource to `PENDING_REVIEW` and temporarily remove it from public/student access. Archived resources remain read-only. No-op submissions create no new version or audit event. Slugs, ownership, status input, source URLs, thumbnails, format, page/file metadata, assets, storage objects, bookmarks, and progress are not editable.
+
+## Future stages
+
+1. Staged, versioned PDF replacement with rollback.
+2. Route aliases before published academic-mapping changes.
 3. CSV dry-run, preview, validation, and transactional import.
 4. Bulk PDF import with durable job state and cleanup.
 5. Content-quality, accessibility, provenance, and copyright checklist.

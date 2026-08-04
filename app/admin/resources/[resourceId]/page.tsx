@@ -12,7 +12,7 @@ export default async function AdminResourceReviewPage({ params, searchParams }: 
   const preview = resolveAdminResourcePreview(item);
   const actions = getAdminModerationActions(item.status);
   return <main className="mx-auto max-w-7xl space-y-7 px-4 py-8 sm:px-6 lg:px-8">
-    <Link href="/admin/resources" className="text-sm font-semibold text-blue-700">← Back to moderation queue</Link>
+    <div className="flex gap-4"><Link href="/admin/resources" className="text-sm font-semibold text-blue-700">← Back to moderation queue</Link><Link href={`/admin/resources/${item.id}/edit`} className="text-sm font-semibold text-blue-700">Edit metadata</Link></div>
     {(notice.approved === "true" || notice.rejected === "true") && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">Moderation decision saved successfully.</div>}
     {notice.rateLimited === "true" && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">Too many requests. Please wait before trying again.{notice.retryAfter ? ` Retry in about ${notice.retryAfter} seconds.` : ""}</div>}
     <section className="rounded-3xl bg-slate-950 p-7 text-white sm:p-9"><div className="flex flex-col justify-between gap-5 md:flex-row"><div><p className="text-sm font-semibold uppercase tracking-[.16em] text-blue-300">{item.resourceType.name} · {item.format}</p><h1 className="mt-3 text-3xl font-bold">{item.title}</h1><p className="mt-3 max-w-3xl text-slate-300">{item.description ?? "No description provided."}</p></div><span className="h-fit rounded-full bg-white/10 px-4 py-2 text-xs font-semibold">{item.status.replaceAll("_", " ")}</span></div></section>

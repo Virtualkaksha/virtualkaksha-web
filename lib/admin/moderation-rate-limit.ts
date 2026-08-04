@@ -1,6 +1,6 @@
 import { enforceRateLimitChecks, type RateLimitAdapter } from "@/lib/rate-limit";
 
-export type AdminModerationAction = "APPROVE" | "REJECT" | "ARCHIVE";
+export type AdminModerationAction = "APPROVE" | "REJECT" | "ARCHIVE" | "EDIT_METADATA";
 
 export async function limitAdminModeration(
   adminId: string,
@@ -16,4 +16,3 @@ export async function limitAdminModeration(
     ? { allowed: false as const, retryAfterSeconds: Math.max(1, decision.retryAfterSeconds) }
     : { allowed: true as const };
 }
-
