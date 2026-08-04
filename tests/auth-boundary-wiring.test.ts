@@ -158,6 +158,10 @@ test("protected layouts use current identity and proxy remains UX-only", async (
   assert.match(teacher, /requireAnyCurrentRole\(\["TEACHER", "ADMIN"\]\)/);
   assert.match(student, /requireCurrentRole\("STUDENT"\)/);
   assert.doesNotMatch(`${admin}\n${teacher}\n${student}`, /session\.user\.roles|token\.roles|requireAdmin|requireTeacher|requireStudent/);
-  assert.match(proxy, /export default auth\(/);
+  assert.match(proxy, /const authorizedProxyPromise = auth\([\s\S]*return applyReportOnlyCsp\(request\);[\s\S]*Promise<NextMiddleware>/);
+  assert.match(proxy, /export async function proxy\(request: NextRequest, event: NextFetchEvent\) {[\s\S]*await authorizedProxyPromise;[\s\S]*return authorizedProxy\(request, event\);/);
+  assert.equal((proxy.match(/export async function proxy\(/g) ?? []).length, 1);
+  assert.doesNotMatch(proxy, /export default/);
+  assert.match(proxy, /export const config = {[\s\S]*matcher:/);
   assert.doesNotMatch(proxy, /findCurrentIdentityById|requireCurrentRole|requireAnyCurrentRole/);
 });
