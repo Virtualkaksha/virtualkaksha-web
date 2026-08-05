@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: [...buildStaticSecurityHeaders(securityEnvironment)],
       },
+      ...[
+        "/api/admin/resources/:resourceId/asset",
+        "/api/teacher/resources/:resourceId/asset",
+        "/api/student/resources/:resourceId/asset",
+      ].map((source) => ({
+        source,
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+      })),
     ];
   },
 };

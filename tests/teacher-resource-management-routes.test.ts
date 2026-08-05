@@ -24,6 +24,8 @@ test("creator-owned READY native PDF returns a protected PDF response", async ()
   assert.equal(response.headers.get("content-type"), "application/pdf");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.equal(response.headers.get("content-disposition"), 'inline; filename="resource.pdf"');
+  assert.equal(response.headers.get("cross-origin-resource-policy"), "same-origin");
 });
 
 test("another teacher cannot preview a guessed resource ID", async () => {
@@ -82,19 +84,22 @@ test("creator-owned S3 PDF is read through the protected teacher response", asyn
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
 });
 
-test("missing and non-PDF S3 objects fail safely", async () => {
+test("missing storage objects return a sanitized 503 and invalid bytes remain hidden", async () => {
   const resource = { ...readyPdf, assets: [{ ...readyPdf.assets[0], provider: "s3" }] };
-  for (const readFile of [
-    async () => { throw new Error("NoSuchKey"); },
-    async () => Buffer.from("not-a-pdf"),
-  ]) {
-    const response = await handleTeacherAssetRequest("resource-1", {
-      getCurrentUser: async () => ({ id: "teacher-1", roles: ["TEACHER"] }),
-      findResource: async () => resource,
-      readFile,
-    });
-    assert.equal(response.status, 404);
-  }
+  const unavailable = await handleTeacherAssetRequest("resource-1", {
+    getCurrentUser: async () => ({ id: "teacher-1", roles: ["TEACHER"] }),
+    findResource: async () => resource,
+    readFile: async () => { throw new Error("NoSuchKey private detail"); },
+  });
+  assert.equal(unavailable.status, 503);
+  assert.deepEqual(await unavailable.json(), { error: "PDF is temporarily unavailable." });
+
+  const invalid = await handleTeacherAssetRequest("resource-1", {
+    getCurrentUser: async () => ({ id: "teacher-1", roles: ["TEACHER"] }),
+    findResource: async () => resource,
+    readFile: async () => Buffer.from("not-a-pdf"),
+  });
+  assert.equal(invalid.status, 404);
 });
 
 test("preview response never serializes storage identifiers", async () => {

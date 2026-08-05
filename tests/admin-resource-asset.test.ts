@@ -35,9 +35,21 @@ test("ADMIN can preview a native READY PDF with private response headers", async
   assert.equal(response.headers.get("cache-control"), "private, no-store");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("content-disposition"), 'inline; filename="resource.pdf"');
+  assert.equal(response.headers.get("cross-origin-resource-policy"), "same-origin");
   const body = await response.text();
   assert.match(body, /^%PDF/);
   assert.doesNotMatch(body, /objectKey|provider|storage|bucket|private\.pdf/);
+});
+
+test("admin storage failures return a sanitized private 503", async () => {
+  const response = await handleAdminAssetRequest("resource-1", {
+    getCurrentUser: async () => ({ id: "admin-1", roles: ["ADMIN"] }),
+    findResource: async () => readyPdf,
+    readFile: () => { throw new Error("provider secret object path"); },
+  });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(await response.json(), { error: "PDF is temporarily unavailable." });
 });
 
 test("admin asset endpoint returns 401 before resource lookup when unauthenticated", async () => {
@@ -133,6 +145,16 @@ test("native preview is available only for a READY primary asset", () => {
     resolveAdminResourcePreview({ ...base, nativePdf: { isNativePdf: true, hasPrimaryAsset: false, assetStatus: "MISSING" } }),
     { kind: "native-pdf-unavailable", status: "MISSING" },
   );
+});
+
+test("moderation page keeps protected inline and direct previews with safe fallbacks", async () => {
+  const page = await readFile("app/admin/resources/[resourceId]/page.tsx", "utf8");
+  assert.match(page, /<iframe[^>]*src=\{preview\.url\}/);
+  assert.match(page, /preview\.kind === "native-pdf"[^\n]*<a href=\{preview\.url\}/);
+  assert.match(page, /preview\.kind === "native-pdf-unavailable"/);
+  assert.match(page, /No safe preview is available/);
+  assert.match(page, /getAdminModerationActions/);
+  assert.doesNotMatch(page, /objectKey|storage\/|signedUrl|presigned/i);
 });
 
 test("external previews require HTTPS and render as hardened links without an iframe", async () => {

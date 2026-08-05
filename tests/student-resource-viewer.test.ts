@@ -153,7 +153,8 @@ test("asset route rejects malicious object keys", async () => {
       throw new Error("Invalid object key");
     },
   });
-  assert.equal(response.status, 404);
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "PDF is temporarily unavailable." });
 });
 
 test("asset route returns a forced PDF response for a valid local file", async () => {
@@ -165,6 +166,9 @@ test("asset route returns a forced PDF response for a valid local file", async (
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "application/pdf");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.equal(response.headers.get("content-disposition"), 'inline; filename="resource.pdf"');
+  assert.equal(response.headers.get("cross-origin-resource-policy"), "same-origin");
 });
 
 test("progress authorization rejects non-students and inaccessible resources", async () => {

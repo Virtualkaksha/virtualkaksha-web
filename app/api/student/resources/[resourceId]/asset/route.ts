@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { RoleName } from "@/app/generated/prisma/enums";
 
 import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
+import { PROTECTED_PDF_HEADERS } from "@/lib/security/headers";
 import {
   authorizeStudentResourceAssetAccess,
   type StudentUser,
@@ -59,6 +60,13 @@ function identityError(result: Extract<CurrentIdentityResult, { ok: false }>) {
   );
 }
 
+function storageUnavailable() {
+  return NextResponse.json(
+    { error: "PDF is temporarily unavailable." },
+    { status: 503, headers: CURRENT_IDENTITY_PRIVATE_HEADERS },
+  );
+}
+
 function accessStatus(code: string) {
   if (code === "UNAUTHENTICATED") return 401;
   if (code === "FORBIDDEN") return 403;
@@ -99,19 +107,19 @@ export async function handleStudentAssetRequest(resourceId: string, dependencies
   const readFile = dependencies.readFile
     ?? (dependencies.readLocalFile ? (_provider: string, objectKey: string) => dependencies.readLocalFile!(objectKey) : null)
     ?? ((provider: string, objectKey: string) => createResourceStorageProvider(provider).readFile(objectKey));
-  const buffer = await readFile(asset!.provider!, asset!.objectKey).catch(() => null);
+  let buffer: Buffer;
+  try {
+    buffer = await readFile(asset!.provider!, asset!.objectKey);
+  } catch {
+    return storageUnavailable();
+  }
   if (!buffer || !buffer.subarray(0, 4).equals(Buffer.from("%PDF"))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
-    headers: {
-      "Content-Type": "application/pdf",
-      "Cache-Control": "private, no-store",
-      "Content-Disposition": 'inline; filename="resource.pdf"',
-      "X-Content-Type-Options": "nosniff",
-    },
+    headers: PROTECTED_PDF_HEADERS,
   });
 }
 

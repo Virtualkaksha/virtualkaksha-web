@@ -151,6 +151,21 @@ test("next.config globally wires static headers without an enforced CSP", async 
   assert.equal(keys.includes("Cross-Origin-Embedder-Policy"), false);
 });
 
+test("protected PDF routes override global DENY with SAMEORIGIN after the wildcard rule", async () => {
+  const config = (await import("@/next.config")).default;
+  assert.ok(config.headers);
+  const entries = await config.headers();
+  assert.equal(entries[0].source, "/(.*)");
+  assert.deepEqual(entries.slice(1), [
+    { source: "/api/admin/resources/:resourceId/asset", headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+    { source: "/api/teacher/resources/:resourceId/asset", headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+    { source: "/api/student/resources/:resourceId/asset", headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+  ]);
+  assert.equal(entries[0].headers.find(({ key }) => key === "X-Frame-Options")?.value, "DENY");
+  assert.match(buildContentSecurityPolicy("abcdefghijklmnop", "production"), /frame-src 'self';/);
+  assert.doesNotMatch(buildContentSecurityPolicy("abcdefghijklmnop", "production"), /frame-src[^;]*\*/);
+});
+
 test("development static headers omit HSTS", () => {
   assert.equal(buildStaticSecurityHeaders("development").some(({ key }) => key === "Strict-Transport-Security"), false);
 });
