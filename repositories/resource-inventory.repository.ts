@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 
 export const resourceInventorySelect = {
   id: true,
+  slug: true,
   title: true,
   titleHindi: true,
   description: true,
@@ -20,14 +21,14 @@ export const resourceInventorySelect = {
   fileSizeBytes: true,
   createdAt: true,
   updatedAt: true,
-  resourceType: { select: { name: true } },
+  resourceType: { select: { id: true, name: true } },
   createdBy: { select: { displayName: true, firstName: true, lastName: true } },
-  chapter: { select: { name: true, boardClassSubject: { select: {
+  chapter: { select: { id: true, name: true, boardClassSubject: { select: {
     board: { select: { shortName: true } },
     classLevel: { select: { name: true } },
     subject: { select: { name: true } },
   } } } },
-  examTopic: { select: { name: true, examSubject: { select: {
+  examTopic: { select: { id: true, name: true, examSubject: { select: {
     exam: { select: { shortName: true } },
     subject: { select: { name: true } },
   } } } },

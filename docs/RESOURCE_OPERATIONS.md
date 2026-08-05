@@ -45,3 +45,18 @@ Published metadata edits return the resource to `PENDING_REVIEW` and temporarily
 3. CSV dry-run, preview, validation, and transactional import.
 4. Bulk PDF import with durable job state and cleanup.
 5. Content-quality, accessibility, provenance, and copyright checklist.
+# CSV metadata preview (D1/D2)
+
+The operational inventory export remains available unchanged. A separate ADMIN-only import template is available from the inventory page or with `GET /admin/resources/export?mode=import-template`.
+
+The template columns, in deterministic order, are:
+
+`resource_id`, `expected_version`, `title`, `title_hindi`, `description`, `resource_type_id`, `language`, `access_level`, `chapter_id`, `exam_topic_id`, `reason`, `current_status`, `board`, `class`, `subject`, `chapter_or_topic`, `resource_type`, `current_updated_at`, `current_slug`, `asset_source`, `asset_state`.
+
+The first eleven columns identify the resource, expected version, proposed metadata, stable catalogue IDs, and the required reason. Exactly one mapping ID must be populated. The remaining columns are read-only context and are ignored when planning differences. Every cell is spreadsheet-formula protected. The template never contains uploader identities, URLs, object keys, checksums, provider metadata, moderation notes, or authentication data.
+
+`/admin/resources/import` provides preview only. It has no mutation endpoint and cannot change resources, versions, statuses, audit records, assets, bookmarks, progress, storage, or page caches. Direct status, file, asset, URL, slug, and uploader changes are forbidden. A meaningful edit to a published resource is shown as resulting in `PENDING_REVIEW`, with a public-visibility warning; published mapping changes are rejected.
+
+The preview accepts one strict UTF-8 RFC 4180-style CSV up to 2 MiB and 250 logical resource rows (with a parser hard ceiling of 500). It accepts an initial BOM, CRLF or LF, escaped quotes, quoted commas, and quoted multiline values. It rejects malformed quoting, invalid UTF-8, control characters, extra BOMs, duplicate resource IDs, unknown/missing/duplicate headers, mismatched columns, and exceeded row/cell/field limits. Outcomes are `VALID_CHANGE`, `NO_OP`, `INVALID`, and `CONFLICT`.
+
+Preview access requires a fresh ACTIVE ADMIN identity, same-origin request, trusted client IP, and fail-closed limits of 5 previews per user per 10 minutes and 15 per IP per hour. Applying a reviewed preview is deliberately deferred to a separately reviewed D3 stage.

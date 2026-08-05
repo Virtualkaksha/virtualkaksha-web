@@ -32,6 +32,8 @@ export const RATE_LIMIT_POLICIES = {
   "teacher-resource-action": { algorithm: "fixed-window", limit: 3, windowMs: MINUTE, failureMode: "closed" },
   "admin-mutation-user": { algorithm: "fixed-window", limit: 10, windowMs: MINUTE, failureMode: "closed" },
   "admin-resource-action": { algorithm: "fixed-window", limit: 2, windowMs: 10 * SECOND, failureMode: "closed" },
+  "admin-import-preview-user": { algorithm: "fixed-window", limit: 5, windowMs: 10 * MINUTE, failureMode: "closed" },
+  "admin-import-preview-ip": { algorithm: "fixed-window", limit: 15, windowMs: HOUR, failureMode: "closed" },
 } as const satisfies Record<RateLimitPolicy, RateLimitPolicyConfig>;
 
 export const RATE_LIMIT_POLICY_NAMES = Object.freeze(

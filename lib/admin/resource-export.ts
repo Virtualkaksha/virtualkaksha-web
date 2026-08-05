@@ -10,6 +10,13 @@ export const RESOURCE_EXPORT_HEADERS = [
   "duplicate_checksum", "legacy_source",
 ] as const;
 
+export const RESOURCE_IMPORT_TEMPLATE_HEADERS = [
+  "resource_id", "expected_version", "title", "title_hindi", "description", "resource_type_id",
+  "language", "access_level", "chapter_id", "exam_topic_id", "reason", "current_status", "board",
+  "class", "subject", "chapter_or_topic", "resource_type", "current_updated_at", "current_slug",
+  "asset_source", "asset_state",
+] as const;
+
 type InventoryRow = Awaited<ReturnType<typeof getResourceInventoryExportRows>>[number];
 
 export function protectSpreadsheetValue(value: unknown) {
@@ -30,4 +37,14 @@ export function buildResourceInventoryCsv(rows: InventoryRow[]) {
     row.duplicateChecksum, row.legacySource,
   ].map(csvCell).join(","));
   return `\uFEFF${RESOURCE_EXPORT_HEADERS.map(csvCell).join(",")}\r\n${body.join("\r\n")}${body.length ? "\r\n" : ""}`;
+}
+
+export function buildResourceImportTemplateCsv(rows: InventoryRow[]) {
+  const body = rows.map((row) => [
+    row.id, row.version, row.title, row.titleHindi, row.description, row.resourceTypeId,
+    row.language, row.access, row.chapterId, row.examTopicId, "", row.status, row.board,
+    row.level, row.subject, row.unit, row.resourceType, row.updatedAt, row.slug,
+    row.assetSource, row.assetState,
+  ].map(csvCell).join(","));
+  return `\uFEFF${RESOURCE_IMPORT_TEMPLATE_HEADERS.map(csvCell).join(",")}\r\n${body.join("\r\n")}${body.length ? "\r\n" : ""}`;
 }

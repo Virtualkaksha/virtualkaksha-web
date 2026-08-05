@@ -3,12 +3,12 @@ import test from "node:test";
 import { readFile } from "node:fs/promises";
 import "./helpers/server-only";
 
-import { buildResourceInventoryCsv, protectSpreadsheetValue, RESOURCE_EXPORT_HEADERS } from "@/lib/admin/resource-export";
+import { buildResourceImportTemplateCsv, buildResourceInventoryCsv, protectSpreadsheetValue, RESOURCE_EXPORT_HEADERS, RESOURCE_IMPORT_TEMPLATE_HEADERS } from "@/lib/admin/resource-export";
 import { handleResourceInventoryExport } from "@/app/admin/resources/export/route";
 
 const row = {
-  id: "stable-resource-id", title: '=HYPERLINK("bad")', titleHindi: null, description: 'Quoted "description"',
-  board: "CBSE", level: "Class 10", subject: "Mathematics", unit: "Algebra", resourceType: "Notes", format: "PDF" as const,
+  id: "stable-resource-id", slug: "safe-slug", title: '=HYPERLINK("bad")', titleHindi: null, description: 'Quoted "description"',
+  board: "CBSE", level: "Class 10", subject: "Mathematics", unit: "Algebra", resourceTypeId: "type-id", resourceType: "Notes", chapterId: "chapter-id", examTopicId: null, format: "PDF" as const,
   language: "ENGLISH" as const, access: "FREE" as const, status: "PUBLISHED" as const, version: 3, uploader: "Not exported",
   assetSource: "NATIVE" as const, assetState: "READY" as const, primaryAssetAvailable: true, checksumPresent: true,
   pageCount: 12, fileSizeBytes: "1000", bookmarkCount: 2, progressCount: 1,
@@ -25,6 +25,16 @@ test("CSV has exact headers, stable ID, version, timestamp and escaped cells", (
   assert.match(csv, /2026-01-02T00:00:00\.000Z/);
   assert.match(csv, /"Quoted ""description"""/);
   assert.doesNotMatch(csv, /Not exported|objectKey|provider|moderationNote|contentUrl/);
+});
+
+test("import template has exact stable-ID headers and protected editable cells", () => {
+  const csv = buildResourceImportTemplateCsv([row]);
+  assert.equal(csv.slice(1).split("\r\n", 1)[0], RESOURCE_IMPORT_TEMPLATE_HEADERS.map((value) => `"${value}"`).join(","));
+  assert.match(csv, /"stable-resource-id","3"/);
+  assert.match(csv, /"type-id"/);
+  assert.match(csv, /"chapter-id","",""/);
+  assert.match(csv, /"'=HYPERLINK\(""bad""\)"/);
+  assert.doesNotMatch(csv, /Not exported|objectKey|provider|moderationNote|contentUrl|checksum/i);
 });
 
 test("spreadsheet formula prefixes are neutralized", () => {
@@ -47,7 +57,17 @@ test("fresh ADMIN can export and other identities are denied", async () => {
   }
 });
 
-test("export route is GET-only and no import or mutation route exists", async () => {
+test("dedicated import-template mode leaves operational inventory mode unchanged", async () => {
+  const dependencies = { resolveIdentity: async () => ({ ok: true, identity: { id: "admin", roles: ["ADMIN"], sessionVersion: 1 } } satisfies import("@/lib/auth/current-identity").CurrentIdentityResult), getRows: async () => [row] };
+  const template = await handleResourceInventoryExport(new Request("https://virtual.test/admin/resources/export?mode=import-template"), dependencies);
+  assert.match(template.headers.get("content-disposition") ?? "", /resource-import-template/);
+  assert.match(await template.text(), /"expected_version"/);
+  const inventory = await handleResourceInventoryExport(new Request("https://virtual.test/admin/resources/export"), dependencies);
+  assert.match(inventory.headers.get("content-disposition") ?? "", /resource-inventory/);
+  assert.doesNotMatch(await inventory.text(), /"expected_version"/);
+});
+
+test("export route is GET-only and contains no mutation handler", async () => {
   const route = await readFile("app/admin/resources/export/route.ts", "utf8");
   assert.match(route, /export async function GET/);
   assert.doesNotMatch(route, /export async function (POST|PUT|PATCH|DELETE)/);

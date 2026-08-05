@@ -30,6 +30,8 @@ const expectedPolicies = {
   "teacher-resource-action": [3, 60_000, "closed"],
   "admin-mutation-user": [10, 60_000, "closed"],
   "admin-resource-action": [2, 10_000, "closed"],
+  "admin-import-preview-user": [5, 600_000, "closed"],
+  "admin-import-preview-ip": [15, 3_600_000, "closed"],
 } as const;
 
 test("every required policy has the expected limit, window and failure mode", () => {

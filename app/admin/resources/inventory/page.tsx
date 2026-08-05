@@ -28,7 +28,7 @@ export default async function ResourceInventoryPage({ searchParams }: { searchPa
   return <main className="mx-auto max-w-[1600px] space-y-6 px-4 py-8 sm:px-6 lg:px-8">
     <header className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
       <div><p className="text-sm font-semibold text-blue-700">Read-only resource operations</p><h1 className="mt-1 text-3xl font-bold text-slate-950">Resource inventory</h1><p className="mt-2 text-sm text-slate-600">Review metadata and asset health without changing resources or storage.</p></div>
-      <div className="flex gap-3"><Link href="/admin/resources" className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold">Moderation</Link><a href={`/admin/resources/export?${queryString(filters, 1)}`} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white">Export CSV</a></div>
+      <div className="flex flex-wrap gap-3"><Link href="/admin/resources" className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold">Moderation</Link><Link href="/admin/resources/import" className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold">Preview metadata CSV</Link><Link href="/admin/resources/export?mode=import-template" className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold">Download import template</Link><Link href={`/admin/resources/export?${queryString(filters, 1)}`} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white">Export CSV</Link></div>
     </header>
 
     <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">

@@ -37,11 +37,11 @@ test("duplicate title and checksum detection is normalized and resource-scoped",
 test("asset health, aggregate counts, legacy source and missing description map safely", () => {
   const duplicate = findDuplicateResourceIds(duplicateInputs);
   const row = mapResourceInventoryRow({
-    id: "one", title: "Algebra", titleHindi: null, description: null, format: "PDF", language: "ENGLISH",
+    id: "one", slug: "algebra", title: "Algebra", titleHindi: null, description: null, format: "PDF", language: "ENGLISH",
     access: "FREE", status: "PUBLISHED", version: 1, contentUrl: "https://legacy.invalid/file.pdf", externalUrl: null, textContent: null,
     pageCount: 10, fileSizeBytes: BigInt("1000"), createdAt: new Date("2026-01-01"), updatedAt: new Date("2026-01-02"),
-    resourceType: { name: "Notes" }, createdBy: { displayName: "Teacher", firstName: "T", lastName: null }, assets: [],
-    chapter: { name: "Algebra", boardClassSubject: { board: { shortName: "CBSE" }, classLevel: { name: "Class 10" }, subject: { name: "Mathematics" } } }, examTopic: null,
+    resourceType: { id: "type-id", name: "Notes" }, createdBy: { displayName: "Teacher", firstName: "T", lastName: null }, assets: [],
+    chapter: { id: "chapter-id", name: "Algebra", boardClassSubject: { board: { shortName: "CBSE" }, classLevel: { name: "Class 10" }, subject: { name: "Mathematics" } } }, examTopic: null,
     _count: { bookmarks: 2, progress: 3 },
   }, duplicate);
   assert.equal(row.assetState, "LEGACY");

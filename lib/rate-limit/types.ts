@@ -14,7 +14,9 @@ export type RateLimitPolicy =
   | "teacher-mutation-user"
   | "teacher-resource-action"
   | "admin-mutation-user"
-  | "admin-resource-action";
+  | "admin-resource-action"
+  | "admin-import-preview-user"
+  | "admin-import-preview-ip";
 
 export type RateLimitDecision = {
   allowed: boolean;
@@ -28,4 +30,3 @@ export interface RateLimitAdapter {
   check(policy: RateLimitPolicy, identifier: string, cost?: number): Promise<RateLimitDecision>;
   reset(policy: RateLimitPolicy, identifier: string): Promise<void>;
 }
-

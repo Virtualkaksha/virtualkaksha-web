@@ -137,8 +137,9 @@ export function mapResourceInventoryRow(record: ResourceInventoryRecord, duplica
   const uploader = record.createdBy?.displayName
     ?? ([record.createdBy?.firstName, record.createdBy?.lastName].filter(Boolean).join(" ") || "Unknown uploader");
   return {
-    id: record.id, title: record.title, titleHindi: record.titleHindi, description: record.description,
-    ...mapping, resourceType: record.resourceType.name, format: record.format, language: record.language,
+    id: record.id, slug: record.slug, title: record.title, titleHindi: record.titleHindi, description: record.description,
+    ...mapping, resourceTypeId: record.resourceType.id, resourceType: record.resourceType.name, format: record.format, language: record.language,
+    chapterId: record.chapter?.id ?? null, examTopicId: record.examTopic?.id ?? null,
     access: record.access, status: record.status, version: record.version, uploader,
     assetSource: asset ? "NATIVE" as const
       : legacySource ? "LEGACY_CONTENT_URL" as const

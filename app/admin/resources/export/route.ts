@@ -6,7 +6,7 @@ import {
   resolveCurrentIdentityForApi,
   type CurrentIdentityResult,
 } from "@/lib/auth/current-identity";
-import { buildResourceInventoryCsv } from "@/lib/admin/resource-export";
+import { buildResourceImportTemplateCsv, buildResourceInventoryCsv } from "@/lib/admin/resource-export";
 import { getResourceInventoryExportRows, parseResourceInventoryFilters } from "@/lib/admin/resource-inventory";
 
 type Dependencies = {
@@ -26,10 +26,11 @@ export async function handleResourceInventoryExport(request: Request, dependenci
     const url = new URL(request.url);
     const filters = parseResourceInventoryFilters(Object.fromEntries(url.searchParams));
     const rows = await (dependencies.getRows ?? getResourceInventoryExportRows)(filters);
-    return new NextResponse(buildResourceInventoryCsv(rows), {
+    const template = url.searchParams.get("mode") === "import-template";
+    return new NextResponse(template ? buildResourceImportTemplateCsv(rows) : buildResourceInventoryCsv(rows), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": 'attachment; filename="virtualkaksha-resource-inventory.csv"',
+        "Content-Disposition": `attachment; filename="${template ? "virtualkaksha-resource-import-template.csv" : "virtualkaksha-resource-inventory.csv"}"`,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },
