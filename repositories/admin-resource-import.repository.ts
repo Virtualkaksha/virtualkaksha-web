@@ -9,8 +9,8 @@ export async function findResourceImportPreviewInputs(resourceIds: string[], res
       access: true, chapterId: true, examTopicId: true, status: true, version: true, slug: true,
     } }),
     prisma.resourceType.findMany({ where: { id: { in: resourceTypeIds }, isActive: true }, select: { id: true } }),
-    prisma.chapter.findMany({ where: { id: { in: chapterIds }, isActive: true, boardClassSubject: { isActive: true, board: { isActive: true }, classLevel: { isActive: true }, subject: { isActive: true } } }, select: { id: true } }),
-    prisma.examTopic.findMany({ where: { id: { in: examTopicIds }, isActive: true, examSubject: { isActive: true, exam: { isActive: true }, subject: { isActive: true } } }, select: { id: true } }),
+    prisma.chapter.findMany({ where: { id: { in: chapterIds }, isActive: true, boardClassSubject: { isActive: true, board: { isActive: true }, classLevel: { isActive: true }, subject: { isActive: true } } }, select: { id: true,slug:true,boardClassSubject:{select:{board:{select:{slug:true}},classLevel:{select:{slug:true}},subject:{select:{slug:true}}}} } }),
+    prisma.examTopic.findMany({ where: { id: { in: examTopicIds }, isActive: true, examSubject: { isActive: true, exam: { isActive: true }, subject: { isActive: true } } }, select: { id: true,slug:true,examSubject:{select:{exam:{select:{slug:true}},subject:{select:{slug:true}}}} } }),
   ]);
   return { resources, resourceTypes, chapters, examTopics };
 }

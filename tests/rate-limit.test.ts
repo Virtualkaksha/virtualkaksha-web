@@ -32,6 +32,8 @@ const expectedPolicies = {
   "admin-resource-action": [2, 10_000, "closed"],
   "admin-import-preview-user": [5, 600_000, "closed"],
   "admin-import-preview-ip": [15, 3_600_000, "closed"],
+  "admin-import-apply-user": [2, 600_000, "closed"],
+  "admin-import-apply-ip": [5, 3_600_000, "closed"],
 } as const;
 
 test("every required policy has the expected limit, window and failure mode", () => {

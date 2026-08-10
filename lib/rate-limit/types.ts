@@ -16,7 +16,9 @@ export type RateLimitPolicy =
   | "admin-mutation-user"
   | "admin-resource-action"
   | "admin-import-preview-user"
-  | "admin-import-preview-ip";
+  | "admin-import-preview-ip"
+  | "admin-import-apply-user"
+  | "admin-import-apply-ip";
 
 export type RateLimitDecision = {
   allowed: boolean;

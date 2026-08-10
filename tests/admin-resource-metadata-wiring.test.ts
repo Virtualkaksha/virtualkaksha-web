@@ -17,7 +17,7 @@ test("transaction uses version predicate, one increment and atomic audit creatio
   assert.match(source, /version: input\.expectedVersion/);
   assert.match(source, /version: \{ increment: 1 \}/);
   assert.match(source, /tx\.resourceMetadataAudit\.create/);
-  assert.match(source, /statusAfterAdminMetadataEdit/);
+  assert.match(source, /planResourceMetadata/);
   assert.match(source, /SLUG_CONFLICT/);
   assert.doesNotMatch(source, /resourceAsset\.(create|update|delete)|objectKey|provider|originalFileName/);
   assert.doesNotMatch(source, /resourceBookmark\.(create|update|delete)|studentResourceProgress\.(create|update|delete)/);

@@ -2,8 +2,9 @@ import "server-only";
 
 import type { Prisma } from "@/app/generated/prisma/client";
 import prisma from "@/lib/prisma";
-import { canAdminEditResourceMapping, canAdminEditResourceMetadata, statusAfterAdminMetadataEdit } from "@/lib/admin/resource-metadata-policy";
+import { canAdminEditResourceMapping, canAdminEditResourceMetadata } from "@/lib/admin/resource-metadata-policy";
 import type { ValidatedAdminResourceMetadata } from "@/lib/admin/resource-metadata-validation";
+import { planResourceMetadata } from "@/lib/admin/resource-metadata-plan";
 
 const editSelect = {
   id: true, title: true, titleHindi: true, description: true, resourceTypeId: true, chapterId: true,
@@ -64,23 +65,15 @@ export async function transactAdminResourceMetadataEdit(input: ValidatedAdminRes
         if (collision) return { outcome: "SLUG_CONFLICT" as const };
       }
 
-      const metadataBefore = { title: current.title, titleHindi: current.titleHindi, description: current.description, chapterId: current.chapterId, examTopicId: current.examTopicId, resourceTypeId: current.resourceTypeId, language: current.language, access: current.access };
       const metadataAfter = { title: input.title, titleHindi: input.titleHindi, description: input.description, chapterId: input.chapterId, examTopicId: input.examTopicId, resourceTypeId: input.resourceTypeId, language: input.language, access: input.access };
-      const metadataFields = Object.keys(metadataBefore) as Array<keyof typeof metadataBefore>;
-      const changedFields: string[] = metadataFields.filter((field) => metadataBefore[field] !== metadataAfter[field]);
-      if (!changedFields.length) return { outcome: "NO_CHANGE" as const, version: current.version };
-
-      const nextStatus = statusAfterAdminMetadataEdit(current.status);
-      const nextPublishedAt = current.status === "PUBLISHED" ? null : current.publishedAt;
-      if (nextStatus !== current.status) changedFields.push("status", "publishedAt");
-      const beforeValues = { ...metadataBefore, status: current.status, publishedAt: current.publishedAt?.toISOString() ?? null };
-      const afterValues = { ...metadataAfter, status: nextStatus, publishedAt: nextPublishedAt?.toISOString() ?? null };
+      const plan = planResourceMetadata(current, metadataAfter);
+      if (!plan.metadataChangedFields.length) return { outcome: "NO_CHANGE" as const, version: current.version };
       const update = await tx.resource.updateMany({
         where: { id: current.id, version: input.expectedVersion, status: current.status },
-        data: { ...metadataAfter, status: nextStatus, publishedAt: nextPublishedAt, version: { increment: 1 } },
+        data: { ...metadataAfter, status: plan.resultingStatus, publishedAt: plan.resultingPublishedAt, version: { increment: 1 } },
       });
       if (update.count !== 1) return { outcome: "CONFLICT" as const };
-      await tx.resourceMetadataAudit.create({ data: { resourceId: current.id, actorUserId: input.actorUserId, action: "ADMIN_METADATA_EDIT", previousVersion: current.version, newVersion: current.version + 1, changedFields: changedFields.map(String), beforeValues, afterValues, reason: input.reason } });
+      await tx.resourceMetadataAudit.create({ data: { resourceId: current.id, actorUserId: input.actorUserId, action: "ADMIN_METADATA_EDIT", previousVersion: current.version, newVersion: current.version + 1, changedFields: plan.changedFields, beforeValues: plan.beforeValues, afterValues: plan.afterValues, reason: input.reason } });
       const updatedPath = await tx.resource.findUnique({ where: { id: current.id }, select: { slug: true, chapter: editSelect.chapter, examTopic: editSelect.examTopic } });
       return { outcome: "UPDATED" as const, version: current.version + 1, previousPath: pathOf(current), currentPath: updatedPath ? pathOf(updatedPath) : null };
     });

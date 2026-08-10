@@ -1,0 +1,15 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import assert from "node:assert/strict";import test from "node:test";import "./helpers/server-only";
+import {handleResourceImportApply} from "@/app/api/admin/resources/import/apply/route";import type{RateLimitAdapter}from"@/lib/rate-limit";
+import{RESOURCE_IMPORT_HEADERS}from"@/lib/admin/resource-import-csv";
+const limiter:RateLimitAdapter={check:async()=>({allowed:true,limit:5,remaining:4,retryAfterSeconds:60}),reset:async()=>{}};
+function req(confirmation="APPLY 1 RESOURCES"){const values:any={resource_id:"r",expected_version:"1",title:"New title",resource_type_id:"t",language:"ENGLISH",access_level:"FREE",chapter_id:"c",reason:"Valid apply reason"};const csv=RESOURCE_IMPORT_HEADERS.join(",")+"\n"+RESOURCE_IMPORT_HEADERS.map(x=>values[x]??"").join(",");const f=new FormData();f.set("file",new File([csv],"x.csv"));f.set("confirmation",confirmation);return new Request("https://x.test/api/admin/resources/import/apply",{method:"POST",headers:{origin:"https://x.test",host:"x.test"},body:f});}
+const base:any={resolveIdentity:async()=>({ok:true,identity:{id:"admin",roles:["ADMIN"],sessionVersion:1}}),resolveIp:()=>({ok:true,address:"127.0.0.1"}),rateLimit:limiter,parseFormData:async(r:Request)=>r.formData(),preview:async()=>({summary:{totalRows:1,validChanges:1,noOpRows:0,invalidRows:0,conflicts:0},rows:[]}),apply:async()=>({totalRows:1,changedRows:1,noOpRows:0,rows:[{rowNumber:2,resourceId:"r",priorVersion:1,newVersion:2,priorStatus:"DRAFT",resultingStatus:"DRAFT",changedFields:["title"],publicVisibilityRemoval:false}]}),revalidate:()=>{}};
+test("exact confirmation commits sanitized result",async()=>{const r=await handleResourceImportApply(req(),base);assert.equal(r.status,200);assert.equal((await r.json()).transactionOutcome,"COMMITTED");});
+test("confirmation mismatch, no changes, invalid and conflict block apply",async()=>{assert.equal((await handleResourceImportApply(req("wrong"),base)).status,400);for(const [key,status]of [["validChanges",400],["invalidRows",400],["conflicts",409]]as const){const summary={totalRows:1,validChanges:1,noOpRows:0,invalidRows:0,conflicts:0,[key]:key==="validChanges"?0:1};assert.equal((await handleResourceImportApply(req(),{...base,preview:async()=>({summary,rows:[]})})).status,status);}});
+test("revalidation failure still reports committed",async()=>{const r=await handleResourceImportApply(req(),{...base,revalidate:()=>{throw new Error("x")}});assert.equal((await r.json()).revalidation,"DEFERRED");});
+test("rollback, conflict and no-op preview never revalidate",async()=>{for(const scenario of [
+  {...base,apply:async()=>({error:"BATCH_ROLLED_BACK" as const})},
+  {...base,apply:async()=>({error:"CONFLICT" as const})},
+  {...base,preview:async()=>({summary:{totalRows:1,validChanges:0,noOpRows:1,invalidRows:0,conflicts:0},rows:[]})},
+]){let revalidations=0;await handleResourceImportApply(req(),{...scenario,revalidate:()=>{revalidations+=1;}});assert.equal(revalidations,0);}});

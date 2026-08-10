@@ -30,7 +30,7 @@ export function validateResourceImportRow(row: ParsedResourceImportRow): Validat
   if (Boolean(chapterId) === Boolean(examTopicId)) errors.push("Exactly one academic mapping is required.");
   const language = single(row.values.language, 20); if (language !== "ENGLISH" && language !== "HINDI") errors.push("language is invalid.");
   const access = single(row.values.access_level, 30); if (!(["FREE", "PREMIUM", "ENROLLED_ONLY"] as const).includes(access as never)) errors.push("access_level is invalid.");
-  const reason = single(row.values.reason, 1_000); if (reason.length < 10 || reason.length > 1_000) errors.push("reason must contain 10 to 1000 characters.");
+  const reason = single(row.values.reason, 1_000); if (reason.length > 0 && (reason.length < 10 || reason.length > 1_000)) errors.push("reason must contain 10 to 1000 characters.");
   return { rowNumber: row.rowNumber, resourceId: resourceId ?? "", expectedVersion, title, titleHindi: titleHindiText || null,
     description: descriptionText || null, resourceTypeId: resourceTypeId ?? "", language: language as "ENGLISH" | "HINDI",
     access: access as "FREE" | "PREMIUM" | "ENROLLED_ONLY", chapterId, examTopicId, reason, validationErrors: errors };

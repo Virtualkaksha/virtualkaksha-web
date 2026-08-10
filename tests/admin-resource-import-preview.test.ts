@@ -27,6 +27,10 @@ test("preview detects valid changes, no-op and stale conflicts without mutations
   const stale = await previewResourceImport([row({ expected_version: "1" })], repository());
   assert.equal(stale.rows[0].outcome, "CONFLICT");
   assert.equal(stale.rows[0].safeToApply, false);
+  const templateNoOp = await previewResourceImport([row({ title: "Current title", reason: "" })], repository());
+  assert.equal(templateNoOp.rows[0].outcome, "NO_OP");
+  const missingChangeReason = await previewResourceImport([row({ reason: "" })], repository());
+  assert.equal(missingChangeReason.rows[0].outcome, "INVALID");
 });
 
 test("archived and inactive or missing references are invalid", async () => {

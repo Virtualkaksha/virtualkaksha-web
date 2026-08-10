@@ -16,17 +16,23 @@ export default function ResourceImportClient() {
   const [filter, setFilter] = useState<Outcome | "ALL">("ALL");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [confirmation, setConfirmation] = useState("");
+  const [applying, setApplying] = useState(false);
+  const [applyResult, setApplyResult] = useState<string>("");
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setPending(true); setError(""); setPreview(null);
-    const response = await fetch("/api/admin/resources/import/preview", { method: "POST", body: new FormData(event.currentTarget), credentials: "same-origin" }).catch(() => null);
+    event.preventDefault(); setPending(true); setError(""); setPreview(null); setSelectedFile(null); setApplyResult("");
+    const data=new FormData(event.currentTarget); const candidate=data.get("file");
+    const response = await fetch("/api/admin/resources/import/preview", { method: "POST", body: data, credentials: "same-origin" }).catch(() => null);
     if (!response) setError("The CSV preview is temporarily unavailable.");
     else {
       const result = await response.json().catch(() => null);
       if (!response.ok) setError(typeof result?.error === "string" ? result.error : "The CSV preview could not be produced.");
-      else setPreview(result as Preview);
+      else { setPreview(result as Preview); if(candidate instanceof File)setSelectedFile(candidate); }
     }
     setPending(false);
   }
+  async function apply(){if(!selectedFile||!preview||applying)return;setApplying(true);setError("");const data=new FormData();data.set("file",selectedFile);data.set("confirmation",confirmation);const response=await fetch("/api/admin/resources/import/apply",{method:"POST",body:data,credentials:"same-origin"}).catch(()=>null);if(!response)setError("CSV apply is temporarily unavailable.");else{const result=await response.json().catch(()=>null);if(!response.ok)setError(result?.message??"CSV apply failed.");else{setApplyResult(`${result.changedRows} resources committed; ${result.noOpRows} unchanged. Revalidation: ${result.revalidation}.`);setSelectedFile(null);}}setApplying(false);}
   const rows = preview?.rows.filter((row) => filter === "ALL" || row.outcome === filter) ?? [];
   return <>
     <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
@@ -45,6 +51,8 @@ export default function ResourceImportClient() {
       <section className="grid gap-3 sm:grid-cols-5">{Object.entries({ Rows: preview.summary.totalRows, "Valid changes": preview.summary.validChanges, "No-op": preview.summary.noOpRows, Invalid: preview.summary.invalidRows, Conflicts: preview.summary.conflicts }).map(([label, value]) => <div key={label} className="rounded-xl border bg-white p-4"><p className="text-xs uppercase text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div>)}</section>
       <section className="rounded-2xl border bg-white p-4"><label className="text-sm font-semibold">Outcome filter <select value={filter} onChange={(event) => setFilter(event.target.value as Outcome | "ALL")} className="ml-2 rounded-lg border p-2">{["ALL","VALID_CHANGE","NO_OP","INVALID","CONFLICT"].map((value) => <option key={value}>{value}</option>)}</select></label></section>
       <section className="overflow-x-auto rounded-2xl border bg-white"><table className="min-w-[1300px] text-left text-xs"><thead className="bg-slate-50"><tr>{["Row / resource","Titles","Versions","Status","Outcome","Changed fields","Warnings and errors"].map((header) => <th key={header} className="px-4 py-3">{header}</th>)}</tr></thead><tbody className="divide-y">{rows.map((row) => <tr key={`${row.rowNumber}:${row.resourceId}`} className="align-top"><td className="px-4 py-3">Row {row.rowNumber}<br/><code>{row.resourceId}</code></td><td className="px-4 py-3">Current: {row.currentTitle ?? "Unavailable"}<br/>Proposed: {row.proposedTitle}</td><td className="px-4 py-3">Current {row.currentVersion ?? "—"}<br/>Expected {row.expectedVersion ?? "—"}</td><td className="px-4 py-3">{row.currentStatus ?? "—"} → {row.resultingStatus ?? "—"}</td><td className="px-4 py-3 font-semibold">{row.outcome}</td><td className="px-4 py-3">{row.changedFields.join(", ") || "None"}</td><td className="px-4 py-3"><ul className="space-y-1">{row.publicVisibilityRemoval && <li className="font-semibold text-amber-800">Public visibility would be removed.</li>}{[...row.validationErrors, ...row.referenceErrors, row.mappingChangeWarning, row.slugCollisionWarning].filter(Boolean).map((message, index) => <li key={index}>{message}</li>)}</ul></td></tr>)}</tbody></table></section>
+      {preview.summary.validChanges>0&&preview.summary.invalidRows===0&&preview.summary.conflicts===0&&selectedFile&&<section className="rounded-2xl border border-rose-300 bg-white p-5"><h2 className="text-lg font-bold">Apply {preview.summary.validChanges} metadata changes</h2><p className="mt-2 text-sm">{preview.summary.noOpRows} rows are unchanged. Published changes shown above will return to pending review.</p><p className="mt-3 text-sm">Type exactly: <code>APPLY {preview.summary.validChanges} RESOURCES</code></p><input value={confirmation} onChange={e=>setConfirmation(e.target.value)} className="mt-2 w-full max-w-md rounded-lg border p-2"/><button type="button" disabled={applying} onClick={apply} className="mt-3 block rounded-lg bg-rose-700 px-4 py-2 font-semibold text-white disabled:opacity-60">{applying?"Applying…":"Apply metadata changes"}</button></section>}
     </>}
+    {applyResult&&<p className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 font-semibold text-emerald-900">{applyResult}</p>}
   </>;
 }
