@@ -21,6 +21,8 @@ export const resourceInventorySelect = {
   fileSizeBytes: true,
   createdAt: true,
   updatedAt: true,
+  activeAssetId: true,
+  activeAsset: { select: { status: true, checksum: true } },
   resourceType: { select: { id: true, name: true } },
   createdBy: { select: { displayName: true, firstName: true, lastName: true } },
   chapter: { select: { id: true, name: true, boardClassSubject: { select: {

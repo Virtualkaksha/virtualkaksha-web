@@ -5,6 +5,7 @@ import { STUDENT_READABLE_RESOURCE_WHERE } from "./resource-access-policy";
 import type { StudentLearningResourceRecord } from "@/repositories/student-learning.repository";
 import { resolveStudentResumeHref, type StudentLearningQuery } from "./student-learning-query";
 import type { StudentUser } from "./student-resource-service";
+import { hasReadyActiveAsset } from "./active-asset";
 
 type BookmarkPrismaClient = {
   studentProfile: {
@@ -29,7 +30,7 @@ export function mapStudentLearningResource(
 ) {
   const school = resource.chapter?.boardClassSubject;
   const exam = resource.examTopic?.examSubject;
-  const hasReadyPrimaryAsset = resource.assets.some((asset) => asset.status === "READY" && asset.isPrimary);
+  const hasReadyPrimaryAsset = hasReadyActiveAsset(resource);
   return {
     id: resource.id,
     title: resource.title,

@@ -11,6 +11,7 @@ import {
   resolveStudentResourceDownloadUrl,
   resolveStudentResourceViewerState,
 } from "@/lib/resources/student-resource-service";
+import { resolveActiveAsset } from "@/lib/resources/active-asset";
 
 import ResourceActions from "./ResourceActions";
 
@@ -265,6 +266,8 @@ export default async function ResourceViewerPage({
       externalUrl: true,
       thumbnailUrl: true,
       textContent: true,
+      activeAssetId: true,
+      activeAsset: { select: { id: true, status: true, isPrimary: true } },
       assets: {
         where: {
           isPrimary: true,
@@ -417,7 +420,7 @@ export default async function ResourceViewerPage({
       externalUrl: selectedResource.externalUrl,
       access: selectedResource.access,
     },
-    asset: selectedResource.assets[0] ?? null,
+    asset: resolveActiveAsset(selectedResource),
   });
   const downloadUrl = resolveStudentResourceDownloadUrl({
     resource: {
@@ -428,7 +431,7 @@ export default async function ResourceViewerPage({
       externalUrl: selectedResource.externalUrl,
       access: selectedResource.access,
     },
-    asset: selectedResource.assets[0] ?? null,
+    asset: resolveActiveAsset(selectedResource),
   });
   const duration = formatDuration(selectedResource.durationSeconds);
   const fileSize =

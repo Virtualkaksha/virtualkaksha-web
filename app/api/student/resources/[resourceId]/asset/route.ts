@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { RoleName } from "@/app/generated/prisma/enums";
 
 import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
+import { resolveActiveAsset } from "@/lib/resources/active-asset";
 import { PROTECTED_PDF_HEADERS } from "@/lib/security/headers";
 import {
   authorizeStudentResourceAssetAccess,
@@ -19,6 +20,8 @@ type AssetResource = {
   format: string;
   access: string;
   status: string;
+  activeAssetId?: string | null;
+  activeAsset?: { id: string; objectKey: string; provider: string; mimeType: string; status: string; isPrimary: boolean } | null;
   assets: Array<{
     id: string;
     objectKey: string;
@@ -87,6 +90,8 @@ export async function handleStudentAssetRequest(resourceId: string, dependencies
         format: true,
         access: true,
         status: true,
+        activeAssetId: true,
+        activeAsset: { select: { id: true, objectKey: true, provider: true, mimeType: true, status: true, isPrimary: true } },
         assets: {
           where: { isPrimary: true },
           orderBy: { createdAt: "asc" },
@@ -98,7 +103,7 @@ export async function handleStudentAssetRequest(resourceId: string, dependencies
   const resource = await findResource(resourceId);
   if (!resource) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const asset = resource.assets[0] ?? null;
+  const asset = resolveActiveAsset(resource);
   const authorization = authorizeStudentResourceAssetAccess({ user, resource, asset });
   if (!authorization.ok) {
     return NextResponse.json({ error: authorization.message }, { status: accessStatus(authorization.code) });

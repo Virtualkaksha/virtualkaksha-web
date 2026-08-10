@@ -5,11 +5,14 @@ import prisma from "@/lib/prisma";
 import { canAdminEditResourceMapping, canAdminEditResourceMetadata } from "@/lib/admin/resource-metadata-policy";
 import type { ValidatedAdminResourceMetadata } from "@/lib/admin/resource-metadata-validation";
 import { planResourceMetadata } from "@/lib/admin/resource-metadata-plan";
+import { resolveActiveAsset } from "@/lib/resources/active-asset";
 
 const editSelect = {
   id: true, title: true, titleHindi: true, description: true, resourceTypeId: true, chapterId: true,
   examTopicId: true, language: true, access: true, status: true, version: true, slug: true, format: true,
   pageCount: true, fileSizeBytes: true, publishedAt: true, contentUrl: true, externalUrl: true,
+  activeAssetId: true,
+  activeAsset: { select: { status: true } },
   assets: { where: { isPrimary: true }, orderBy: [{ updatedAt: "desc" as const }, { id: "asc" as const }], take: 1, select: { status: true } },
   _count: { select: { bookmarks: true, progress: true } },
   chapter: { select: { slug: true, boardClassSubject: { select: { board: { select: { slug: true } }, classLevel: { select: { slug: true } }, subject: { select: { slug: true } } } } } },
@@ -19,11 +22,22 @@ const editSelect = {
 export async function findAdminResourceMetadata(resourceId: string) {
   const record = await prisma.resource.findUnique({ where: { id: resourceId }, select: editSelect });
   if (!record) return null;
-  const { contentUrl, externalUrl, ...safeRecord } = record;
-  const primaryAsset = record.assets[0] ?? null;
+  const primaryAsset = resolveActiveAsset(record);
+  const {
+    contentUrl,
+    externalUrl,
+    activeAssetId: _activeAssetId,
+    activeAsset: _activeAsset,
+    assets: _assets,
+    ...safeRecord
+  } = record;
+  void _activeAssetId;
+  void _activeAsset;
+  void _assets;
   const legacySource = record.format === "PDF" && !primaryAsset && Boolean(contentUrl) && !externalUrl;
   return {
     ...safeRecord,
+    assets: primaryAsset ? [primaryAsset] : [],
     legacySource,
     assetSource: primaryAsset ? "NATIVE" as const : legacySource ? "LEGACY_CONTENT_URL" as const : externalUrl ? "EXTERNAL" as const : "NONE" as const,
   };

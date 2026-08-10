@@ -21,6 +21,8 @@ export const studentLearningResourceSelect = {
   thumbnailUrl: true,
   durationSeconds: true,
   pageCount: true,
+  activeAssetId: true,
+  activeAsset: { select: { id: true, status: true, isPrimary: true } },
   resourceType: { select: { name: true, code: true, iconName: true } },
   assets: {
     where: { isPrimary: true },

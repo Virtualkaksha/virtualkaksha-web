@@ -26,6 +26,8 @@ type ResourceLookup = {
   format: string;
   createdByUserId: string | null;
   teachers: Array<{ teacherProfile?: { userId: string | null } }>;
+  activeAssetId?: string | null;
+  assets?: Array<{ assetVersion: number }>;
 };
 
 type ResourceAssetRecord = {
@@ -37,7 +39,9 @@ type UploadDependencies = {
     resource: {
       findUnique: (args: { where: { id: string }; select: Record<string, unknown> }) => Promise<ResourceLookup | null>;
       update: (args: { where: { id: string }; data: Record<string, unknown> }) => Promise<unknown>;
+      updateMany?: (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => Promise<{ count: number }>;
     };
+    $transaction?: <T>(callback: (transaction: NonNullable<UploadDependencies["prismaClient"]>) => Promise<T>) => Promise<T>;
     resourceAsset: {
       create: (args: { data: Record<string, unknown> }) => Promise<ResourceAssetRecord>;
       update: (args: { where: { id: string }; data: Record<string, unknown> }) => Promise<unknown>;
@@ -121,6 +125,8 @@ export async function uploadResourceAsset({ user, resourceId, file }: UploadReso
         format: true,
         createdByUserId: true,
         teachers: { select: { teacherProfile: { select: { userId: true } } } },
+        activeAssetId: true,
+        assets: { orderBy: { assetVersion: "desc" }, take: 1, select: { assetVersion: true } },
       },
     });
 
@@ -130,6 +136,9 @@ export async function uploadResourceAsset({ user, resourceId, file }: UploadReso
 
     if (resource.format !== "PDF") {
       return { ok: false, code: "INVALID_FORMAT", message: "Only PDF uploads are supported for this step." };
+    }
+    if (resource.activeAssetId) {
+      return { ok: false, code: "REPLACEMENT_REQUIRED", message: "This resource already has an active PDF. Use the replacement workflow." };
     }
 
     const isAdmin = user.roles.includes("ADMIN");
@@ -159,6 +168,7 @@ export async function uploadResourceAsset({ user, resourceId, file }: UploadReso
         sizeBytes: BigInt(buffer.length),
         checksum: computeChecksum(buffer),
         status: "UPLOADING",
+        assetVersion: (resource.assets?.[0]?.assetVersion ?? 0) + 1,
         isPrimary: true,
       },
     });
@@ -172,27 +182,17 @@ export async function uploadResourceAsset({ user, resourceId, file }: UploadReso
         buffer,
       });
 
-      await prismaClient.resourceAsset.update({
-        where: { id: asset.id },
-        data: {
-          objectKey: storageResult.objectKey,
-          provider: storageResult.provider,
-          mimeType: storageResult.mimeType,
-          sizeBytes: BigInt(storageResult.sizeBytes),
-          checksum: storageResult.checksum,
-          status: "READY",
-          updatedAt: new Date(),
-        },
-      });
-
-      await prismaClient.resource.update({
-        where: { id: resourceId },
-        data: {
-          contentUrl: null,
-          fileSizeBytes: BigInt(storageResult.sizeBytes),
-          updatedAt: new Date(),
-        },
-      });
+      const finalize = async (database: NonNullable<UploadDependencies["prismaClient"]>) => {
+        await database.resourceAsset.update({ where: { id: asset.id }, data: { objectKey: storageResult.objectKey, provider: storageResult.provider, mimeType: storageResult.mimeType, sizeBytes: BigInt(storageResult.sizeBytes), checksum: storageResult.checksum, status: "READY", activatedAt: new Date(), updatedAt: new Date() } });
+        if (database.resource.updateMany) {
+          const activated = await database.resource.updateMany({ where: { id: resourceId, activeAssetId: null }, data: { activeAssetId: asset.id, contentUrl: null, fileSizeBytes: BigInt(storageResult.sizeBytes), updatedAt: new Date() } });
+          if (activated.count !== 1) throw new Error("Active asset changed during upload.");
+        } else {
+          await database.resource.update({ where: { id: resourceId }, data: { activeAssetId: asset.id, contentUrl: null, fileSizeBytes: BigInt(storageResult.sizeBytes), updatedAt: new Date() } });
+        }
+      };
+      if (prismaClient.$transaction) await prismaClient.$transaction(finalize);
+      else await finalize(prismaClient);
 
       return { ok: true, assetId: asset.id, objectKey: storageResult.objectKey, readUrl: storageResult.readUrl };
     } catch {

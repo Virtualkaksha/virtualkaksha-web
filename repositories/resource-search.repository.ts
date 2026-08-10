@@ -27,6 +27,8 @@ export const resourceSearchSelect = {
   updatedAt: true,
   viewCount: true,
   moderationNote: true,
+  activeAssetId: true,
+  activeAsset: { select: { id: true, status: true } },
   resourceType: { select: { name: true, slug: true, code: true, iconName: true } },
   assets: {
     where: { isPrimary: true },

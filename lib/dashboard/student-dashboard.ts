@@ -6,6 +6,7 @@ import {
   type DashboardResourceRecord,
 } from "@/repositories/student-dashboard.repository";
 import { resolveStudentResumeHref } from "@/lib/resources/student-learning-query";
+import { hasReadyActiveAsset } from "@/lib/resources/active-asset";
 
 const WEEK_IN_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
@@ -107,7 +108,7 @@ function mapResource(resource: DashboardResourceRecord, lastPosition?: number | 
       slug: resource.slug,
       format: resource.format,
       externalUrl: resource.externalUrl,
-      hasReadyPrimaryAsset: resource.assets.some((asset) => asset.status === "READY" && asset.isPrimary),
+      hasReadyPrimaryAsset: hasReadyActiveAsset(resource),
       chapter: resource.chapter,
       lastPosition,
     }),

@@ -19,6 +19,8 @@ export const dashboardResourceSelect = {
   durationSeconds: true,
   pageCount: true,
   externalUrl: true,
+  activeAssetId: true,
+  activeAsset: { select: { id: true, status: true, isPrimary: true } },
   resourceType: {
     select: {
       name: true,

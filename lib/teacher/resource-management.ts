@@ -6,6 +6,7 @@ import {
   getTeacherTransitionPolicy,
   type TeacherResourceTransition,
 } from "@/lib/teacher/resource-management-policy";
+import { resolveActiveAsset } from "@/lib/resources/active-asset";
 
 type TeacherIdentity = { id: string; roles: string[] };
 type TransitionResult = { count: number };
@@ -51,7 +52,7 @@ export async function getTeacherManagedResources(userId: string, query: TeacherR
     items: result.rows.map((record) => ({
       ...record,
       academicLabel: academicLabel(record),
-      assetState: resolveNativePdfAssetState(record.format, record.assets, record.externalUrl),
+      assetState: resolveNativePdfAssetState(record.format, [resolveActiveAsset(record)].filter((asset): asset is NonNullable<typeof asset> => Boolean(asset)), record.externalUrl),
       actions: getTeacherResourceActions(record.status),
     })),
     pagination: buildSearchPagination(result.total, result.page, query.pageSize),
@@ -66,7 +67,7 @@ export async function getTeacherManagedResource(user: TeacherIdentity, resourceI
   return {
     ...record,
     academicLabel: academicLabel(record),
-    assetState: resolveNativePdfAssetState(record.format, record.assets, record.externalUrl),
+    assetState: resolveNativePdfAssetState(record.format, [resolveActiveAsset(record)].filter((asset): asset is NonNullable<typeof asset> => Boolean(asset)), record.externalUrl),
     actions: getTeacherResourceActions(record.status),
   };
 }

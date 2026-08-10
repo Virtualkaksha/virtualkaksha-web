@@ -19,6 +19,8 @@ export const teacherManagedResourceSelect = {
   createdAt: true,
   updatedAt: true,
   moderationNote: true,
+  activeAssetId: true,
+  activeAsset: { select: { status: true } },
   resourceType: { select: { name: true } },
   assets: {
     where: { isPrimary: true },

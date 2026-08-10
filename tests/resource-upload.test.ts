@@ -115,6 +115,19 @@ test("successful upload creates a READY asset", async () => {
   assert.equal(createdAssets[0].mimeType, "application/pdf");
   assert.equal(resourceUpdates[0].contentUrl, null);
   assert.equal(resourceUpdates[0].fileSizeBytes, BigInt(6));
+  assert.equal(resourceUpdates[0].activeAssetId, "asset-1");
+  assert.equal(createdAssets[0].assetVersion, 1);
+});
+
+test("generic upload blocks a second active PDF pending the replacement workflow", async () => {
+  const storage = new InMemoryStorage();
+  const prismaClient = {
+    resource: { findUnique: async () => ({ id: "res-1", format: "PDF", createdByUserId: "teacher-1", teachers: [], activeAssetId: "asset-current", assets: [{ assetVersion: 1 }] }), update: async () => undefined },
+    resourceAsset: { create: async () => { throw new Error("must not create"); }, update: async () => undefined, delete: async () => undefined },
+  };
+  const result = await uploadResourceAsset({ user: { id: "teacher-1", roles: ["TEACHER"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: storage, uploadMaxMb: 20 });
+  assert.deepEqual(result, { ok: false, code: "REPLACEMENT_REQUIRED", message: "This resource already has an active PDF. Use the replacement workflow." });
+  assert.equal(storage.uploaded.length, 0);
 });
 
 test("failed upload does not leave a READY database record", async () => {

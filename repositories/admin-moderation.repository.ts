@@ -54,6 +54,8 @@ export async function findModerationResource(resourceId: string) {
       language: true, externalUrl: true, thumbnailUrl: true, textContent: true,
       durationSeconds: true, pageCount: true, createdAt: true, updatedAt: true, publishedAt: true,
       moderationNote: true, reviewedAt: true,
+      activeAssetId: true,
+      activeAsset: { select: { status: true } },
       assets: {
         where: { isPrimary: true },
         orderBy: [{ updatedAt: "desc" }, { id: "asc" }],

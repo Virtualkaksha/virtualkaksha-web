@@ -5,6 +5,7 @@ import type { StudentUser } from "@/lib/resources/student-resource-service";
 import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
 import { isSupportedResourceStorageProviderName } from "@/lib/resources/storage";
 import { PROTECTED_PDF_HEADERS } from "@/lib/security/headers";
+import { resolveActiveAsset } from "@/lib/resources/active-asset";
 import {
   CURRENT_IDENTITY_PRIVATE_HEADERS,
   currentIdentityFailureStatus,
@@ -15,6 +16,8 @@ import {
 type AdminAssetResource = {
   id: string;
   format: string;
+  activeAssetId?: string | null;
+  activeAsset?: { objectKey: string; provider: string; mimeType: string; status: string; isPrimary: boolean } | null;
   assets: Array<{
     objectKey: string;
     provider: string;
@@ -81,6 +84,8 @@ export async function handleAdminAssetRequest(
       select: {
         id: true,
         format: true,
+        activeAssetId: true,
+        activeAsset: { select: { objectKey: true, provider: true, mimeType: true, status: true, isPrimary: true } },
         assets: {
           where: { isPrimary: true },
           orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
@@ -97,7 +102,7 @@ export async function handleAdminAssetRequest(
     });
   });
   const resource = await findResource(resourceId);
-  const asset = resource?.assets[0] ?? null;
+  const asset = resource ? resolveActiveAsset(resource) : null;
   if (resource?.format !== "PDF" || !asset || !asset.isPrimary || asset.status !== "READY") return error(404);
   if (
     !isSupportedResourceStorageProviderName(asset.provider)

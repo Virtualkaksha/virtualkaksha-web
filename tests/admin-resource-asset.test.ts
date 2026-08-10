@@ -121,7 +121,8 @@ test("admin moderation data selects and maps only safe native asset metadata", a
   const detailSelection = repository.slice(repository.indexOf("export async function findModerationResource"));
   assert.match(detailSelection, /select: \{ status: true \}/);
   assert.doesNotMatch(detailSelection, /objectKey|provider: true|checksum|originalFileName|contentUrl: true/);
-  assert.match(service, /const \{ assets, \.\.\.safeItem \} = item/);
+  assert.match(service, /resolveActiveAsset\(item\)/);
+  assert.match(service, /activeAsset: _activeAsset/);
   assert.match(service, /nativePdf/);
   assert.match(service, /isNativePdf/);
   assert.match(service, /hasPrimaryAsset/);

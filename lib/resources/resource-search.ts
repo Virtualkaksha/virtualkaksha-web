@@ -9,6 +9,7 @@ import {
 } from "@/repositories/resource-search.repository";
 import { buildSearchPagination, resolveResourceSearchHref, type ResourceSearchQuery, type TeacherResourceSearchQuery } from "./resource-search-query";
 import { findBookmarkedResourceIds, findStudentProfileIdByUserId } from "@/repositories/student-learning.repository";
+import { hasReadyActiveAsset } from "./active-asset";
 
 function teacherName(record: ResourceSearchRecord) {
   const teacher = record.teachers[0]?.teacherProfile.user;
@@ -25,7 +26,7 @@ function mapResource(record: ResourceSearchRecord, bookmarked = false) {
     id: record.id,
     format: record.format,
     externalUrl: record.externalUrl,
-    hasReadyPrimaryAsset: record.assets.some((asset) => asset.status === "READY"),
+    hasReadyPrimaryAsset: hasReadyActiveAsset(record),
     detailUrl,
   });
   return {

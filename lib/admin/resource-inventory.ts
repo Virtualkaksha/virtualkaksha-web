@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Prisma } from "@/app/generated/prisma/client";
 import type { ResourceInventoryRecord } from "@/repositories/resource-inventory.repository";
+import { resolveActiveAsset } from "@/lib/resources/active-asset";
 
 export const RESOURCE_INVENTORY_PAGE_SIZE = 25;
 export const RESOURCE_INVENTORY_MAX_PAGE_SIZE = 100;
@@ -79,11 +80,11 @@ export function findDuplicateResourceIds(inputs: { titles: Array<{ id: string; t
 }
 
 function assetHealthWhere(value: string): Prisma.ResourceWhereInput | null {
-  if (value === "READY") return { assets: { some: { isPrimary: true, status: "READY" } } };
-  if (value === "NON_READY") return { assets: { some: { isPrimary: true, status: { in: ["UPLOADING", "FAILED", "DELETED"] } } } };
-  if (value === "MISSING") return { format: "PDF", contentUrl: null, externalUrl: null, assets: { none: { isPrimary: true } } };
-  if (value === "LEGACY") return { format: "PDF", contentUrl: { not: null }, externalUrl: null, assets: { none: { isPrimary: true } } };
-  if (value === "NO_SOURCE") return { contentUrl: null, externalUrl: null, textContent: null, assets: { none: { isPrimary: true, status: "READY" } } };
+  if (value === "READY") return { OR: [{ activeAssetId: { not: null } }, { activeAssetId: null, assets: { some: { isPrimary: true, status: "READY" } } }] };
+  if (value === "NON_READY") return { activeAssetId: null, assets: { some: { isPrimary: true, status: { in: ["UPLOADING", "FAILED", "DELETED"] } } } };
+  if (value === "MISSING") return { format: "PDF", contentUrl: null, externalUrl: null, activeAssetId: null, assets: { none: { isPrimary: true } } };
+  if (value === "LEGACY") return { format: "PDF", contentUrl: { not: null }, externalUrl: null, activeAssetId: null, assets: { none: { isPrimary: true } } };
+  if (value === "NO_SOURCE") return { contentUrl: null, externalUrl: null, textContent: null, activeAssetId: null, assets: { none: { isPrimary: true, status: "READY" } } };
   return null;
 }
 
@@ -105,7 +106,7 @@ export function buildResourceInventoryWhere(filters: InventoryFilters, duplicate
     ...(filters.language ? [{ language: filters.language as never }] : []),
     ...(filters.access ? [{ access: filters.access as never }] : []),
     ...(filters.missingDescription ? [{ OR: [{ description: null }, { description: "" }] }] : []),
-    ...(filters.legacySource ? [{ format: "PDF" as const, contentUrl: { not: null }, externalUrl: null, assets: { none: { isPrimary: true } } }] : []),
+    ...(filters.legacySource ? [{ format: "PDF" as const, contentUrl: { not: null }, externalUrl: null, activeAssetId: null, assets: { none: { isPrimary: true } } }] : []),
     ...(filters.duplicateTitle ? [{ id: { in: [...duplicates.duplicateTitleIds] } }] : []),
     ...(filters.duplicateChecksum ? [{ id: { in: [...duplicates.duplicateChecksumIds] } }] : []),
     ...(academic ? [academic] : []),
@@ -115,8 +116,9 @@ export function buildResourceInventoryWhere(filters: InventoryFilters, duplicate
 
 export type InventoryAssetState = "READY" | "NON_READY" | "MISSING" | "LEGACY" | "NO_SOURCE";
 
-export function mapResourceInventoryRow(record: ResourceInventoryRecord, duplicates: ReturnType<typeof findDuplicateResourceIds>) {
-  const asset = record.assets[0] ?? null;
+type CompatibleInventoryRecord = Omit<ResourceInventoryRecord, "activeAssetId" | "activeAsset"> & Partial<Pick<ResourceInventoryRecord, "activeAssetId" | "activeAsset">>;
+export function mapResourceInventoryRow(record: CompatibleInventoryRecord, duplicates: ReturnType<typeof findDuplicateResourceIds>) {
+  const asset = resolveActiveAsset(record);
   const legacySource = record.format === "PDF" && !asset && !record.externalUrl && Boolean(record.contentUrl);
   const assetState: InventoryAssetState = asset?.status === "READY" ? "READY"
     : asset ? "NON_READY"

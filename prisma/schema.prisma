@@ -86,7 +86,16 @@ enum ResourceAssetStatus {
   UPLOADING
   READY
   FAILED
+  RETIRED
+  DELETE_PENDING
   DELETED
+}
+
+enum ResourceAssetAuditAction {
+  LEGACY_MIGRATED
+  PDF_REPLACED
+  PDF_ROLLED_BACK
+  CANDIDATE_DISCARDED
 }
 
 enum ResourceAccess {
@@ -133,6 +142,7 @@ model User {
   resourcesCreated       Resource[]              @relation("ResourceCreatedBy")
   resourcesReviewed      Resource[]              @relation("ResourceReviewedBy")
   resourceMetadataAudits ResourceMetadataAudit[] @relation("ResourceMetadataAuditActor")
+  resourceAssetAudits    ResourceAssetAudit[]    @relation("ResourceAssetAuditActor")
 }
 
 model Role {
@@ -471,6 +481,7 @@ model Resource {
   examTopicId      String?
   createdByUserId  String?
   reviewedByUserId String?
+  activeAssetId    String?           @unique
   title            String
   titleHindi       String?
   slug             String
@@ -504,10 +515,12 @@ model Resource {
   reviewedBy   User?        @relation("ResourceReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   teachers       ResourceTeacher[]
-  assets         ResourceAsset[]
+  assets         ResourceAsset[]         @relation("ResourceAssets")
+  activeAsset    ResourceAsset?          @relation("ActiveResourceAsset", fields: [activeAssetId], references: [id], onDelete: Restrict)
   bookmarks      ResourceBookmark[]
   progress       StudentResourceProgress[]
   metadataAudits ResourceMetadataAudit[]
+  assetAudits    ResourceAssetAudit[]
 
   @@unique([chapterId, slug])
   @@unique([examTopicId, slug])
@@ -536,17 +549,56 @@ model ResourceAsset {
   sizeBytes        BigInt
   checksum         String?
   status           ResourceAssetStatus @default(UPLOADING)
+  assetVersion     Int
+  pageCount        Int?
+  activatedAt      DateTime?
+  retiredAt        DateTime?
+  deleteAfter      DateTime?
+  deletedAt        DateTime?
+  /// Transitional compatibility flag. Resource.activeAssetId is authoritative.
   isPrimary        Boolean             @default(false)
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
-  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  resource  Resource  @relation("ResourceAssets", fields: [resourceId], references: [id], onDelete: Restrict)
+  activeFor Resource? @relation("ActiveResourceAsset")
 
   @@unique([provider, objectKey])
+  @@unique([resourceId, assetVersion])
   @@index([resourceId])
   @@index([status])
+  @@index([resourceId, status])
+  @@index([checksum])
+  @@index([deleteAfter, status])
   @@index([isPrimary])
   @@index([provider])
+}
+
+model ResourceAssetAudit {
+  id                    String                   @id @default(cuid())
+  resourceId            String
+  actorUserId           String
+  action                ResourceAssetAuditAction
+  fromAssetId           String?
+  toAssetId             String?
+  resourceVersionBefore Int
+  resourceVersionAfter  Int
+  priorStatus           PublicationStatus
+  resultingStatus       PublicationStatus
+  byteIdentical         Boolean                  @default(false)
+  progressRowsObserved  Int                      @default(0)
+  progressRowsAdjusted  Int                      @default(0)
+  progressRowsClamped   Int                      @default(0)
+  details               Json
+  reason                String
+  createdAt             DateTime                 @default(now())
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  actor    User     @relation("ResourceAssetAuditActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([resourceId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([action, createdAt])
 }
 
 model ResourceTeacher {
@@ -586,6 +638,7 @@ model StudentResourceProgress {
   id               String                 @id @default(cuid())
   studentProfileId String
   resourceId       String
+  assetVersion     Int?
   status           LearningProgressStatus @default(NOT_STARTED)
   progressPercent  Int                    @default(0)
   lastPosition     Int?
