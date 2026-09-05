@@ -5,7 +5,7 @@ import Testimonials from "./components/Testimonials";
 import ChooseClass from "./components/ChooseClass";
 import WhyChoose from "./components/WhyChoose";
 import PopularResources from "./components/PopularResources";
-import TopEducators from "./components/TopEducators";
+import TeacherSection from "./components/TeacherSection";
 import PracticeTests from "./components/PracticeTests";
 import Footer from "./components/Footer";
 
@@ -17,12 +17,11 @@ export default function Home() {
       <ChooseClass />
       <PopularResources />
       <Courses />
-      <TopEducators />
+      <TeacherSection />
       <PracticeTests />
       <WhyChoose />
       <Testimonials />
       <Footer />
-
     </>
   );
 }

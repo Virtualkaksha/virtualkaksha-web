@@ -114,6 +114,12 @@ enum LearningProgressStatus {
   COMPLETED
 }
 
+enum TeacherAccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ======================================================
 // USERS AND ROLES
 // ======================================================
@@ -143,6 +149,8 @@ model User {
   resourcesReviewed      Resource[]              @relation("ResourceReviewedBy")
   resourceMetadataAudits ResourceMetadataAudit[] @relation("ResourceMetadataAuditActor")
   resourceAssetAudits    ResourceAssetAudit[]    @relation("ResourceAssetAuditActor")
+  teacherAccessReviews   TeacherAccessRequest[]  @relation("TeacherAccessReviewedBy")
+  teacherAccessAccounts  TeacherAccessRequest[]  @relation("TeacherAccessCreatedUser")
 }
 
 model Role {
@@ -656,4 +664,32 @@ model StudentResourceProgress {
   @@index([resourceId])
   @@index([status])
   @@index([lastAccessedAt])
+}
+
+model TeacherAccessRequest {
+  id               String                      @id @default(cuid())
+  firstName        String
+  lastName         String?
+  email            String
+  phone            String?
+  city             String?
+  subjects         String
+  experienceYears  Int?
+  message          String?
+  passwordHash     String
+  status           TeacherAccessRequestStatus  @default(PENDING)
+  adminNote        String?
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  createdUserId    String?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+
+  reviewedBy  User? @relation("TeacherAccessReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  createdUser User? @relation("TeacherAccessCreatedUser", fields: [createdUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([reviewedByUserId])
+  @@index([createdUserId])
 }

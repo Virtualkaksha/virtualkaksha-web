@@ -74,6 +74,8 @@ test("authenticated visits and protected redirects respect exact roles", () => {
   assert.equal(getAuthenticatedRouteRedirect("/admin", false, []), "/admin/login");
   assert.equal(getAuthenticatedRouteRedirect("/teacher", false, []), "/teacher/login");
   assert.equal(getAuthenticatedRouteRedirect("/student", false, []), "/login");
+  assert.equal(getAuthenticatedRouteRedirect("/teacher-access", false, []), null);
+  assert.equal(getAuthenticatedRouteRedirect("/teacher-access", true, ["STUDENT"]), null);
 });
 
 test("single-role accounts cannot cross protected workspace boundaries", () => {
@@ -92,10 +94,11 @@ test("role homes and route redirects cannot loop", () => {
   }
 });
 
-test("public navigation exposes student login but not admin login", async () => {
+test("public navigation exposes student and teacher entry points", async () => {
   const publicSource = `${await readFile("app/components/Navbar.tsx", "utf8")}\n${await readFile("app/components/Footer.tsx", "utf8")}`;
   assert.match(publicSource, /href="\/login"/);
-  assert.doesNotMatch(publicSource, /\/admin\/login/);
+  assert.match(publicSource, /\/teacher\/login/);
+  assert.match(publicSource, /\/teacher-access/);
 });
 
 test("logout and protected layouts retain server-side role guards", async () => {

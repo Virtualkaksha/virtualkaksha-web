@@ -29,11 +29,11 @@ export function getAuthenticatedRouteRedirect(
 ) {
   const loginRole = loginRoleForPath(pathname);
   const isSignupRoute = pathname === "/signup";
-  const requiredArea = pathname.startsWith("/admin")
+  const requiredArea = pathname.startsWith("/admin/") || pathname === "/admin"
     ? "ADMIN"
-    : pathname.startsWith("/teacher")
+    : pathname.startsWith("/teacher/") || pathname === "/teacher"
       ? "TEACHER"
-      : pathname.startsWith("/student")
+      : pathname.startsWith("/student/") || pathname === "/student"
         ? "STUDENT"
         : null;
 

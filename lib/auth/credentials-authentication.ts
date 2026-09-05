@@ -1,8 +1,8 @@
 import type { RateLimitAdapter, RateLimitDecision, RateLimitPolicy } from "@/lib/rate-limit";
-import { getRateLimitAdapter, resolveTrustedClientIp } from "@/lib/rate-limit";
+import { getRateLimitAdapter, resolveRequestClientIp } from "@/lib/rate-limit";
 import { verifyPassword } from "@/lib/auth/password";
 import { loginSchema } from "@/lib/auth/validation";
-import { getRateLimitEnvironment, type EnvironmentSource } from "@/lib/env";
+import type { EnvironmentSource } from "@/lib/env";
 import type { LoginRole } from "@/lib/auth/role-routing";
 
 type AuthUserRecord = {
@@ -22,7 +22,7 @@ export const DUMMY_PASSWORD_HASH = "$2b$12$jRKKXMfZtxWypVqUf10yBO6cI7QEy73Mv5Iht
 
 type CredentialsDependencies = {
   rateLimit?: RateLimitAdapter;
-  resolveIp?: (request: Request) => ReturnType<typeof resolveTrustedClientIp>;
+  resolveIp?: (request: Request) => ReturnType<typeof resolveRequestClientIp>;
   findUser?: (email: string) => Promise<AuthUserRecord>;
   comparePassword?: (password: string, hash: string) => Promise<boolean>;
   recordLogin?: (userId: string) => Promise<unknown>;
@@ -33,20 +33,7 @@ export function resolveCredentialsClientIp(
   request: Request,
   environment: EnvironmentSource = process.env,
 ) {
-  let directAddress: string | undefined;
-  try {
-    const validated = getRateLimitEnvironment(environment);
-    if (
-      validated.nodeEnv === "development" &&
-      validated.adapter === "memory" &&
-      validated.trustedProxy === "direct"
-    ) {
-      directAddress = "127.0.0.1";
-    }
-  } catch {
-    // The generic resolver returns a sanitized invalid-configuration result.
-  }
-  return resolveTrustedClientIp({ request, directAddress, environment });
+  return resolveRequestClientIp(request, environment);
 }
 
 function normalizedEmail(rawCredentials: unknown) {

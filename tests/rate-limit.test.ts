@@ -34,13 +34,15 @@ const expectedPolicies = {
   "admin-import-preview-ip": [15, 3_600_000, "closed"],
   "admin-import-apply-user": [2, 600_000, "closed"],
   "admin-import-apply-ip": [5, 3_600_000, "closed"],
+  "teacher-access-request-ip": [5, 3_600_000, "closed"],
+  "teacher-access-request-email": [3, 86_400_000, "closed"],
 } as const;
 
 test("every required policy has the expected limit, window and failure mode", () => {
   assert.deepEqual([...RATE_LIMIT_POLICY_NAMES].sort(), Object.keys(expectedPolicies).sort());
   for (const [name, [limit, windowMs, failureMode]] of Object.entries(expectedPolicies)) {
     assert.deepEqual(RATE_LIMIT_POLICIES[name as keyof typeof RATE_LIMIT_POLICIES], {
-      algorithm: name.startsWith("login-") || name.startsWith("signup-")
+      algorithm: name.startsWith("login-") || name.startsWith("signup-") || name.startsWith("teacher-access-request-")
         ? "sliding-window"
         : "fixed-window",
       limit,

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import "./helpers/server-only";
 
-import { resolveTrustedClientIp } from "@/lib/rate-limit";
+import { resolveRequestClientIp, resolveTrustedClientIp } from "@/lib/rate-limit";
 
 function request(headers: Record<string, string> = {}) {
   return new Request("https://virtual.test/login", { headers });
@@ -82,4 +82,17 @@ test("test injection is deterministic and forbidden in production", () => {
     code: "INVALID_CONFIGURATION",
     message: "RATE_LIMIT_TRUSTED_PROXY must select a valid mode for the current environment.",
   });
+});
+
+test("request helper supplies loopback IP for local development direct mode", () => {
+  assert.deepEqual(
+    resolveRequestClientIp(request(), {
+      NODE_ENV: "development",
+      RATE_LIMIT_ADAPTER: "memory",
+      RATE_LIMIT_KEY_SECRET: "0123456789abcdef0123456789abcdef",
+      RATE_LIMIT_TRUSTED_PROXY: "direct",
+      RATE_LIMIT_ENV_PREFIX: "development",
+    }),
+    { ok: true, address: "127.0.0.1" },
+  );
 });

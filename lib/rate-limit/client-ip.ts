@@ -54,3 +54,28 @@ export function resolveTrustedClientIp(input: ClientIpInput): ClientIpResult {
   if (mode === "direct") return validateAddress(input.directAddress);
   return validateAddress(input.testAddress);
 }
+
+/**
+ * Resolves a client IP for browser-originated requests.
+ * In local development with memory + direct proxy mode, uses loopback so uploads
+ * and mutations are not blocked by a missing directAddress.
+ */
+export function resolveRequestClientIp(
+  request: Request,
+  environment: EnvironmentSource = process.env,
+): ClientIpResult {
+  let directAddress: string | undefined;
+  try {
+    const validated = getRateLimitEnvironment(environment);
+    if (
+      validated.nodeEnv === "development"
+      && validated.adapter === "memory"
+      && validated.trustedProxy === "direct"
+    ) {
+      directAddress = "127.0.0.1";
+    }
+  } catch {
+    // The generic resolver returns a sanitized invalid-configuration result.
+  }
+  return resolveTrustedClientIp({ request, directAddress, environment });
+}

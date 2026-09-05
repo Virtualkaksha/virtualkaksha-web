@@ -7,7 +7,7 @@ import { ContentLanguage, PublicationStatus, ResourceAccess, ResourceFormat } fr
 import { uploadResourceAsset, type UploadResourceAssetResult } from "@/lib/resources/upload-service";
 import { transitionTeacherResource, updateTeacherResourceMetadata } from "@/lib/teacher/resource-management";
 import type { TeacherResourceTransition } from "@/lib/teacher/resource-management-policy";
-import { enforceRateLimitChecks, resolveTrustedClientIp } from "@/lib/rate-limit";
+import { enforceRateLimitChecks, resolveRequestClientIp } from "@/lib/rate-limit";
 import { authorizeTeacherMutation } from "@/lib/teacher/mutation-rate-limit";
 import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 
@@ -175,7 +175,7 @@ export async function createTeacherResourceCore({ user, formData, prismaClient, 
 export async function createTeacherResource(formData: FormData): Promise<TeacherResourceActionResult> {
   const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const request = new Request("http://rate-limit.internal", { headers: await headers() });
-  const ip = resolveTrustedClientIp({ request });
+  const ip = resolveRequestClientIp(request);
   if (!ip.ok) return { ok: false, code: "RATE_LIMITED", message: "Too many requests. Please wait before trying again.", retryable: true, retryAfterSeconds: 1 };
   const nativePdf = formData.get("format") === "PDF" && formData.get("sourceType") === "native-pdf";
   const decision = await enforceRateLimitChecks([
@@ -193,7 +193,7 @@ export async function createTeacherResource(formData: FormData): Promise<Teacher
 export async function uploadTeacherResourcePdf(formData: FormData) {
   const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const request = new Request("http://rate-limit.internal", { headers: await headers() });
-  const ip = resolveTrustedClientIp({ request });
+  const ip = resolveRequestClientIp(request);
   if (!ip.ok) return { ok: false as const, code: "RATE_LIMITED", message: "Too many requests. Please wait before trying again.", retryAfterSeconds: 1 };
   const decision = await enforceRateLimitChecks([
     { policy: "pdf-upload-user", identifier: user.id },

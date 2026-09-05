@@ -13,11 +13,43 @@ const initialState: AuthActionState = {
 
 const actions = { STUDENT: studentLoginAction, TEACHER: teacherLoginAction, ADMIN: adminLoginAction } as const;
 
+const roleTabs = [
+  { role: "STUDENT", href: "/login", label: "Student" },
+  { role: "TEACHER", href: "/teacher/login", label: "Teacher" },
+  { role: "ADMIN", href: "/admin/login", label: "Admin" },
+] as const;
+
 export default function LoginForm({ expectedRole }: { expectedRole: LoginRole }) {
   const [state, action] = useActionState(actions[expectedRole], initialState);
 
   return (
     <form action={action} className="mt-8 space-y-5" noValidate>
+      <div className="grid grid-cols-3 gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1" role="tablist" aria-label="Choose login workspace">
+        {roleTabs.map((tab) => {
+          const active = tab.role === expectedRole;
+          return active ? (
+            <span
+              key={tab.role}
+              role="tab"
+              aria-selected="true"
+              className="rounded-xl bg-white px-3 py-2.5 text-center text-sm font-semibold text-slate-950 shadow-sm"
+            >
+              {tab.label}
+            </span>
+          ) : (
+            <Link
+              key={tab.role}
+              href={tab.href}
+              role="tab"
+              aria-selected="false"
+              className="rounded-xl px-3 py-2.5 text-center text-sm font-semibold text-slate-600 transition hover:bg-white/70 hover:text-blue-700"
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
+      </div>
+
       {state.message ? (
         <div
           role="alert"
@@ -69,12 +101,29 @@ export default function LoginForm({ expectedRole }: { expectedRole: LoginRole })
 
       <AuthSubmitButton label="Sign in" />
 
-      {expectedRole === "STUDENT" ? <p className="text-center text-sm text-slate-600">
-        New to VirtualKaksha?{" "}
-        <Link href="/signup" className="font-semibold text-blue-700 hover:text-blue-800">
-          Create a student account
-        </Link>
-      </p> : null}
+      {expectedRole === "STUDENT" ? (
+        <p className="text-center text-sm text-slate-600">
+          New to VirtualKaksha?{" "}
+          <Link href="/signup" className="font-semibold text-blue-700 hover:text-blue-800">
+            Create a student account
+          </Link>
+        </p>
+      ) : expectedRole === "TEACHER" ? (
+        <p className="text-center text-sm text-slate-600">
+          First time here?{" "}
+          <Link href="/teacher-access" className="font-semibold text-blue-700 hover:text-blue-800">
+            Request teacher access
+          </Link>
+        </p>
+      ) : (
+        <p className="text-center text-sm text-slate-600">
+          Admin accounts are assigned by VirtualKaksha. Need help?{" "}
+          <Link href="/contact" className="font-semibold text-blue-700 hover:text-blue-800">
+            Contact us
+          </Link>
+          .
+        </p>
+      )}
     </form>
   );
 }

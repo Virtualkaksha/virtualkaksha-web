@@ -18,7 +18,9 @@ export type RateLimitPolicy =
   | "admin-import-preview-user"
   | "admin-import-preview-ip"
   | "admin-import-apply-user"
-  | "admin-import-apply-ip";
+  | "admin-import-apply-ip"
+  | "teacher-access-request-ip"
+  | "teacher-access-request-email";
 
 export type RateLimitDecision = {
   allowed: boolean;

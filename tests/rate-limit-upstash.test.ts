@@ -32,7 +32,7 @@ const productionEnvironment = {
 };
 
 test("every policy maps to its configured Upstash algorithm, limit and window", () => {
-  assert.equal(RATE_LIMIT_POLICY_NAMES.length, 20);
+  assert.equal(RATE_LIMIT_POLICY_NAMES.length, 22);
   const limiters = createUpstashLimiters({} as never, "test");
   assert.deepEqual(Object.keys(limiters).sort(), [...RATE_LIMIT_POLICY_NAMES].sort());
   for (const policy of RATE_LIMIT_POLICY_NAMES) {
@@ -42,7 +42,7 @@ test("every policy maps to its configured Upstash algorithm, limit and window", 
     assert.ok(config.windowMs > 0);
     assert.equal(
       config.algorithm,
-      policy.startsWith("login-") || policy.startsWith("signup-")
+      policy.startsWith("login-") || policy.startsWith("signup-") || policy.startsWith("teacher-access-request-")
         ? "sliding-window"
         : "fixed-window",
     );

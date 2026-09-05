@@ -12,7 +12,7 @@ import {
 import {
   enforceRateLimitChecks,
   rateLimitResponse,
-  resolveTrustedClientIp,
+  resolveRequestClientIp,
   type RateLimitAdapter,
 } from "@/lib/rate-limit";
 
@@ -22,7 +22,7 @@ type Dependencies = {
   resolveIdentity?: () => Promise<CurrentIdentityResult>;
   /** Test seam for an already-validated current identity. */
   getCurrentUser?: () => Promise<StudentUser | null>;
-  resolveIp?: (request: Request) => ReturnType<typeof resolveTrustedClientIp>;
+  resolveIp?: (request: Request) => ReturnType<typeof resolveRequestClientIp>;
   rateLimit?: RateLimitAdapter;
   parseFormData?: (request: Request) => Promise<FormData>;
   createResource?: (user: StudentUser, formData: FormData) => Promise<TeacherResourceActionResult>;
@@ -59,7 +59,7 @@ export async function handleNativeTeacherResourceCreation(request: Request, depe
   }
   const user = identity.identity;
 
-  const ipResult = (dependencies.resolveIp ?? ((value) => resolveTrustedClientIp({ request: value })))(request);
+  const ipResult = (dependencies.resolveIp ?? ((value) => resolveRequestClientIp(value)))(request);
   if (!ipResult.ok) return jsonError(503, "Resource creation is temporarily unavailable.");
   const decision = await enforceRateLimitChecks([
     { policy: "resource-create-user", identifier: user.id },

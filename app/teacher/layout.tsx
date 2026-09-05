@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { BookOpen, LayoutDashboard, LibraryBig, LogOut } from "lucide-react";
+import { BookOpen, Inbox, LayoutDashboard, LibraryBig, LogOut } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
 import { requireCurrentRole } from "@/lib/auth/current-identity";
+import { getTeacherNavBadge } from "@/lib/teacher/teacher-cms";
 
 export default async function TeacherLayout({ children }: { children: ReactNode }) {
-  await requireCurrentRole("TEACHER");
+  const user = await requireCurrentRole("TEACHER");
+  const badge = await getTeacherNavBadge(user.id);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -19,13 +21,26 @@ export default async function TeacherLayout({ children }: { children: ReactNode 
             <Link href="/teacher" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
               <LayoutDashboard size={17} /> Dashboard
             </Link>
+            <Link href="/teacher/inbox" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
+              <Inbox size={17} />
+              Inbox
+              {badge.attention > 0 ? (
+                <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                  {badge.attention}
+                </span>
+              ) : null}
+            </Link>
             <Link href="/teacher/resources" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
               <LibraryBig size={17} /> Resources
             </Link>
             <Link href="/search" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
               <BookOpen size={17} /> Public resources
             </Link>
-            <form action={logoutAction}><button type="submit" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-rose-700"><LogOut size={17} /> Logout</button></form>
+            <form action={logoutAction}>
+              <button type="submit" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-rose-700">
+                <LogOut size={17} /> Logout
+              </button>
+            </form>
           </nav>
         </div>
       </header>

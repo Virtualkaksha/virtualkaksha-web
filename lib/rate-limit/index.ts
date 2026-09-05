@@ -1,4 +1,4 @@
-export { resolveTrustedClientIp, readTrustedProxyMode } from "./client-ip";
+export { resolveTrustedClientIp, resolveRequestClientIp, readTrustedProxyMode } from "./client-ip";
 export { canonicalizeRateLimitIdentifier, createOpaqueRateLimitKey } from "./keys";
 export { MemoryRateLimitAdapter } from "./memory-adapter";
 export { getRateLimitPolicy, RATE_LIMIT_POLICIES, RATE_LIMIT_POLICY_NAMES } from "./policies";

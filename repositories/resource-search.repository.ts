@@ -113,13 +113,64 @@ export async function findResourceSearchFacets() {
 
 export async function findTeacherResourceSummary(userId: string) {
   const ownershipWhere = buildTeacherDashboardWhere(userId);
-  const [total, published, pending, drafts, views, recent] = await prisma.$transaction([
+  const [total, published, pending, drafts, rejected, views, recent] = await prisma.$transaction([
     prisma.resource.count({ where: ownershipWhere }),
     prisma.resource.count({ where: { AND: [ownershipWhere, { status: "PUBLISHED" }] } }),
     prisma.resource.count({ where: { AND: [ownershipWhere, { status: "PENDING_REVIEW" }] } }),
     prisma.resource.count({ where: { AND: [ownershipWhere, { status: "DRAFT" }] } }),
+    prisma.resource.count({ where: { AND: [ownershipWhere, { status: "REJECTED" }] } }),
     prisma.resource.aggregate({ where: ownershipWhere, _sum: { viewCount: true } }),
     prisma.resource.findMany({ where: ownershipWhere, orderBy: [{ updatedAt: "desc" }, { id: "asc" }], take: 5, select: resourceSearchSelect }),
   ]);
-  return { total, published, pending, drafts, views: views._sum.viewCount ?? 0, recent };
+  return { total, published, pending, drafts, rejected, views: views._sum.viewCount ?? 0, recent };
+}
+
+export async function findTeacherInbox(userId: string) {
+  const ownershipWhere = buildTeacherDashboardWhere(userId);
+  const recentlyPublishedSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+  const [rejected, pending, recentlyPublished, rejectedCount, pendingCount] = await prisma.$transaction([
+    prisma.resource.findMany({
+      where: { AND: [ownershipWhere, { status: "REJECTED" }] },
+      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+      take: 20,
+      select: resourceSearchSelect,
+    }),
+    prisma.resource.findMany({
+      where: { AND: [ownershipWhere, { status: "PENDING_REVIEW" }] },
+      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+      take: 20,
+      select: resourceSearchSelect,
+    }),
+    prisma.resource.findMany({
+      where: {
+        AND: [
+          ownershipWhere,
+          { status: "PUBLISHED" },
+          {
+            OR: [
+              { publishedAt: { gte: recentlyPublishedSince } },
+              { reviewedAt: { gte: recentlyPublishedSince } },
+            ],
+          },
+        ],
+      },
+      orderBy: [{ publishedAt: "desc" }, { updatedAt: "desc" }],
+      take: 10,
+      select: resourceSearchSelect,
+    }),
+    prisma.resource.count({ where: { AND: [ownershipWhere, { status: "REJECTED" }] } }),
+    prisma.resource.count({ where: { AND: [ownershipWhere, { status: "PENDING_REVIEW" }] } }),
+  ]);
+
+  return {
+    rejected,
+    pending,
+    recentlyPublished,
+    counts: {
+      rejected: rejectedCount,
+      pending: pendingCount,
+      attention: rejectedCount + pendingCount,
+    },
+  };
 }
