@@ -45,5 +45,13 @@ export const RATE_LIMIT_POLICY_NAMES = Object.freeze(
 );
 
 export function getRateLimitPolicy(policy: RateLimitPolicy): RateLimitPolicyConfig {
-  return RATE_LIMIT_POLICIES[policy];
+  const base = RATE_LIMIT_POLICIES[policy];
+  // Local development uses the in-memory limiter; keep auth signup usable while iterating.
+  if (
+    process.env.NODE_ENV === "development"
+    && (policy === "signup-ip" || policy === "signup-email" || policy === "teacher-access-request-ip" || policy === "teacher-access-request-email")
+  ) {
+    return { ...base, limit: Math.max(base.limit, 50), windowMs: HOUR };
+  }
+  return base;
 }

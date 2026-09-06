@@ -47,10 +47,17 @@ function progressClient(options: {
   };
 }
 
-test("unauthenticated native PDF access is rejected", () => {
+test("guest native PDF access is allowed for published FREE resources", () => {
   const result = authorizeStudentResourceAssetAccess({ user: null, resource: publishedPdf, asset: readyAsset });
+  assert.equal(result.ok, true);
+  if (!result.ok) assert.fail("Expected guest FREE PDF authorization to succeed.");
+  assert.equal(result.readUrl, "/api/student/resources/res-1/asset");
+});
+
+test("guest access is rejected for premium resources", () => {
+  const result = authorizeStudentResourceAssetAccess({ user: null, resource: { ...publishedPdf, access: "PREMIUM" }, asset: readyAsset });
   assert.equal(result.ok, false);
-  assert.equal(result.code, "UNAUTHENTICATED");
+  assert.equal(result.code, "FORBIDDEN");
 });
 
 test("authenticated non-student access is rejected", () => {
@@ -136,12 +143,14 @@ test("invalid external PDF URL and missing usable source fail safely", () => {
   }
 });
 
-test("asset route returns 401 for unauthenticated access", async () => {
+test("asset route allows unauthenticated FREE published PDF access", async () => {
   const response = await handleStudentAssetRequest("res-1", {
     getCurrentUser: async () => null,
     findResource: async () => assetResource(),
+    readLocalFile: async () => Buffer.from("%PDF-1.7 guest"),
   });
-  assert.equal(response.status, 401);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/pdf");
 });
 
 test("asset route rejects malicious object keys", async () => {

@@ -31,11 +31,13 @@ type StudentPdfViewerProps = {
   initialPage?: number | null;
   pageCount?: number | null;
   onPageChange?: (page: number) => void;
+  /** When false (guests), skip progress POSTs so 401s do not surface as save errors. */
+  enableProgressTracking?: boolean;
 };
 
 const PDF_LOAD_FALLBACK_MS = 5000;
 
-export default function StudentPdfViewer({ resourceId, viewerState, initialPage = 1, pageCount, onPageChange }: StudentPdfViewerProps) {
+export default function StudentPdfViewer({ resourceId, viewerState, initialPage = 1, pageCount, onPageChange, enableProgressTracking = true }: StudentPdfViewerProps) {
   const [page, setPage] = useState(Math.max(1, initialPage ?? 1));
   const [resolvedPageCount, setResolvedPageCount] = useState(pageCount);
   const [isPdfLoading, setIsPdfLoading] = useState(true);
@@ -51,7 +53,7 @@ export default function StudentPdfViewer({ resourceId, viewerState, initialPage 
   const progressWriteBlockedUntilRef = useRef(0);
 
   useEffect(() => {
-    if (viewerState.viewerType !== "native" || !hasChangedPageRef.current) {
+    if (!enableProgressTracking || viewerState.viewerType !== "native" || !hasChangedPageRef.current) {
       return undefined;
     }
 
@@ -85,7 +87,7 @@ export default function StudentPdfViewer({ resourceId, viewerState, initialPage 
         window.clearTimeout(saveTimerRef.current);
       }
     };
-  }, [page, resolvedPageCount, resourceId, viewerState.viewerType]);
+  }, [enableProgressTracking, page, resolvedPageCount, resourceId, viewerState.viewerType]);
 
   useEffect(() => {
     if (!isPdfLoading) return undefined;

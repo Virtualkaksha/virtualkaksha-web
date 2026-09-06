@@ -74,6 +74,14 @@ test("authenticated visits and protected redirects respect exact roles", () => {
   assert.equal(getAuthenticatedRouteRedirect("/admin", false, []), "/admin/login");
   assert.equal(getAuthenticatedRouteRedirect("/teacher", false, []), "/teacher/login");
   assert.equal(getAuthenticatedRouteRedirect("/student", false, []), "/login");
+  assert.equal(getAuthenticatedRouteRedirect("/student/resources", false, []), null);
+  assert.equal(getAuthenticatedRouteRedirect("/student/resources/cbse/class-10/mathematics/polynomials/notes", false, []), null);
+  assert.equal(getAuthenticatedRouteRedirect("/student/bookmarks", false, []), "/login");
+  assert.equal(getAuthenticatedRouteRedirect("/signup", false, []), null);
+  assert.equal(getAuthenticatedRouteRedirect("/signup", true, ["ADMIN"]), null);
+  assert.equal(getAuthenticatedRouteRedirect("/signup", true, ["TEACHER"]), null);
+  assert.equal(getAuthenticatedRouteRedirect("/signup", true, ["STUDENT"]), "/student");
+  assert.equal(getAuthenticatedRouteRedirect("/signup", true, ["ADMIN", "STUDENT"]), "/student");
   assert.equal(getAuthenticatedRouteRedirect("/teacher-access", false, []), null);
   assert.equal(getAuthenticatedRouteRedirect("/teacher-access", true, ["STUDENT"]), null);
 });
@@ -95,7 +103,7 @@ test("role homes and route redirects cannot loop", () => {
 });
 
 test("public navigation exposes student and teacher entry points", async () => {
-  const publicSource = `${await readFile("app/components/Navbar.tsx", "utf8")}\n${await readFile("app/components/Footer.tsx", "utf8")}`;
+  const publicSource = `${await readFile("app/components/Navbar.tsx", "utf8")}\n${await readFile("app/components/NavbarClient.tsx", "utf8")}\n${await readFile("app/components/Footer.tsx", "utf8")}`;
   assert.match(publicSource, /href="\/login"/);
   assert.match(publicSource, /\/teacher\/login/);
   assert.match(publicSource, /\/teacher-access/);
@@ -106,8 +114,10 @@ test("logout and protected layouts retain server-side role guards", async () => 
   const admin = await readFile("app/admin/layout.tsx", "utf8");
   const teacher = await readFile("app/teacher/layout.tsx", "utf8");
   const student = await readFile("app/student/layout.tsx", "utf8");
+  const studentHome = await readFile("app/student/page.tsx", "utf8");
   assert.match(action, /await signOut\(\{ redirectTo: "\/login" \}\)/);
   assert.match(admin, /requireCurrentRole\("ADMIN"\)/);
   assert.match(teacher, /requireCurrentRole\("TEACHER"\)/);
-  assert.match(student, /requireCurrentRole\("STUDENT"\)/);
+  assert.match(student, /getCurrentIdentity\(\)/);
+  assert.match(studentHome, /requireCurrentRole\("STUDENT"\)/);
 });

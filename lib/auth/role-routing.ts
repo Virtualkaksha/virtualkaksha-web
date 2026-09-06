@@ -22,6 +22,11 @@ function loginRoleForPath(pathname: string): LoginRole | null {
   return null;
 }
 
+/** Published free catalogue and PDF viewers stay open without a student session. */
+export function isPublicStudentResourcePath(pathname: string) {
+  return pathname === "/student/resources" || pathname.startsWith("/student/resources/");
+}
+
 export function getAuthenticatedRouteRedirect(
   pathname: string,
   isAuthenticated: boolean,
@@ -43,10 +48,19 @@ export function getAuthenticatedRouteRedirect(
       : null;
   }
   if (isSignupRoute) {
-    return isAuthenticated ? getRoleHome(roles) : null;
+    // Student signup stays on the marketing funnel. Only existing students skip it.
+    return isAuthenticated && roles.includes("STUDENT")
+      ? ROLE_LOGIN_CONFIG.STUDENT.homePath
+      : null;
   }
 
   if (!requiredArea) return null;
+
+  // Guests may browse and open free published study resources without signing in.
+  if (!isAuthenticated && requiredArea === "STUDENT" && isPublicStudentResourcePath(pathname)) {
+    return null;
+  }
+
   if (!isAuthenticated) return ROLE_LOGIN_CONFIG[requiredArea].loginPath;
 
   const hasAccess = roles.includes(requiredArea);

@@ -29,7 +29,10 @@ test("layout uses only the two local Geist variable fonts", async () => {
   assert.equal((layout.match(/weight: "100 900"/g) ?? []).length, 2);
   assert.equal((layout.match(/style: "normal"/g) ?? []).length, 2);
   assert.equal((layout.match(/display: "swap"/g) ?? []).length, 2);
-  assert.doesNotMatch(layout, /https?:\/\/|next\/dist|@vercel\/og|__nextjs_font/);
+  assert.doesNotMatch(layout, /next\/dist|@vercel\/og|__nextjs_font/);
+  // Font files must never be fetched from a remote origin; unrelated URLs such as
+  // metadataBase are allowed.
+  assert.doesNotMatch(layout, /https?:\/\/[^"'\s]*\.(?:woff2?|ttf|otf|eot)/);
 });
 
 test("committed fonts are valid non-empty WOFF2 files with pinned hashes", async () => {

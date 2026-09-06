@@ -1,7 +1,8 @@
 import "server-only";
 
 import { findResourceSearchFacets, findStudentResourceSearchPage, type ResourceSearchRecord } from "@/repositories/resource-search.repository";
-import { buildSearchPagination, type ResourceSearchQuery } from "./resource-search-query";
+import { hasReadyActiveAsset } from "./active-asset";
+import { buildSearchPagination, resolveResourceSearchHref, type ResourceSearchQuery } from "./resource-search-query";
 
 function academicLabel(record: ResourceSearchRecord) {
   if (record.chapter) {
@@ -21,7 +22,7 @@ export type PublicResourceSearchItem = {
   format: string;
   resourceType: string;
   academicLabel: string;
-  loginHref: string;
+  openHref: string;
 };
 
 export async function searchPublicResources(query: ResourceSearchQuery) {
@@ -29,13 +30,25 @@ export async function searchPublicResources(query: ResourceSearchQuery) {
     findStudentResourceSearchPage(query),
     findResourceSearchFacets(),
   ]);
-  const items: PublicResourceSearchItem[] = rows.map((record) => ({
-    title: record.title,
-    description: record.description,
-    format: record.format,
-    resourceType: record.resourceType.name,
-    academicLabel: academicLabel(record),
-    loginHref: "/login?callbackUrl=%2Fstudent%2Fresources%2Fsearch",
-  }));
+  const items: PublicResourceSearchItem[] = rows.map((record) => {
+    const school = record.chapter?.boardClassSubject;
+    const detailUrl = record.chapter
+      ? `/student/resources/${school!.board.slug}/${school!.classLevel.slug}/${school!.subject.slug}/${record.chapter.slug}/${record.slug}`
+      : null;
+    return {
+      title: record.title,
+      description: record.description,
+      format: record.format,
+      resourceType: record.resourceType.name,
+      academicLabel: academicLabel(record),
+      openHref: resolveResourceSearchHref({
+        id: record.id,
+        format: record.format,
+        externalUrl: record.externalUrl,
+        hasReadyPrimaryAsset: hasReadyActiveAsset(record),
+        detailUrl,
+      }),
+    };
+  });
   return { items, facets, pagination: buildSearchPagination(total, page, query.pageSize) };
 }

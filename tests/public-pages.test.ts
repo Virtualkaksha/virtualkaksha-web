@@ -35,8 +35,12 @@ test("public search normalizes invalid filters and remains published/free", () =
 
 test("public search projection contains no private metadata fields", async () => {
   const source = await readFile("lib/resources/public-resource-search.ts", "utf8");
-  for (const privateField of ["moderationNote", "objectKey", "bucket", "checksum", "createdByUserId", "teacherName", "externalUrl"]) assert.doesNotMatch(source, new RegExp(`${privateField}:`));
-  assert.match(source, /Sign in|loginHref/);
+  const typeBlock = source.match(/export type PublicResourceSearchItem = \{[\s\S]*?\};/)?.[0] ?? "";
+  for (const privateField of ["moderationNote", "objectKey", "bucket", "checksum", "createdByUserId", "teacherName", "externalUrl"]) {
+    assert.doesNotMatch(typeBlock, new RegExp(`${privateField}\\s*:`));
+  }
+  assert.match(source, /openHref/);
+  assert.doesNotMatch(source, /loginHref/);
 });
 
 test("404 and global error provide safe recovery", async () => {

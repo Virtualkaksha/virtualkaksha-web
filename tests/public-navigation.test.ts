@@ -11,7 +11,7 @@ test("tracked application UI contains no placeholder hrefs", async () => {
 });
 
 test("public navigation uses real routes and excludes retired destinations", async () => {
-  const source = await Promise.all(["app/components/Navbar.tsx", "app/components/Footer.tsx", "app/components/Hero.tsx", "app/components/PopularResources.tsx", "app/components/TeacherSection.tsx", "app/components/student/StudentSidebar.tsx", "app/components/student/StudentTopbar.tsx"].map((file) => readFile(file, "utf8")));
+  const source = await Promise.all(["app/components/Navbar.tsx", "app/components/NavbarClient.tsx", "app/components/Footer.tsx", "app/components/Hero.tsx", "app/components/PopularResources.tsx", "app/components/TeacherSection.tsx", "app/components/student/StudentSidebar.tsx", "app/components/student/StudentTopbar.tsx"].map((file) => readFile(file, "utf8")));
   const joined = source.join("\n");
   for (const route of ["/", "/search", "/about", "/contact", "/privacy", "/terms", "/login", "/signup", "/teacher/login", "/teacher-access"]) assert.match(joined, new RegExp(route.replace("/", "\\/")));
   assert.match(joined, /Built for teachers|#teachers|Teacher login|Request teacher access/);
@@ -38,7 +38,8 @@ test("student navigation exposes only implemented destinations", async () => {
   assert.match(sidebar, /label: "Help & Support"[\s\S]*href: "\/contact"/);
   assert.match(topbar, /studentSupportNavigationItem/);
   assert.doesNotMatch(`${sidebar}\n${topbar}\n${resources}`, /\/student\/(?:teachers|profile|settings|tests|courses|coachings|ncert-solutions|video-lectures|notifications)/);
-  assert.match(studentLayout, /await requireCurrentRole\("STUDENT"\)/);
+  assert.match(studentLayout, /getCurrentIdentity\(\)/);
+  assert.match(studentLayout, /Sign in/);
 });
 
 test("public content reflects Classes 6-12 and removes unverifiable claims", async () => {

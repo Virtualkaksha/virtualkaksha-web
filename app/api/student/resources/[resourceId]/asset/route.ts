@@ -41,19 +41,30 @@ type AssetRouteDependencies = {
   readLocalFile?: (objectKey: string) => Promise<Buffer>;
 };
 
-async function resolveStudentIdentity(dependencies: AssetRouteDependencies): Promise<CurrentIdentityResult> {
-  if (dependencies.resolveIdentity) return dependencies.resolveIdentity();
+async function resolveOptionalStudentIdentity(dependencies: AssetRouteDependencies): Promise<
+  | { ok: true; user: StudentUser | null }
+  | Extract<CurrentIdentityResult, { ok: false }>
+> {
+  if (dependencies.resolveIdentity) {
+    const result = await dependencies.resolveIdentity();
+    if (result.ok) return { ok: true, user: result.identity };
+    if (result.code === "NO_SESSION") return { ok: true, user: null };
+    return result;
+  }
   if (dependencies.getCurrentUser) {
     try {
       const user = await dependencies.getCurrentUser();
-      if (!user) return { ok: false, code: "NO_SESSION", message: "Authentication is required." };
+      if (!user) return { ok: true, user: null };
       if (!user.roles.includes("STUDENT")) return { ok: false, code: "FORBIDDEN", message: "Access is denied." };
-      return { ok: true, identity: { ...user, roles: user.roles as RoleName[], sessionVersion: 1 } };
+      return { ok: true, user: { ...user, roles: user.roles as RoleName[] } };
     } catch {
       return { ok: false, code: "IDENTITY_UNAVAILABLE", message: "Authentication is temporarily unavailable." };
     }
   }
-  return resolveCurrentIdentityForApi(["STUDENT"]);
+  const result = await resolveCurrentIdentityForApi(["STUDENT"]);
+  if (result.ok) return { ok: true, user: result.identity };
+  if (result.code === "NO_SESSION") return { ok: true, user: null };
+  return result;
 }
 
 function identityError(result: Extract<CurrentIdentityResult, { ok: false }>) {
@@ -78,9 +89,10 @@ function accessStatus(code: string) {
 }
 
 export async function handleStudentAssetRequest(resourceId: string, dependencies: AssetRouteDependencies = {}) {
-  const identity = await resolveStudentIdentity(dependencies);
+  const identity = await resolveOptionalStudentIdentity(dependencies);
   if (!identity.ok) return identityError(identity);
-  const user = identity.identity;
+  const user = identity.user;
+
   const findResource = dependencies.findResource ?? (async (id: string) => {
     const runtimePrisma = await import("@/lib/prisma").then((module) => module.default);
     return runtimePrisma.resource.findUnique({

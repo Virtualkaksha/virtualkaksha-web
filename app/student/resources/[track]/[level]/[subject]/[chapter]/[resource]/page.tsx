@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { STUDENT_READABLE_RESOURCE_WHERE } from "@/lib/resources/resource-access-policy";
 import { findStudentProfileIdByUserId, isStudentResourceBookmarked } from "@/repositories/student-learning.repository";
 import StudentPdfViewer from "@/components/student/StudentPdfViewer";
-import { requireCurrentRole } from "@/lib/auth/current-identity";
+import { getCurrentIdentity } from "@/lib/auth/current-identity";
 import {
   getStudentResourceProgress,
   resolveStudentResourceDownloadUrl,
@@ -89,6 +89,7 @@ function ResourceContent({
   viewerState,
   pageCount,
   initialPage,
+  enableProgressTracking,
 }: {
   resource: {
     id: string;
@@ -108,6 +109,7 @@ function ResourceContent({
   viewerState: ReturnType<typeof resolveStudentResourceViewerState>;
   pageCount: number | null;
   initialPage: number | null;
+  enableProgressTracking: boolean;
 }) {
   const sourceUrl = resource.contentUrl ?? resource.externalUrl;
 
@@ -170,6 +172,7 @@ function ResourceContent({
         viewerState={viewerState}
         initialPage={initialPage}
         pageCount={pageCount}
+        enableProgressTracking={enableProgressTracking}
       />
     );
   }
@@ -398,7 +401,7 @@ export default async function ResourceViewerPage({
     take: 6,
   });
 
-  const currentUser = await requireCurrentRole("STUDENT");
+  const currentUser = await getCurrentIdentity();
   const studentProfile = currentUser?.roles.includes("STUDENT")
     ? await findStudentProfileIdByUserId(currentUser.id)
     : null;
@@ -552,6 +555,7 @@ export default async function ResourceViewerPage({
             viewerState={viewerState}
             pageCount={selectedResource.pageCount}
             initialPage={progressResult.ok ? progressResult.progress.page : null}
+            enableProgressTracking={Boolean(studentProfile)}
           />
         </main>
 

@@ -4,6 +4,7 @@ import BoardCard from "@/app/components/virtualkaksha/BoardCard";
 import SearchBar from "@/app/components/virtualkaksha/SearchBar";
 import SectionHeader from "@/app/components/virtualkaksha/SectionHeader";
 import SubjectCard from "@/app/components/virtualkaksha/SubjectCard";
+import { requireCurrentRole } from "@/lib/auth/current-identity";
 
 const boards = [
   {
@@ -49,7 +50,8 @@ const subjects = [
   },
 ];
 
-export default function DesignSystemPage() {
+export default async function DesignSystemPage() {
+  await requireCurrentRole("STUDENT");
   return (
     <div className="mx-auto max-w-7xl space-y-12 p-8">
       <SectionHeader

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import "./helpers/server-only";
@@ -197,4 +198,10 @@ test("signup limiter outage fails closed before hashing or creation", async () =
   );
   assert.equal(result.accepted, false);
   assert.equal(touched, false);
+});
+
+test("signup uses the request IP helper that supports local direct mode", async () => {
+  const source = await readFile(new URL("../lib/auth/signup-service.ts", import.meta.url), "utf8");
+  assert.match(source, /resolveRequestClientIp/);
+  assert.doesNotMatch(source, /resolveTrustedClientIp\(\{\s*request\s*\}\)/);
 });

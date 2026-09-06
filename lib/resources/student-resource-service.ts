@@ -197,15 +197,13 @@ export function authorizeStudentResourceAssetAccess({
   resource: ResourceLike;
   asset: AssetLike | null;
 }): StudentResourceAssetAccessResult {
-  if (!user?.id) {
-    return { ok: false, code: "UNAUTHENTICATED", message: "Please sign in to access this resource." };
-  }
-  if (!isStudent(user)) {
-    return { ok: false, code: "FORBIDDEN", message: "Student access is required." };
-  }
-
   const accessError = resourceAccessError(resource);
   if (accessError) return accessError;
+
+  // Guests may open published FREE PDFs; signed-in non-students stay blocked.
+  if (user?.id && !isStudent(user)) {
+    return { ok: false, code: "FORBIDDEN", message: "Student access is required." };
+  }
 
   if (!asset || asset.status !== "READY" || !asset.isPrimary) {
     return { ok: false, code: "ASSET_NOT_READY", message: "This PDF is not ready to view yet." };

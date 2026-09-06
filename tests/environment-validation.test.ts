@@ -278,7 +278,13 @@ test("Prisma import is lazy, first use validates safely, and development caches 
 
   prismaModule.resetPrismaClientForTests();
   let creations = 0;
-  const sentinel = { sentinel: true };
+  // The stub must expose the delegates the staleness probe checks, or the cache is
+  // treated as a stale hot-reload client and rebuilt.
+  const sentinel = {
+    user: { findUnique: () => undefined },
+    resource: { findUnique: () => undefined },
+    teacherAccessRequest: { findUnique: () => undefined },
+  };
   const dependencies = {
     createClient: () => {
       creations += 1;

@@ -1,13 +1,13 @@
 import { hashPassword } from "@/lib/auth/password";
 import type { RateLimitAdapter, RateLimitDecision } from "@/lib/rate-limit";
-import { getRateLimitAdapter, resolveTrustedClientIp } from "@/lib/rate-limit";
+import { getRateLimitAdapter, resolveRequestClientIp } from "@/lib/rate-limit";
 
 export type SignupServiceResult = { accepted: true } | { accepted: false; retryAfterSeconds: number };
 
 type SignupInput = { firstName: string; lastName?: string; email: string; password: string; request: Request };
 type SignupDependencies = {
   rateLimit?: RateLimitAdapter;
-  resolveIp?: (request: Request) => ReturnType<typeof resolveTrustedClientIp>;
+  resolveIp?: (request: Request) => ReturnType<typeof resolveRequestClientIp>;
   hash?: (password: string) => Promise<string>;
   createUser?: (input: { firstName: string; lastName?: string; email: string; passwordHash: string }) => Promise<unknown>;
   isUniqueConflict?: (error: unknown) => boolean;
@@ -25,7 +25,7 @@ export async function registerStudentAccount(
   input: SignupInput,
   dependencies: SignupDependencies = {},
 ): Promise<SignupServiceResult> {
-  const ipResult = (dependencies.resolveIp ?? ((request) => resolveTrustedClientIp({ request })))(input.request);
+  const ipResult = (dependencies.resolveIp ?? ((request) => resolveRequestClientIp(request)))(input.request);
   if (!ipResult.ok) return { accepted: false, retryAfterSeconds: 1 };
 
   let limiter: RateLimitAdapter;
