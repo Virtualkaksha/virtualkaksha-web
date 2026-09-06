@@ -4,6 +4,7 @@ import type { RoleName } from "@/app/generated/prisma/enums";
 import type { StudentUser } from "@/lib/resources/student-resource-service";
 import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
 import { isSupportedResourceStorageProviderName } from "@/lib/resources/storage";
+import { presignedPdfResponse } from "@/lib/resources/pdf-delivery";
 import { PROTECTED_PDF_HEADERS } from "@/lib/security/headers";
 import { resolveActiveAsset } from "@/lib/resources/active-asset";
 import {
@@ -108,6 +109,9 @@ export async function handleAdminAssetRequest(
     !isSupportedResourceStorageProviderName(asset.provider)
     || !["application/pdf", "application/x-pdf"].includes(asset.mimeType.toLowerCase())
   ) return error(404);
+
+  const redirect = await presignedPdfResponse(asset, { skip: Boolean(dependencies.readFile) });
+  if (redirect) return redirect;
 
   const readFile = dependencies.readFile
     ?? ((provider: string, objectKey: string) => createResourceStorageProvider(provider).readFile(objectKey));

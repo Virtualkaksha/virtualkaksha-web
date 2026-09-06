@@ -4,6 +4,7 @@ import type { RoleName } from "@/app/generated/prisma/enums";
 import type { StudentUser } from "@/lib/resources/student-resource-service";
 import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
 import { isSupportedResourceStorageProviderName } from "@/lib/resources/storage";
+import { presignedPdfResponse } from "@/lib/resources/pdf-delivery";
 import { PROTECTED_PDF_HEADERS } from "@/lib/security/headers";
 import { resolveActiveAsset } from "@/lib/resources/active-asset";
 import {
@@ -96,6 +97,10 @@ export async function handleTeacherAssetRequest(resourceId: string, dependencies
   const asset = resolveActiveAsset(resource);
   if (resource.format !== "PDF" || !asset || asset.status !== "READY" || !asset.isPrimary) return error(404);
   if (!isSupportedResourceStorageProviderName(asset.provider) || !["application/pdf", "application/x-pdf"].includes(asset.mimeType.toLowerCase())) return error(404);
+
+  const suppliesOwnBytes = Boolean(dependencies.readFile ?? dependencies.readLocalFile);
+  const redirect = await presignedPdfResponse(asset, { skip: suppliesOwnBytes });
+  if (redirect) return redirect;
 
   const readFile = dependencies.readFile
     ?? (dependencies.readLocalFile ? (_provider: string, objectKey: string) => dependencies.readLocalFile!(objectKey) : null)

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { RoleName } from "@/app/generated/prisma/enums";
 
 import { createResourceStorageProvider } from "@/lib/resources/storage-provider-factory";
+import { presignedPdfResponse } from "@/lib/resources/pdf-delivery";
 import { resolveActiveAsset } from "@/lib/resources/active-asset";
 import { PROTECTED_PDF_HEADERS } from "@/lib/security/headers";
 import {
@@ -120,6 +121,10 @@ export async function handleStudentAssetRequest(resourceId: string, dependencies
   if (!authorization.ok) {
     return NextResponse.json({ error: authorization.message }, { status: accessStatus(authorization.code) });
   }
+
+  const suppliesOwnBytes = Boolean(dependencies.readFile ?? dependencies.readLocalFile);
+  const redirect = await presignedPdfResponse(asset!, { skip: suppliesOwnBytes });
+  if (redirect) return redirect;
 
   const readFile = dependencies.readFile
     ?? (dependencies.readLocalFile ? (_provider: string, objectKey: string) => dependencies.readLocalFile!(objectKey) : null)
