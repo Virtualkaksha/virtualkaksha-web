@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "21mb",
     },
   },
+  images: {
+    // Only the video poster host is trusted, matching the content security policy.
+    remotePatterns: [{ protocol: "https", hostname: "i.ytimg.com", pathname: "/vi/**" }],
+  },
   async headers() {
     return [
       {

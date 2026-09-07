@@ -12,6 +12,7 @@ import {
   resolveStudentResourceViewerState,
 } from "@/lib/resources/student-resource-service";
 import { resolveActiveAsset } from "@/lib/resources/active-asset";
+import { resolveVideoEmbed, VIDEO_FRAME_REFERRER_POLICY } from "@/lib/resources/video-embed";
 
 import ResourceActions from "./ResourceActions";
 
@@ -38,50 +39,6 @@ function formatDuration(durationSeconds: number | null) {
   }
 
   return `${Math.max(minutes, 1)} min`;
-}
-
-function getYouTubeEmbedUrl(url: string) {
-  try {
-    const parsedUrl = new URL(url);
-
-    if (parsedUrl.hostname.includes("youtu.be")) {
-      const videoId = parsedUrl.pathname.replace("/", "");
-
-      return videoId
-        ? `https://www.youtube.com/embed/${videoId}`
-        : null;
-    }
-
-    if (parsedUrl.hostname.includes("youtube.com")) {
-      const videoId =
-        parsedUrl.searchParams.get("v") ??
-        parsedUrl.pathname.split("/").filter(Boolean).at(-1);
-
-      return videoId
-        ? `https://www.youtube.com/embed/${videoId}`
-        : null;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-function getVimeoEmbedUrl(url: string) {
-  try {
-    const parsedUrl = new URL(url);
-
-    if (!parsedUrl.hostname.includes("vimeo.com")) {
-      return null;
-    }
-
-    const videoId = parsedUrl.pathname.split("/").filter(Boolean).at(-1);
-
-    return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
-  } catch {
-    return null;
-  }
 }
 
 function ResourceContent({
@@ -133,8 +90,7 @@ function ResourceContent({
   }
 
   if (resource.format === "VIDEO" && sourceUrl) {
-    const embedUrl =
-      getYouTubeEmbedUrl(sourceUrl) ?? getVimeoEmbedUrl(sourceUrl);
+    const embedUrl = resolveVideoEmbed(sourceUrl)?.embedUrl ?? null;
 
     if (embedUrl) {
       return (
@@ -143,6 +99,8 @@ function ResourceContent({
             src={embedUrl}
             title={resource.title}
             className="h-full w-full"
+            // Without a referrer the player refuses to configure itself.
+            referrerPolicy={VIDEO_FRAME_REFERRER_POLICY}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
           />

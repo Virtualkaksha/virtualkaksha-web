@@ -12,6 +12,18 @@
 
 export const YOUTUBE_EMBED_ORIGIN = "https://www.youtube-nocookie.com";
 export const YOUTUBE_THUMBNAIL_ORIGIN = "https://i.ytimg.com";
+export const VIMEO_EMBED_ORIGIN = "https://player.vimeo.com";
+
+/** Frame and image origins the content security policy must permit. */
+export const VIDEO_FRAME_ORIGINS = Object.freeze([YOUTUBE_EMBED_ORIGIN, VIMEO_EMBED_ORIGIN]);
+export const VIDEO_IMAGE_ORIGINS = Object.freeze([YOUTUBE_THUMBNAIL_ORIGIN]);
+
+/**
+ * YouTube requires a Referer header to identify the embedding site and rejects
+ * the player with error 153 without one. This site sends no referrer by default,
+ * so video frames opt into sending just the origin.
+ */
+export const VIDEO_FRAME_REFERRER_POLICY = "strict-origin-when-cross-origin";
 
 const YOUTUBE_HOSTS: ReadonlySet<string> = new Set([
   "youtube.com",
@@ -27,12 +39,38 @@ const YOUTUBE_HOSTS: ReadonlySet<string> = new Set([
 const VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 const PATH_ID_PREFIXES: ReadonlySet<string> = new Set(["embed", "shorts", "live", "v"]);
 
+const VIMEO_HOSTS: ReadonlySet<string> = new Set([
+  "vimeo.com",
+  "www.vimeo.com",
+  "player.vimeo.com",
+]);
+
+const VIMEO_ID_PATTERN = /^[0-9]{6,12}$/;
+
 export type VideoEmbed = {
-  provider: "youtube";
+  provider: "youtube" | "vimeo";
   videoId: string;
   embedUrl: string;
-  thumbnailUrl: string;
+  /** Only providers with a predictable poster URL supply one. */
+  thumbnailUrl: string | null;
 };
+
+export function parseVimeoVideoId(rawUrl: string | null | undefined): string | null {
+  if (!rawUrl) return null;
+
+  let url: URL;
+  try {
+    url = new URL(rawUrl.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  // Exact host matching; a lookalike such as vimeo.com.evil.test must not pass.
+  if (!VIMEO_HOSTS.has(url.hostname.toLowerCase())) return null;
+
+  const numericSegments = url.pathname.split("/").filter((segment) => VIMEO_ID_PATTERN.test(segment));
+  return numericSegments.at(-1) ?? null;
+}
 
 export function parseYouTubeVideoId(rawUrl: string | null | undefined): string | null {
   if (!rawUrl) return null;
@@ -70,15 +108,59 @@ export function buildYouTubeThumbnailUrl(videoId: string) {
   return `${YOUTUBE_THUMBNAIL_ORIGIN}/vi/${videoId}/hqdefault.jpg`;
 }
 
+/**
+ * Whether a stored poster URL may be rendered.
+ *
+ * The content security policy only trusts the video thumbnail host, so an
+ * arbitrary URL a teacher typed would be blocked in the browser. Such values are
+ * ignored in favour of a placeholder rather than rendering a broken image.
+ */
+export function isDisplayableThumbnailUrl(rawUrl: string | null | undefined) {
+  if (!rawUrl) return false;
+  try {
+    const url = new URL(rawUrl);
+    return url.protocol === "https:" && url.hostname === new URL(YOUTUBE_THUMBNAIL_ORIGIN).hostname;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The poster to show for a resource: the stored thumbnail when it is one we can
+ * render, otherwise one derived from the video link. Deriving at read time means
+ * resources saved before posters existed still get one.
+ */
+export function resolveResourcePosterUrl(resource: {
+  thumbnailUrl?: string | null;
+  contentUrl?: string | null;
+  externalUrl?: string | null;
+}): string | null {
+  if (isDisplayableThumbnailUrl(resource.thumbnailUrl)) return resource.thumbnailUrl ?? null;
+  return resolveVideoEmbed(resource.contentUrl ?? resource.externalUrl)?.thumbnailUrl ?? null;
+}
+
 /** Returns null for anything that is not a recognised video link. */
 export function resolveVideoEmbed(rawUrl: string | null | undefined): VideoEmbed | null {
-  const videoId = parseYouTubeVideoId(rawUrl);
-  if (!videoId) return null;
+  const youTubeId = parseYouTubeVideoId(rawUrl);
+  if (youTubeId) {
+    return {
+      provider: "youtube",
+      videoId: youTubeId,
+      embedUrl: buildYouTubeEmbedUrl(youTubeId),
+      thumbnailUrl: buildYouTubeThumbnailUrl(youTubeId),
+    };
+  }
 
-  return {
-    provider: "youtube",
-    videoId,
-    embedUrl: buildYouTubeEmbedUrl(videoId),
-    thumbnailUrl: buildYouTubeThumbnailUrl(videoId),
-  };
+  const vimeoId = parseVimeoVideoId(rawUrl);
+  if (vimeoId) {
+    return {
+      provider: "vimeo",
+      videoId: vimeoId,
+      // A Vimeo poster needs an API lookup, so none is derived here.
+      embedUrl: `${VIMEO_EMBED_ORIGIN}/video/${vimeoId}`,
+      thumbnailUrl: null,
+    };
+  }
+
+  return null;
 }

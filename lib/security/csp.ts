@@ -1,4 +1,4 @@
-import { YOUTUBE_EMBED_ORIGIN, YOUTUBE_THUMBNAIL_ORIGIN } from "@/lib/resources/video-embed";
+import { VIDEO_FRAME_ORIGINS, VIDEO_IMAGE_ORIGINS } from "@/lib/resources/video-embed";
 
 export type CspEnvironment = "development" | "production";
 
@@ -24,13 +24,13 @@ export function buildContentSecurityPolicy(nonce: string, environment: CspEnviro
       ? "style-src 'self' 'unsafe-inline'"
       : `style-src 'self' 'nonce-${safeNonce}'`,
     "style-src-attr 'unsafe-inline'",
-    // Video lesson posters come from YouTube's image host.
-    `img-src 'self' data: blob: ${YOUTUBE_THUMBNAIL_ORIGIN}`,
+    // Video lesson posters come from the video providers' image hosts.
+    `img-src 'self' data: blob: ${VIDEO_IMAGE_ORIGINS.join(" ")}`,
     "font-src 'self'",
     `connect-src 'self'${isDevelopment ? " ws: wss:" : ""}`,
     "worker-src 'self' blob:",
-    // Video lessons are framed from the cookie-deferring YouTube origin only.
-    `frame-src 'self' ${YOUTUBE_EMBED_ORIGIN}`,
+    // Video lessons are framed only from the pinned player origins.
+    `frame-src 'self' ${VIDEO_FRAME_ORIGINS.join(" ")}`,
     "frame-ancestors 'none'",
     "form-action 'self'",
     "manifest-src 'self'",

@@ -1,5 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 
+import { isDisplayableThumbnailUrl } from "@/lib/resources/video-embed";
 import BookmarkButton from "./BookmarkButton";
 
 type StudentResourceCardProps = {
@@ -10,6 +12,7 @@ type StudentResourceCardProps = {
     format: string;
     href: string;
     academicLabel: string;
+    thumbnailUrl?: string | null;
     resourceType: { name: string };
     progress?: null | {
       status: string;
@@ -27,8 +30,25 @@ function progressStatus(status: string) {
 }
 
 export default function StudentResourceCard({ item, bookmarked, showBookmark = true }: StudentResourceCardProps) {
+  const posterUrl = isDisplayableThumbnailUrl(item.thumbnailUrl) ? item.thumbnailUrl! : null;
+
   return (
     <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md">
+      <div className="relative mb-4 aspect-video overflow-hidden rounded-xl bg-slate-100">
+        {posterUrl ? (
+          <Image
+            src={posterUrl}
+            alt=""
+            fill
+            sizes="(min-width: 1280px) 22rem, (min-width: 768px) 45vw, 90vw"
+            className="object-cover"
+          />
+        ) : (
+          <span className="flex h-full items-center justify-center px-4 text-center text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+            {item.resourceType.name}
+          </span>
+        )}
+      </div>
       <div className="flex items-start justify-between gap-4">
         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
           <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">{item.resourceType.name}</span>

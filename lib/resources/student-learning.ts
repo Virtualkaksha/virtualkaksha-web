@@ -6,6 +6,7 @@ import type { StudentLearningResourceRecord } from "@/repositories/student-learn
 import { resolveStudentResumeHref, type StudentLearningQuery } from "./student-learning-query";
 import type { StudentUser } from "./student-resource-service";
 import { hasReadyActiveAsset } from "./active-asset";
+import { resolveResourcePosterUrl } from "./video-embed";
 
 type BookmarkPrismaClient = {
   studentProfile: {
@@ -36,7 +37,7 @@ export function mapStudentLearningResource(
     title: resource.title,
     description: resource.description,
     format: resource.format,
-    thumbnailUrl: resource.thumbnailUrl,
+    thumbnailUrl: resolveResourcePosterUrl(resource),
     durationSeconds: resource.durationSeconds,
     pageCount: resource.pageCount,
     resourceType: resource.resourceType,

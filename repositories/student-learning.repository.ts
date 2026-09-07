@@ -17,6 +17,7 @@ export const studentLearningResourceSelect = {
   slug: true,
   description: true,
   format: true,
+  contentUrl: true,
   externalUrl: true,
   thumbnailUrl: true,
   durationSeconds: true,
