@@ -1,3 +1,5 @@
+import { YOUTUBE_EMBED_ORIGIN, YOUTUBE_THUMBNAIL_ORIGIN } from "@/lib/resources/video-embed";
+
 export type CspEnvironment = "development" | "production";
 
 const NONCE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
@@ -22,11 +24,13 @@ export function buildContentSecurityPolicy(nonce: string, environment: CspEnviro
       ? "style-src 'self' 'unsafe-inline'"
       : `style-src 'self' 'nonce-${safeNonce}'`,
     "style-src-attr 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    // Video lesson posters come from YouTube's image host.
+    `img-src 'self' data: blob: ${YOUTUBE_THUMBNAIL_ORIGIN}`,
     "font-src 'self'",
     `connect-src 'self'${isDevelopment ? " ws: wss:" : ""}`,
     "worker-src 'self' blob:",
-    "frame-src 'self'",
+    // Video lessons are framed from the cookie-deferring YouTube origin only.
+    `frame-src 'self' ${YOUTUBE_EMBED_ORIGIN}`,
     "frame-ancestors 'none'",
     "form-action 'self'",
     "manifest-src 'self'",

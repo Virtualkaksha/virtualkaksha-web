@@ -5,6 +5,7 @@ import {
   STUDENT_READABLE_RESOURCE_WHERE,
 } from "./resource-access-policy";
 import { isSupportedResourceStorageProviderName } from "./storage";
+import { resolveVideoEmbed } from "./video-embed";
 
 export type StudentUser = {
   id: string;
@@ -174,9 +175,12 @@ export function resolveStudentResourceViewerState({ resource, asset }: { resourc
     };
   }
 
+  // A pasted watch link cannot be framed, so video links are normalised to an
+  // embeddable URL before they reach the viewer.
+  const externalSource = validHttpUrl(resource.externalUrl) ?? validHttpUrl(resource.contentUrl) ?? "";
   return {
     viewerType: "external",
-    sourceUrl: validHttpUrl(resource.externalUrl) ?? validHttpUrl(resource.contentUrl) ?? "",
+    sourceUrl: resolveVideoEmbed(externalSource)?.embedUrl ?? externalSource,
     assetId: null,
     contentType: null,
     resourceId: resource.id,

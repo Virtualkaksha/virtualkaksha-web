@@ -14,7 +14,7 @@ const nonce = "0123456789abcdef_SAFE";
 test("production CSP has the exact deterministic directives", () => {
   assert.equal(
     buildContentSecurityPolicy(nonce, "production"),
-    `default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'; script-src-attr 'none'; style-src 'self' 'nonce-${nonce}'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; frame-src 'self'; frame-ancestors 'none'; form-action 'self'; manifest-src 'self'; media-src 'self' blob:; upgrade-insecure-requests;`,
+    `default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'; script-src-attr 'none'; style-src 'self' 'nonce-${nonce}'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https://i.ytimg.com; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; frame-src 'self' https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; manifest-src 'self'; media-src 'self' blob:; upgrade-insecure-requests;`,
   );
 });
 
@@ -22,7 +22,7 @@ test("development CSP permits only the required development capabilities", () =>
   const policy = buildContentSecurityPolicy(nonce, "development");
   assert.equal(
     policy,
-    `default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss:; worker-src 'self' blob:; frame-src 'self'; frame-ancestors 'none'; form-action 'self'; manifest-src 'self'; media-src 'self' blob:;`,
+    `default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https://i.ytimg.com; font-src 'self'; connect-src 'self' ws: wss:; worker-src 'self' blob:; frame-src 'self' https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; manifest-src 'self'; media-src 'self' blob:;`,
   );
   assert.doesNotMatch(policy, /upgrade-insecure-requests/);
 });
@@ -45,10 +45,12 @@ test("production requires a nonce for style elements while allowing style attrib
 
 test("production CSP excludes broad and infrastructure origins", () => {
   const policy = buildContentSecurityPolicy(nonce, "production");
-  assert.doesNotMatch(policy, /unsafe-eval|(?:^|\s)\*(?:\s|;|$)|https:|s3|r2|upstash/i);
+  // A bare `https:` source would trust every host; pinned video origins are allowed.
+  assert.doesNotMatch(policy, /unsafe-eval|(?:^|\s)\*(?:\s|;|$)|(?:^|\s)https:(?:\s|;|$)|s3|r2|upstash/i);
   assert.match(policy, /worker-src 'self' blob:/);
-  assert.match(policy, /frame-src 'self';/);
+  assert.match(policy, /frame-src 'self' https:\/\/www\.youtube-nocookie\.com;/);
   assert.match(policy, /frame-ancestors 'none';/);
+  assert.doesNotMatch(policy, /frame-src[^;]*(?<!-nocookie\.com)\byoutube\.com/);
 });
 
 test("CSP nonce validation rejects empty, short, malformed and injectable values", () => {
@@ -162,7 +164,7 @@ test("protected PDF routes override global DENY with SAMEORIGIN after the wildca
     { source: "/api/student/resources/:resourceId/asset", headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] },
   ]);
   assert.equal(entries[0].headers.find(({ key }) => key === "X-Frame-Options")?.value, "DENY");
-  assert.match(buildContentSecurityPolicy("abcdefghijklmnop", "production"), /frame-src 'self';/);
+  assert.match(buildContentSecurityPolicy("abcdefghijklmnop", "production"), /frame-src 'self' https:\/\/www\.youtube-nocookie\.com;/);
   assert.doesNotMatch(buildContentSecurityPolicy("abcdefghijklmnop", "production"), /frame-src[^;]*\*/);
 });
 

@@ -9,6 +9,7 @@ import {
   expectedFormatForResourceType,
   isFormatAllowedForResourceType,
 } from "@/lib/resources/resource-type-content";
+import { resolveVideoEmbed } from "@/lib/resources/video-embed";
 import { transitionTeacherResource, updateTeacherResourceMetadata } from "@/lib/teacher/resource-management";
 import type { TeacherResourceTransition } from "@/lib/teacher/resource-management-policy";
 import { enforceRateLimitChecks, resolveRequestClientIp } from "@/lib/rate-limit";
@@ -158,7 +159,8 @@ export async function createTeacherResourceCore({
       status: initialStatus,
       contentUrl: format === "PDF" ? null : contentUrl,
       externalUrl: format === "PDF" && sourceType === "native-pdf" ? null : externalUrl,
-      thumbnailUrl,
+      // A video lesson gets its poster from the link, so teachers need not find one.
+      thumbnailUrl: thumbnailUrl ?? (format === "VIDEO" ? resolveVideoEmbed(contentUrl)?.thumbnailUrl ?? null : null),
       textContent,
       pageCount: optionalInt(formData, "pageCount"),
       durationSeconds: (optionalInt(formData, "durationMinutes") ?? 0) * 60 || null,
