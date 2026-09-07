@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { ContentLanguage, PublicationStatus, ResourceAccess, ResourceFormat } from "@/app/generated/prisma/client";
 import { registerUploadedResourceAsset, uploadResourceAsset, type UploadResourceAssetResult } from "@/lib/resources/upload-service";
+import {
+  expectedFormatForResourceType,
+  isFormatAllowedForResourceType,
+} from "@/lib/resources/resource-type-content";
 import { transitionTeacherResource, updateTeacherResourceMetadata } from "@/lib/teacher/resource-management";
 import type { TeacherResourceTransition } from "@/lib/teacher/resource-management-policy";
 import { enforceRateLimitChecks, resolveRequestClientIp } from "@/lib/rate-limit";
@@ -19,7 +23,7 @@ type TeacherResourcePrismaClient = {
     findFirst: (args: { where: { id: string; isActive: boolean }; select: { id: true } }) => Promise<{ id: string } | null>;
   };
   resourceType: {
-    findFirst: (args: { where: { id: string; isActive: boolean }; select: { id: true } }) => Promise<{ id: string } | null>;
+    findFirst: (args: { where: { id: string; isActive: boolean }; select: { id: true; code: true } }) => Promise<{ id: string; code: string } | null>;
   };
   resource: {
     findFirst: (args: { where: { chapterId: string; slug: string }; select: { id: true } }) => Promise<{ id: string } | null>;
@@ -125,11 +129,16 @@ export async function createTeacherResourceCore({
     const [teacherProfile, chapter, resourceType] = await Promise.all([
       runtimePrisma.teacherProfile.findUnique({ where: { userId: user.id }, select: { id: true } }),
       runtimePrisma.chapter.findFirst({ where: { id: chapterId, isActive: true }, select: { id: true } }),
-      runtimePrisma.resourceType.findFirst({ where: { id: resourceTypeId, isActive: true }, select: { id: true } }),
+      runtimePrisma.resourceType.findFirst({ where: { id: resourceTypeId, isActive: true }, select: { id: true, code: true } }),
     ]);
     if (!teacherProfile && !user.roles.includes("ADMIN")) throw new Error("Teacher profile is missing.");
     if (!chapter) throw new Error("Selected chapter is unavailable.");
     if (!resourceType) throw new Error("Selected resource type is unavailable.");
+    // The student catalogue filters by resource type, so a mismatched format would
+    // surface the resource under the wrong section.
+    if (!isFormatAllowedForResourceType(resourceType.code, format)) {
+      throw new Error(`${expectedFormatForResourceType(resourceType.code)} content is required for the selected resource type.`);
+    }
 
     const requestedStatus = required(formData, "status") as PublicationStatus;
     const safeStatus: PublicationStatus = user.roles.includes("ADMIN") && requestedStatus === "PUBLISHED" ? "PUBLISHED" : requestedStatus === "DRAFT" ? "DRAFT" : "PENDING_REVIEW";

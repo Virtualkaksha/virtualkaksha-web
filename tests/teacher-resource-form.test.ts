@@ -8,15 +8,16 @@ test("PDF format defaults to native upload with a PDF-only file input", async ()
   const source = await readFile(formPath, "utf8");
 
   assert.match(source, /useState<SourceType>\("native-pdf"\)/);
-  assert.match(source, /<option value="native-pdf">Native PDF Upload<\/option>/);
+  assert.match(source, /<option value="native-pdf">Upload a PDF file<\/option>/);
   assert.match(source, /name="file" type="file" accept="application\/pdf,\.pdf" required/);
 });
 
 test("native PDF mode shows the picker and hides the external PDF URL", async () => {
   const source = await readFile(formPath, "utf8");
 
-  assert.match(source, /\{isPdfNativeUpload \? <div/);
-  assert.match(source, /\{isPdfExternalUrl \? <Field label="PDF URL">/);
+  // The document fields only render once a resource type has been chosen.
+  assert.match(source, /selectedType && isPdfNativeUpload \? <div/);
+  assert.match(source, /selectedType && isPdfExternalUrl \? <Field label="PDF URL">/);
   assert.doesNotMatch(source, /\["PDF",\s*"VIDEO"/);
 });
 

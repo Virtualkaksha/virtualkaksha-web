@@ -71,6 +71,74 @@ test("external URL flow still creates a resource", async () => {
   assert.equal(createdRecords[0].externalUrl, "https://example.com/file.pdf");
 });
 
+test("a video lecture type refuses PDF content before anything is created", async () => {
+  const prismaClient = makePrisma("resource-mismatch");
+  let createCalled = false;
+  prismaClient.resourceType.findFirst = async () => ({ id: "resource-type-1", code: "VIDEO_LECTURES" }) as never;
+  prismaClient.resource.create = async () => {
+    createCalled = true;
+    return { id: "resource-mismatch" };
+  };
+
+  const formData = new FormData();
+  formData.set("chapterId", "chapter-1");
+  formData.set("resourceTypeId", "resource-type-1");
+  formData.set("title", "Mislabelled lecture");
+  formData.set("format", "PDF");
+  formData.set("sourceType", "native-pdf");
+  formData.set("status", "DRAFT");
+  formData.set("language", "ENGLISH");
+  formData.set("access", "FREE");
+  formData.set("file", new File(["%PDF-1"], "lesson.pdf", { type: "application/pdf" }));
+
+  const result = await createTeacherResourceCore({
+    user: { id: "teacher-1", roles: ["TEACHER"] },
+    formData,
+    prismaClient: prismaClient as unknown as Parameters<typeof createTeacherResourceCore>[0]["prismaClient"],
+    uploadHandler: async () => ({ ok: true, assetId: "asset-1", objectKey: "obj", readUrl: "/files/obj" }),
+  });
+
+  assert.equal(result.ok, false);
+  assert.match("message" in result ? result.message : "", /VIDEO content is required/);
+  assert.equal(createCalled, false, "a mismatched resource must never reach the database");
+});
+
+test("a video lecture type stores a linked video without an upload", async () => {
+  const createdRecords: Array<Record<string, unknown>> = [];
+  const prismaClient = makePrisma("resource-video");
+  prismaClient.resourceType.findFirst = async () => ({ id: "resource-type-1", code: "VIDEO_LECTURES" }) as never;
+  prismaClient.resource.create = async ({ data }) => {
+    createdRecords.push(data);
+    return { id: "resource-video" };
+  };
+
+  const formData = new FormData();
+  formData.set("chapterId", "chapter-1");
+  formData.set("resourceTypeId", "resource-type-1");
+  formData.set("title", "Motion in one dimension");
+  formData.set("format", "VIDEO");
+  formData.set("contentUrl", "https://videos.example.com/motion");
+  formData.set("durationMinutes", "18");
+  formData.set("status", "PENDING_REVIEW");
+  formData.set("language", "ENGLISH");
+  formData.set("access", "FREE");
+
+  const result = await createTeacherResourceCore({
+    user: { id: "teacher-1", roles: ["TEACHER"] },
+    formData,
+    prismaClient: prismaClient as unknown as Parameters<typeof createTeacherResourceCore>[0]["prismaClient"],
+    uploadHandler: async () => {
+      throw new Error("a linked video must not trigger an upload");
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(createdRecords[0].format, "VIDEO");
+  assert.equal(createdRecords[0].contentUrl, "https://videos.example.com/motion");
+  assert.equal(createdRecords[0].status, "PENDING_REVIEW");
+  assert.equal(createdRecords[0].durationSeconds, 18 * 60);
+});
+
 test("PDF mode requires a PDF file", async () => {
   let createCalled = false;
   const prismaClient = makePrisma("resource-pdf-invalid");

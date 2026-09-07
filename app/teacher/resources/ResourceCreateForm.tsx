@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { FileText, Link2, Save, Send, Trash2, UploadCloud } from "lucide-react";
 
 import type { TeacherResourceActionResult } from "./actions";
+import { getResourceTypeContentProfile } from "@/lib/resources/resource-type-content";
 
 type ChapterOption = {
   id: string;
@@ -40,7 +41,18 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
   const subjects = useMemo(() => [...new Set(chapters.filter((c) => c.boardClassSubject.board.shortName === board && (!classLevel || c.boardClassSubject.classLevel.name === classLevel)).map((c) => c.boardClassSubject.subject.name))], [chapters, board, classLevel]);
   const [subject, setSubject] = useState("");
   const filteredChapters = useMemo(() => chapters.filter((c) => c.boardClassSubject.board.shortName === board && (!classLevel || c.boardClassSubject.classLevel.name === classLevel) && (!subject || c.boardClassSubject.subject.name === subject)), [chapters, board, classLevel, subject]);
-  const [format, setFormat] = useState("PDF");
+  const [resourceTypeId, setResourceTypeId] = useState("");
+  const selectedType = useMemo(
+    () => resourceTypes.find((option) => option.id === resourceTypeId) ?? null,
+    [resourceTypes, resourceTypeId],
+  );
+  // Format follows the resource type so a resource cannot land in the wrong
+  // student section. The server enforces the same rule.
+  const contentProfile = useMemo(
+    () => getResourceTypeContentProfile(selectedType?.code),
+    [selectedType],
+  );
+  const format = contentProfile.format;
   const [sourceType, setSourceType] = useState<SourceType>("native-pdf");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -53,11 +65,9 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
   function resetBelowBoard(nextBoard: string) { setBoard(nextBoard); setClassLevel(""); setSubject(""); }
   function resetBelowClass(nextClass: string) { setClassLevel(nextClass); setSubject(""); }
 
-  const needsContentUrl = ["VIDEO", "IMAGE", "DOCUMENT", "INTERACTIVE"].includes(format);
-  const needsExternalUrl = format === "EXTERNAL_LINK";
-  const needsArticle = format === "ARTICLE";
-  const isPdfNativeUpload = format === "PDF" && sourceType === "native-pdf";
-  const isPdfExternalUrl = format === "PDF" && sourceType === "external-url";
+  const isVideoResource = contentProfile.kind === "video";
+  const isPdfNativeUpload = !isVideoResource && sourceType === "native-pdf";
+  const isPdfExternalUrl = !isVideoResource && sourceType === "external-url";
 
   function clearSourceState() {
     setSelectedFile(null);
@@ -69,9 +79,9 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
     }
   }
 
-  function updateFormat(nextFormat: string) {
-    setFormat(nextFormat);
-    setSourceType(nextFormat === "PDF" ? "native-pdf" : "external-url");
+  function updateResourceType(nextResourceTypeId: string) {
+    setResourceTypeId(nextResourceTypeId);
+    setSourceType("native-pdf");
     clearSourceState();
   }
 
@@ -197,10 +207,23 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
         <div className="mt-4 grid gap-5 lg:grid-cols-2">
           <Field label="Title"><input name="title" required className={field} placeholder="Chemical Reactions revision notes" /></Field>
           <Field label="Hindi title (optional)"><input name="titleHindi" className={field} placeholder="केवल जरूरत होने पर" /></Field>
-          <Field label="Resource type"><select name="resourceTypeId" required defaultValue="" className={field}><option value="" disabled>Select type</option>{resourceTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
-          <Field label="Format"><select name="format" value={format} onChange={(e) => updateFormat(e.target.value)} className={field}><option value="PDF">PDF</option><option value="VIDEO">Video</option><option value="ARTICLE">Article</option><option value="IMAGE">Image</option><option value="DOCUMENT">Document</option><option value="EXTERNAL_LINK">External link</option><option value="INTERACTIVE">Interactive</option></select></Field>
+          <Field label="Resource type">
+            <select name="resourceTypeId" required value={resourceTypeId} onChange={(e) => updateResourceType(e.target.value)} className={field}>
+              <option value="" disabled>Select type</option>
+              {resourceTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Content format">
+            <div className={`${field} flex items-center bg-slate-50 text-slate-600`}>
+              {selectedType ? (isVideoResource ? "Video — linked lesson" : "PDF — uploaded or linked file") : "Choose a resource type first"}
+            </div>
+            <input type="hidden" name="format" value={format} />
+          </Field>
           <Field label="Language"><select name="language" className={field} defaultValue="ENGLISH"><option value="ENGLISH">English</option><option value="HINDI">Hindi</option></select></Field>
-          <Field label="Access"><select name="access" className={field} defaultValue="FREE"><option value="FREE">Free</option><option value="PREMIUM">Premium</option><option value="ENROLLED_ONLY">Enrolled students only</option></select></Field>
+          <Field label="Access">
+            <select name="access" className={field} defaultValue="FREE"><option value="FREE">Free</option><option value="PREMIUM">Premium</option><option value="ENROLLED_ONLY">Enrolled students only</option></select>
+            <span className="mt-2 block text-xs text-slate-500">Only Free resources appear in the student catalogue today.</span>
+          </Field>
         </div>
         <div className="mt-5"><Field label="Description"><textarea name="description" rows={3} className={field} placeholder="What will the student learn from this resource?" /></Field></div>
       </div>
@@ -208,20 +231,37 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Step 3 · Content</p>
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-          {format === "PDF" ? <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4">
+          {!selectedType ? (
+            <p className="text-sm text-slate-600">Select a resource type above to choose how this content is added.</p>
+          ) : null}
+
+          {selectedType ? (
+            <p className="mb-5 text-sm leading-6 text-slate-600">{contentProfile.sourceHint}</p>
+          ) : null}
+
+          {selectedType && isVideoResource ? (
+            <>
+              <Field label={contentProfile.sourceLabel}>
+                <div className="relative">
+                  <Link2 className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-slate-400"/>
+                  <input name="contentUrl" type="url" required className={`${field} pl-12`} placeholder="YouTube, Vimeo or hosted video URL" />
+                </div>
+              </Field>
+              <input type="hidden" name="sourceType" value="external-url" />
+            </>
+          ) : null}
+
+          {selectedType && !isVideoResource ? <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4">
             <label className="flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-slate-700">Source type</span>
+              <span className="text-sm font-semibold text-slate-700">How is the PDF provided?</span>
               <select name="sourceType" value={sourceType} onChange={(e) => updateSourceType(e.target.value as SourceType)} className={`${field} max-w-xs`}>
-                <option value="native-pdf">Native PDF Upload</option>
-                <option value="external-url">External URL</option>
+                <option value="native-pdf">Upload a PDF file</option>
+                <option value="external-url">Link to a hosted PDF</option>
               </select>
             </label>
           </div> : null}
-          {needsContentUrl ? <Field label={format === "VIDEO" ? "Video URL" : `${format.replaceAll("_", " ")} URL`}><div className="relative"><Link2 className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-slate-400"/><input name="contentUrl" type="url" required className={`${field} pl-12`} placeholder={format === "VIDEO" ? "YouTube, Vimeo or hosted video URL" : "https://..."} /></div></Field> : null}
-          {isPdfExternalUrl ? <Field label="PDF URL"><div className="relative"><Link2 className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-slate-400"/><input name="externalUrl" type="url" required className={`${field} pl-12`} placeholder="https://.../resource.pdf" /></div></Field> : null}
-          {needsExternalUrl ? <Field label="External URL"><input name="externalUrl" type="url" required className={field} placeholder="https://..." /></Field> : null}
-          {needsArticle ? <Field label="Article content"><textarea name="textContent" required rows={10} className={field} placeholder="Write the complete article here..." /></Field> : null}
-          {isPdfNativeUpload ? <div className="mt-5 rounded-2xl border border-dashed border-blue-300 bg-blue-50/70 p-4">
+          {selectedType && isPdfExternalUrl ? <Field label="PDF URL"><div className="relative"><Link2 className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-slate-400"/><input name="externalUrl" type="url" required className={`${field} pl-12`} placeholder="https://.../resource.pdf" /></div></Field> : null}
+          {selectedType && isPdfNativeUpload ? <div className="mt-5 rounded-2xl border border-dashed border-blue-300 bg-blue-50/70 p-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-slate-900">Upload a PDF</p>
@@ -251,8 +291,8 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
           </div> : null}
           <div className="mt-5 grid gap-5 lg:grid-cols-3">
             <Field label="Thumbnail URL (optional)"><input name="thumbnailUrl" type="url" className={field} placeholder="https://...image" /></Field>
-            {format === "PDF" ? <Field label="Pages"><input name="pageCount" type="number" min="0" className={field} /></Field> : null}
-            {format === "VIDEO" ? <Field label="Duration (minutes)"><input name="durationMinutes" type="number" min="0" className={field} /></Field> : null}
+            {selectedType && !isVideoResource ? <Field label="Pages"><input name="pageCount" type="number" min="0" className={field} /></Field> : null}
+            {selectedType && isVideoResource ? <Field label="Duration (minutes)"><input name="durationMinutes" type="number" min="0" className={field} /></Field> : null}
           </div>
           <input type="hidden" name="sortOrder" value="0" />
         </div>
