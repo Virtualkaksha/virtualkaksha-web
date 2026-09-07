@@ -1,24 +1,58 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   BarChart3,
+  BookOpenCheck,
   Bookmark,
+  Building2,
   CircleHelp,
+  CircleUserRound,
+  ClipboardList,
   Home,
   LibraryBig,
   LogOut,
+  MonitorPlay,
+  Users,
 } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
 
+export const STUDENT_CATALOGUE_SEARCH_PATH = "/student/resources/search";
+
+/**
+ * Entries carrying a resourceType are filtered views of the existing published
+ * catalogue rather than separate pages, so they cannot show content that does
+ * not exist.
+ */
 export const studentNavigationItems = [
   { label: "Dashboard", icon: Home, href: "/student" },
   { label: "Study Resources", icon: LibraryBig, href: "/student/resources" },
+  {
+    label: "NCERT Solutions",
+    icon: BookOpenCheck,
+    href: `${STUDENT_CATALOGUE_SEARCH_PATH}?type=ncert-solutions`,
+    resourceType: "ncert-solutions",
+  },
+  {
+    label: "Video Lectures",
+    icon: MonitorPlay,
+    href: `${STUDENT_CATALOGUE_SEARCH_PATH}?type=video-lectures`,
+    resourceType: "video-lectures",
+  },
+  {
+    label: "Tests",
+    icon: ClipboardList,
+    href: `${STUDENT_CATALOGUE_SEARCH_PATH}?type=chapter-tests`,
+    resourceType: "chapter-tests",
+  },
   { label: "Saved", icon: Bookmark, href: "/student/bookmarks" },
   { label: "Continue Learning", icon: BarChart3, href: "/student/continue-learning" },
-];
+  { label: "Teachers", icon: Users, href: "/student/teachers" },
+  { label: "Coaching Institutes", icon: Building2, href: "/student/coaching-institutes" },
+  { label: "My Profile", icon: CircleUserRound, href: "/student/profile" },
+] as const;
 
 export const studentSupportNavigationItem = {
   label: "Help & Support",
@@ -26,12 +60,35 @@ export const studentSupportNavigationItem = {
   href: "/contact",
 };
 
-export function isStudentNavigationActive(pathname: string, href: string) {
-  return href === "/student" ? pathname === href : pathname.startsWith(href);
+const navigationResourceTypes: ReadonlySet<string> = new Set<string>(
+  studentNavigationItems.flatMap((item) => ("resourceType" in item ? [item.resourceType] : [])),
+);
+
+export function isStudentNavigationActive(
+  pathname: string,
+  item: { href: string; resourceType?: string },
+  activeResourceType?: string | null,
+) {
+  const currentType = activeResourceType?.trim() || null;
+
+  if (item.resourceType) {
+    return pathname === STUDENT_CATALOGUE_SEARCH_PATH && currentType === item.resourceType;
+  }
+  if (item.href === "/student") return pathname === "/student";
+  if (item.href === "/student/resources") {
+    // A filtered view owns the highlight instead of the catalogue root.
+    if (pathname === STUDENT_CATALOGUE_SEARCH_PATH && currentType && navigationResourceTypes.has(currentType)) {
+      return false;
+    }
+    return pathname === "/student/resources" || pathname.startsWith("/student/resources/");
+  }
+
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
 export default function StudentSidebar() {
   const pathname = usePathname();
+  const activeResourceType = useSearchParams().get("type");
 
   return (
     <aside className="hidden min-h-screen w-[280px] shrink-0 border-r border-slate-200/80 bg-white lg:block">
@@ -50,7 +107,7 @@ export default function StudentSidebar() {
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-4 pb-5">
           {studentNavigationItems.map((item) => {
-            const active = isStudentNavigationActive(pathname, item.href);
+            const active = isStudentNavigationActive(pathname, item, activeResourceType);
             const Icon = item.icon;
 
             return (

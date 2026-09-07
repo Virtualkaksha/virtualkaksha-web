@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { LogOut, Menu, Search, X } from "lucide-react";
 import { useState } from "react";
 
@@ -10,6 +10,7 @@ import { logoutAction } from "@/app/(auth)/actions";
 
 export default function StudentTopbar() {
   const pathname = usePathname();
+  const activeResourceType = useSearchParams().get("type");
   const [mobileOpen, setMobileOpen] = useState(false);
   const SupportIcon = studentSupportNavigationItem.icon;
 
@@ -57,7 +58,7 @@ export default function StudentTopbar() {
             </div>
             <nav className="mt-5 space-y-1">
               {studentNavigationItems.map((item) => {
-                const active = isStudentNavigationActive(pathname, item.href);
+                const active = isStudentNavigationActive(pathname, item, activeResourceType);
                 const Icon = item.icon;
                 return (
                   <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold ${active ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
