@@ -57,6 +57,12 @@ export interface PresignCapableStorageProvider extends ResourceStorageProvider {
   createReadUrl(objectKey: string, expiresInSeconds?: number): Promise<string>;
   headObject(objectKey: string): Promise<StoredObjectHead | null>;
   readObjectPrefix(objectKey: string, byteLength: number): Promise<Buffer>;
+  /**
+   * Required so a verified upload can leave the short-lived staging prefix,
+   * which is expected to carry an expiry rule that would otherwise delete a
+   * live asset.
+   */
+  copyObject(sourceObjectKey: string, destinationObjectKey: string): Promise<void>;
 }
 
 export function supportsPresignedTransfer(
@@ -66,7 +72,8 @@ export function supportsPresignedTransfer(
   return typeof candidate.createUploadUrl === "function"
     && typeof candidate.createReadUrl === "function"
     && typeof candidate.headObject === "function"
-    && typeof candidate.readObjectPrefix === "function";
+    && typeof candidate.readObjectPrefix === "function"
+    && typeof candidate.copyObject === "function";
 }
 
 export const RESOURCE_STORAGE_PROVIDER_NAMES = ["local", "s3"] as const;

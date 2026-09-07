@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { ContentLanguage, PublicationStatus, ResourceAccess, ResourceFormat } from "@/app/generated/prisma/client";
-import { uploadResourceAsset, type UploadResourceAssetResult } from "@/lib/resources/upload-service";
+import { registerUploadedResourceAsset, uploadResourceAsset, type UploadResourceAssetResult } from "@/lib/resources/upload-service";
 import { transitionTeacherResource, updateTeacherResourceMetadata } from "@/lib/teacher/resource-management";
 import type { TeacherResourceTransition } from "@/lib/teacher/resource-management-policy";
 import { enforceRateLimitChecks, resolveRequestClientIp } from "@/lib/rate-limit";
@@ -51,6 +51,13 @@ type CreateTeacherResourceCoreInput = {
   formData: FormData;
   prismaClient?: TeacherResourcePrismaClient;
   uploadHandler?: (input: { user: TeacherUser; resourceId: string; file: File }) => Promise<UploadResourceAssetResult>;
+  /** Used when the browser uploaded straight to storage and sent only the key. */
+  registerHandler?: (input: {
+    user: TeacherUser;
+    resourceId: string;
+    objectKey: string;
+    originalFileName: string;
+  }) => Promise<UploadResourceAssetResult>;
 };
 
 function required(formData: FormData, name: string) { const value = formData.get(name); if (typeof value !== "string" || !value.trim()) throw new Error(`${name} is required.`); return value.trim(); }
@@ -70,7 +77,13 @@ async function revalidateResourcePaths() {
   }
 }
 
-export async function createTeacherResourceCore({ user, formData, prismaClient, uploadHandler = async ({ user: uploadUser, resourceId, file }) => uploadResourceAsset({ user: uploadUser, resourceId, file }) }: CreateTeacherResourceCoreInput): Promise<TeacherResourceActionResult> {
+export async function createTeacherResourceCore({
+  user,
+  formData,
+  prismaClient,
+  uploadHandler = async ({ user: uploadUser, resourceId, file }) => uploadResourceAsset({ user: uploadUser, resourceId, file }),
+  registerHandler = async (input) => registerUploadedResourceAsset(input),
+}: CreateTeacherResourceCoreInput): Promise<TeacherResourceActionResult> {
   const runtimePrisma = prismaClient ?? await getPrismaClient();
   try {
     if (!user.id) {

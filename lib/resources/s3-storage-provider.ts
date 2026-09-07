@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -169,6 +170,18 @@ export class S3ResourceStorageProvider implements PresignCapableStorageProvider 
     } catch {
       return null;
     }
+  }
+
+  async copyObject(sourceObjectKey: string, destinationObjectKey: string) {
+    const source = validateStorageObjectKey(sourceObjectKey);
+    const destination = validateStorageObjectKey(destinationObjectKey);
+    await this.client.send(new CopyObjectCommand({
+      Bucket: this.config.bucket,
+      Key: destination,
+      CopySource: `${this.config.bucket}/${source}`,
+      ContentType: PDF_CONTENT_TYPE,
+      MetadataDirective: "REPLACE",
+    }));
   }
 
   async readObjectPrefix(objectKey: string, byteLength: number) {
