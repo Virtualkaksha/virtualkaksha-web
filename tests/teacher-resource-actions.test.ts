@@ -297,3 +297,110 @@ test("teacher cannot attach a PDF to another teacher's resource", async () => {
   assert.equal(result.ok, false);
   assert.equal(result.code, "FORBIDDEN");
 });
+
+const OWNED_STAGING_KEY = "uploads/teacher-1/550e8400-e29b-41d4-a716-446655440000.pdf";
+
+test("direct upload registers the staging key instead of buffering the file", async () => {
+  const updates: Array<Record<string, unknown>> = [];
+  const prismaClient = makePrisma("resource-direct");
+  prismaClient.resource.update = async ({ data }) => {
+    updates.push(data);
+  };
+
+  const formData = new FormData();
+  formData.set("chapterId", "chapter-1");
+  formData.set("resourceTypeId", "resource-type-1");
+  formData.set("title", "Direct PDF resource");
+  formData.set("format", "PDF");
+  formData.set("sourceType", "native-pdf");
+  formData.set("status", "PENDING_REVIEW");
+  formData.set("language", "ENGLISH");
+  formData.set("access", "FREE");
+  formData.set("objectKey", OWNED_STAGING_KEY);
+  formData.set("originalFileName", "lesson.pdf");
+
+  let uploadedFile = false;
+  const result = await createTeacherResourceCore({
+    user: { id: "teacher-1", roles: ["TEACHER"] },
+    formData,
+    prismaClient: prismaClient as unknown as Parameters<typeof createTeacherResourceCore>[0]["prismaClient"],
+    uploadHandler: async () => {
+      uploadedFile = true;
+      throw new Error("buffered upload must not run for a staging key");
+    },
+    registerHandler: async ({ resourceId, objectKey, originalFileName }) => {
+      assert.equal(resourceId, "resource-direct");
+      assert.equal(objectKey, OWNED_STAGING_KEY);
+      assert.equal(originalFileName, "lesson.pdf");
+      return { ok: true, assetId: "asset-1", objectKey: "resources/resource-direct/file.pdf", readUrl: "" };
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(uploadedFile, false);
+  assert.equal(updates.at(-1)?.status, "PENDING_REVIEW");
+});
+
+test("a staging key that does not name the caller is rejected before create", async () => {
+  let createCalled = false;
+  const prismaClient = makePrisma("resource-stolen");
+  prismaClient.resource.create = async () => {
+    createCalled = true;
+    return { id: "resource-stolen" };
+  };
+
+  const formData = new FormData();
+  formData.set("chapterId", "chapter-1");
+  formData.set("resourceTypeId", "resource-type-1");
+  formData.set("title", "Stolen upload");
+  formData.set("format", "PDF");
+  formData.set("sourceType", "native-pdf");
+  formData.set("status", "DRAFT");
+  formData.set("language", "ENGLISH");
+  formData.set("access", "FREE");
+  formData.set("objectKey", "uploads/teacher-2/550e8400-e29b-41d4-a716-446655440000.pdf");
+
+  const result = await createTeacherResourceCore({
+    user: { id: "teacher-1", roles: ["TEACHER"] },
+    formData,
+    prismaClient: prismaClient as unknown as Parameters<typeof createTeacherResourceCore>[0]["prismaClient"],
+    registerHandler: async () => {
+      throw new Error("register must not run for a foreign key");
+    },
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "INVALID_UPLOAD");
+  assert.equal(createCalled, false);
+});
+
+test("a file and a staging key together are rejected", async () => {
+  let createCalled = false;
+  const prismaClient = makePrisma("resource-both");
+  prismaClient.resource.create = async () => {
+    createCalled = true;
+    return { id: "resource-both" };
+  };
+
+  const formData = new FormData();
+  formData.set("chapterId", "chapter-1");
+  formData.set("resourceTypeId", "resource-type-1");
+  formData.set("title", "Ambiguous upload");
+  formData.set("format", "PDF");
+  formData.set("sourceType", "native-pdf");
+  formData.set("status", "DRAFT");
+  formData.set("language", "ENGLISH");
+  formData.set("access", "FREE");
+  formData.set("objectKey", OWNED_STAGING_KEY);
+  formData.set("file", new File(["%PDF-1"], "lesson.pdf", { type: "application/pdf" }));
+
+  const result = await createTeacherResourceCore({
+    user: { id: "teacher-1", roles: ["TEACHER"] },
+    formData,
+    prismaClient: prismaClient as unknown as Parameters<typeof createTeacherResourceCore>[0]["prismaClient"],
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "INVALID_UPLOAD");
+  assert.equal(createCalled, false);
+});

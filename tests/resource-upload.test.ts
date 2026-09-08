@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 
 import "./helpers/server-only";
 
-import { validatePdfUpload, uploadResourceAsset } from "@/lib/resources/upload-service";
-import type { ResourceStorageProvider } from "@/lib/resources/storage";
+import { validatePdfUpload, uploadResourceAsset, registerUploadedResourceAsset } from "@/lib/resources/upload-service";
+import type { PresignCapableStorageProvider, ResourceStorageProvider, ResourceStorageUploadInput, ResourceStorageUploadResult } from "@/lib/resources/storage";
 
 type TestFile = {
   name: string;
@@ -176,4 +176,127 @@ test("admin can upload when authorized", async () => {
   const result = await uploadResourceAsset({ user: { id: "admin-1", roles: ["ADMIN"] }, resourceId: "res-1", file: createBufferFile("test.pdf", "application/pdf", Buffer.from("%PDF-1")) }, { prismaClient, storageProvider: storage, uploadMaxMb: 20 });
   assert.equal(result.ok, true);
   assert.equal(storage.uploaded.length, 1);
+});
+
+class DirectUploadStorage implements PresignCapableStorageProvider {
+  readonly providerName = "s3";
+  objects = new Map<string, { buffer: Buffer; contentType: string }>();
+
+  async upload(_input: ResourceStorageUploadInput): Promise<ResourceStorageUploadResult> {
+    throw new Error("buffered upload must not run");
+  }
+  async delete(objectKey: string) {
+    this.objects.delete(objectKey);
+  }
+  async getReadUrl() {
+    return "";
+  }
+  async readFile(objectKey: string) {
+    const stored = this.objects.get(objectKey);
+    if (!stored) throw new Error("missing");
+    return stored.buffer;
+  }
+  async createUploadUrl({ objectKey }: { objectKey: string }) {
+    return { url: "https://storage.test/put", objectKey, expiresInSeconds: 60, requiredContentType: "application/pdf" };
+  }
+  async createReadUrl() {
+    return "";
+  }
+  async headObject(objectKey: string) {
+    const stored = this.objects.get(objectKey);
+    if (!stored) return null;
+    return { sizeBytes: stored.buffer.length, contentType: stored.contentType, entityTag: null };
+  }
+  async readObjectPrefix(objectKey: string, byteLength: number) {
+    const stored = this.objects.get(objectKey);
+    if (!stored) throw new Error("missing");
+    return stored.buffer.subarray(0, byteLength);
+  }
+  async copyObject(sourceObjectKey: string, destinationObjectKey: string) {
+    const stored = this.objects.get(sourceObjectKey);
+    if (!stored) throw new Error("missing");
+    this.objects.set(destinationObjectKey, { ...stored });
+  }
+}
+
+const OWNED_STAGING_KEY = "uploads/teacher-1/550e8400-e29b-41d4-a716-446655440000.pdf";
+
+function registerPrisma() {
+  const createdAssets: Array<Record<string, unknown>> = [];
+  return {
+    createdAssets,
+    prismaClient: {
+      resource: {
+        findUnique: async () => ({ id: "res-1", format: "PDF", createdByUserId: "teacher-1", teachers: [] }),
+        update: async () => undefined,
+        updateMany: async () => ({ count: 1 }),
+      },
+      resourceAsset: {
+        create: async (input: { data: Record<string, unknown> }) => {
+          createdAssets.push(input.data);
+          return { id: "asset-1", ...input.data };
+        },
+        update: async (input: { data: Record<string, unknown> }) => {
+          createdAssets[0] = { ...createdAssets[0], ...input.data };
+          return undefined;
+        },
+        delete: async () => undefined,
+      },
+    },
+  };
+}
+
+test("direct upload inspects storage and activates a READY asset without reading the whole file", async () => {
+  const storage = new DirectUploadStorage();
+  storage.objects.set(OWNED_STAGING_KEY, { buffer: Buffer.from("%PDF-1.4"), contentType: "application/pdf" });
+  const { prismaClient, createdAssets } = registerPrisma();
+
+  const result = await registerUploadedResourceAsset({
+    user: { id: "teacher-1", roles: ["TEACHER"] },
+    resourceId: "res-1",
+    objectKey: OWNED_STAGING_KEY,
+    originalFileName: "lesson.pdf",
+  }, { prismaClient, storageProvider: storage, uploadMaxMb: 20 });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.match(result.objectKey, /^resources\/res-1\/[0-9a-f-]{36}\.pdf$/);
+  assert.equal(storage.objects.has(OWNED_STAGING_KEY), false);
+  assert.equal(storage.objects.has(result.objectKey), true);
+  assert.equal(createdAssets[0].status, "READY");
+  assert.equal(createdAssets[0].checksum, null);
+});
+
+test("direct upload rejects a staging key that does not name the caller", async () => {
+  const storage = new DirectUploadStorage();
+  storage.objects.set("uploads/teacher-2/550e8400-e29b-41d4-a716-446655440000.pdf", {
+    buffer: Buffer.from("%PDF-1.4"),
+    contentType: "application/pdf",
+  });
+  const { prismaClient } = registerPrisma();
+  const result = await registerUploadedResourceAsset({
+    user: { id: "teacher-1", roles: ["TEACHER"] },
+    resourceId: "res-1",
+    objectKey: "uploads/teacher-2/550e8400-e29b-41d4-a716-446655440000.pdf",
+    originalFileName: "lesson.pdf",
+  }, { prismaClient, storageProvider: storage, uploadMaxMb: 20 });
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.code, "INVALID_UPLOAD");
+  assert.equal(storage.objects.size, 1);
+});
+
+test("direct upload rejects a stored object that is not a PDF", async () => {
+  const storage = new DirectUploadStorage();
+  storage.objects.set(OWNED_STAGING_KEY, { buffer: Buffer.from("not-a-pdf"), contentType: "application/pdf" });
+  const { prismaClient } = registerPrisma();
+  const result = await registerUploadedResourceAsset({
+    user: { id: "teacher-1", roles: ["TEACHER"] },
+    resourceId: "res-1",
+    objectKey: OWNED_STAGING_KEY,
+    originalFileName: "lesson.pdf",
+  }, { prismaClient, storageProvider: storage, uploadMaxMb: 20 });
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.code, "INVALID_SIGNATURE");
 });

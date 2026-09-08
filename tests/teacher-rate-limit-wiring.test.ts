@@ -138,11 +138,17 @@ test("teacher user/action limits and outages fail closed before atomic transitio
   assert.doesNotMatch(JSON.stringify(outage), /teacher-1|resource-1|provider/i);
 });
 
-test("native UI uses the dedicated route while external creation keeps the server action", async () => {
+test("native UI stages a direct upload then posts metadata on the dedicated route", async () => {
   const source = await readFile("app/teacher/resources/ResourceCreateForm.tsx", "utf8");
-  assert.match(source, /isPdfNativeUpload[\s\S]*fetch\("\/api\/teacher\/resources"/);
+  const staging = await readFile("app/teacher/resources/stage-native-pdf-upload.ts", "utf8");
+  assert.match(source, /stageNativePdfUpload/);
+  assert.match(source, /fetch\("\/api\/teacher\/resources"/);
   assert.match(source, /else \{\s*result = await action\(formData\)/);
-  assert.match(source, /response\.status === 429/);
-  assert.match(source, /retry-after/);
+  assert.match(staging, /\/api\/teacher\/resources\/upload-url/);
+  assert.match(staging, /response\.status === 429/);
+  assert.match(staging, /retry-after/);
+  assert.match(staging, /method: "PUT"/);
+  assert.match(staging, /formData\.set\("objectKey"/);
   assert.doesNotMatch(source, /@upstash|UPSTASH_REDIS|RATE_LIMIT_KEY_SECRET/);
+  assert.doesNotMatch(staging, /@upstash|UPSTASH_REDIS|RATE_LIMIT_KEY_SECRET/);
 });

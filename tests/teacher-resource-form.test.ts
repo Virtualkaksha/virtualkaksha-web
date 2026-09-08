@@ -38,6 +38,14 @@ test("custom form submission preserves the clicked moderation action", async () 
   assert.match(source, /formData\.set\(submitter\.name, submitter\.value\)/);
 });
 
+test("native PDF create stages the file before posting metadata", async () => {
+  const source = await readFile(formPath, "utf8");
+
+  assert.match(source, /stageNativePdfUpload\(formData, selectedFile\)/);
+  assert.match(source, /fetch\("\/api\/teacher\/resources"/);
+  assert.doesNotMatch(source, /formData\.set\("file", selectedFile\)/);
+});
+
 test("teacher upload action does not return storage paths or object keys", async () => {
   const source = await readFile("app/teacher/resources/actions.ts", "utf8");
   const uploadAction = source.slice(source.indexOf("export async function uploadTeacherResourcePdf"));

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { ContentLanguage, PublicationStatus, ResourceAccess, ResourceFormat } from "@/app/generated/prisma/client";
 import { registerUploadedResourceAsset, uploadResourceAsset, type UploadResourceAssetResult } from "@/lib/resources/upload-service";
+import { isPendingUploadOwnedBy } from "@/lib/resources/pending-upload";
 import {
   expectedFormatForResourceType,
   isFormatAllowedForResourceType,
@@ -67,6 +68,35 @@ type CreateTeacherResourceCoreInput = {
 
 function required(formData: FormData, name: string) { const value = formData.get(name); if (typeof value !== "string" || !value.trim()) throw new Error(`${name} is required.`); return value.trim(); }
 function optional(formData: FormData, name: string) { const value = formData.get(name); return typeof value === "string" && value.trim() ? value.trim() : null; }
+
+type NativePdfSource =
+  | { ok: true; kind: "file"; file: File }
+  | { ok: true; kind: "direct"; objectKey: string; originalFileName: string }
+  | { ok: false; code: string; message: string; retryable: boolean };
+
+function resolveNativePdfSource(formData: FormData, userId: string): NativePdfSource {
+  const file = formData.get("file");
+  const objectKey = optional(formData, "objectKey");
+  const hasFile = file instanceof File && file.size > 0;
+  if (hasFile && objectKey) {
+    return { ok: false, code: "INVALID_UPLOAD", message: "The upload could not be verified. Please try again.", retryable: false };
+  }
+  if (objectKey) {
+    if (!isPendingUploadOwnedBy(objectKey, userId)) {
+      return { ok: false, code: "INVALID_UPLOAD", message: "The upload could not be verified. Please try again.", retryable: false };
+    }
+    return {
+      ok: true,
+      kind: "direct",
+      objectKey,
+      originalFileName: optional(formData, "originalFileName") ?? "resource.pdf",
+    };
+  }
+  if (!hasFile) {
+    return { ok: false, code: "INVALID_FILE", message: "Please select a PDF file to upload.", retryable: false };
+  }
+  return { ok: true, kind: "file", file };
+}
 function optionalInt(formData: FormData, name: string) { const value = optional(formData, name); if (!value) return null; const result = Number.parseInt(value, 10); if (!Number.isInteger(result) || result < 0) throw new Error(`${name} must be zero or greater.`); return result; }
 function slugify(value: string) { return value.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 function isHttpUrl(value: string | null) { if (!value) return true; try { const url = new URL(value); return url.protocol === "http:" || url.protocol === "https:"; } catch { return false; } }
@@ -112,10 +142,8 @@ export async function createTeacherResourceCore({
         throw new Error("Selected PDF source type is invalid.");
       }
       if (sourceType === "native-pdf") {
-        const file = formData.get("file");
-        if (!(file instanceof File) || file.size === 0) {
-          return { ok: false, code: "INVALID_FILE", message: "Please select a PDF file to upload.", retryable: false };
-        }
+        const source = resolveNativePdfSource(formData, user.id);
+        if (!source.ok) return source;
       } else if (!externalUrl) {
         throw new Error("PDF URL is required for external PDF resources.");
       }
@@ -170,12 +198,19 @@ export async function createTeacherResourceCore({
     } });
 
     if (format === "PDF" && sourceType === "native-pdf") {
-      const file = formData.get("file");
-      if (!(file instanceof File)) {
+      const source = resolveNativePdfSource(formData, user.id);
+      if (!source.ok) {
         await runtimePrisma.resource.delete({ where: { id: createdResource.id } });
-        return { ok: false, code: "INVALID_FILE", message: "Please select a PDF file to upload.", retryable: false };
+        return source;
       }
-      const uploadResult = await uploadHandler({ user, resourceId: createdResource.id, file });
+      const uploadResult = source.kind === "direct"
+        ? await registerHandler({
+            user,
+            resourceId: createdResource.id,
+            objectKey: source.objectKey,
+            originalFileName: source.originalFileName,
+          })
+        : await uploadHandler({ user, resourceId: createdResource.id, file: source.file });
       if (!uploadResult.ok) {
         await runtimePrisma.resource.delete({ where: { id: createdResource.id } });
         await revalidateResourcePaths();
