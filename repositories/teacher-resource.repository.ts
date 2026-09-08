@@ -103,7 +103,7 @@ export function findEditableTeacherManagedResource(resourceId: string, userId: s
 }
 
 export async function findTeacherResourceEditOptions() {
-  const [resourceTypes, chapters, examTopics] = await prisma.$transaction([
+  const [resourceTypes, chapters, examTopics] = await Promise.all([
     prisma.resourceType.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
     prisma.chapter.findMany({ where: { isActive: true, boardClassSubject: { isActive: true, board: { isActive: true }, classLevel: { isActive: true }, subject: { isActive: true } } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, boardClassSubject: { select: { board: { select: { shortName: true } }, classLevel: { select: { name: true } }, subject: { select: { name: true } } } } } }),
     prisma.examTopic.findMany({ where: { isActive: true, examSubject: { isActive: true, exam: { isActive: true }, subject: { isActive: true } } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, examSubject: { select: { exam: { select: { shortName: true } }, subject: { select: { name: true } } } } } }),

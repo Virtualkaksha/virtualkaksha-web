@@ -45,3 +45,4 @@ next-env.d.ts
 /app/generated/prisma
 
 /storage/resources/
+.neon

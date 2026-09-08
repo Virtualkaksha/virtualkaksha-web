@@ -96,7 +96,7 @@ export async function findTeacherResourceSearchPage(userId: string, query: Teach
 }
 
 export async function findResourceSearchFacets() {
-  const [boards, exams, levels, subjects, chapters, examTopics, resourceTypes] = await prisma.$transaction([
+  const [boards, exams, levels, subjects, chapters, examTopics, resourceTypes] = await Promise.all([
     prisma.board.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { name: true, shortName: true, slug: true } }),
     prisma.exam.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { name: true, shortName: true, slug: true } }),
     prisma.classLevel.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { numericLevel: "asc" }], select: { name: true, slug: true } }),
@@ -114,7 +114,7 @@ export async function findResourceSearchFacets() {
 
 export async function findTeacherResourceSummary(userId: string) {
   const ownershipWhere = buildTeacherDashboardWhere(userId);
-  const [total, published, pending, drafts, rejected, views, recent] = await prisma.$transaction([
+  const [total, published, pending, drafts, rejected, views, recent] = await Promise.all([
     prisma.resource.count({ where: ownershipWhere }),
     prisma.resource.count({ where: { AND: [ownershipWhere, { status: "PUBLISHED" }] } }),
     prisma.resource.count({ where: { AND: [ownershipWhere, { status: "PENDING_REVIEW" }] } }),
@@ -130,7 +130,7 @@ export async function findTeacherInbox(userId: string) {
   const ownershipWhere = buildTeacherDashboardWhere(userId);
   const recentlyPublishedSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
-  const [rejected, pending, recentlyPublished, rejectedCount, pendingCount] = await prisma.$transaction([
+  const [rejected, pending, recentlyPublished, rejectedCount, pendingCount] = await Promise.all([
     prisma.resource.findMany({
       where: { AND: [ownershipWhere, { status: "REJECTED" }] },
       orderBy: [{ updatedAt: "desc" }, { id: "asc" }],

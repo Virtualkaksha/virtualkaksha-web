@@ -198,7 +198,7 @@ export async function getStudentDashboardSnapshot(input: {
     recentProgress,
     bookmarkRows,
     recommendationRows,
-  ] = await prisma.$transaction([
+  ] = await Promise.all([
     prisma.studentResourceProgress.count({
       where: {
         ...accessibleProgressWhere,

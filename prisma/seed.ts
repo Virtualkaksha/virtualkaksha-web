@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../app/generated/prisma/client";
+import { chaptersForSubject as catalogueChapters } from "./chapter-catalogue";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -18,6 +19,7 @@ const prisma = new PrismaClient({
 });
 
 const classLevels = [
+  { name: "Class 5", slug: "class-5", numericLevel: 5, sortOrder: 5 },
   { name: "Class 6", slug: "class-6", numericLevel: 6, sortOrder: 6 },
   { name: "Class 7", slug: "class-7", numericLevel: 7, sortOrder: 7 },
   { name: "Class 8", slug: "class-8", numericLevel: 8, sortOrder: 8 },
@@ -557,6 +559,14 @@ async function connectBoardSubjects(
   subjectMap: Map<string, string>
 ) {
   const mappings: Record<number, string[]> = {
+    5: [
+      "mathematics",
+      "science",
+      "english",
+      "hindi",
+      "social-science",
+      "computer-science",
+    ],
     6: [
       "mathematics",
       "science",
@@ -771,95 +781,89 @@ async function seedResourceTypes() {
   }
 }
 
+function subjectSlugsForClass(numericLevel: number) {
+  return numericLevel >= 11
+    ? ["physics", "chemistry", "mathematics"]
+    : ["science", "mathematics"];
+}
+
+function chaptersForSubject(numericLevel: number, subjectSlug: string) {
+  if (numericLevel === 10 && subjectSlug === "science") return class10ScienceChapters;
+  if (numericLevel === 10 && subjectSlug === "mathematics") return class10MathsChapters;
+  const chapters = catalogueChapters(numericLevel, subjectSlug);
+  if (chapters.length === 0) {
+    throw new Error(`No chapters defined for class ${numericLevel} ${subjectSlug}.`);
+  }
+  return chapters;
+}
+
+async function upsertChapters(
+  boardClassSubjectId: string,
+  chapters: Array<{ name: string; nameHindi: string; slug: string; chapterNumber: number }>,
+) {
+  for (const chapter of chapters) {
+    await prisma.chapter.upsert({
+      where: {
+        boardClassSubjectId_slug: {
+          boardClassSubjectId,
+          slug: chapter.slug,
+        },
+      },
+      update: {
+        name: chapter.name,
+        nameHindi: chapter.nameHindi,
+        chapterNumber: chapter.chapterNumber,
+        sortOrder: chapter.chapterNumber,
+        isActive: true,
+      },
+      create: {
+        boardClassSubjectId,
+        name: chapter.name,
+        nameHindi: chapter.nameHindi,
+        slug: chapter.slug,
+        chapterNumber: chapter.chapterNumber,
+        sortOrder: chapter.chapterNumber,
+        isActive: true,
+      },
+    });
+  }
+}
+
 async function seedChapters(
-  cbseBoardId: string,
+  boardId: string,
   classMap: Map<number, string>,
   subjectMap: Map<string, string>
 ) {
-  const class10Id = classMap.get(10);
-  const scienceId = subjectMap.get("science");
-  const mathematicsId = subjectMap.get("mathematics");
+  for (const numericLevel of [5, 6, 7, 8, 9, 10, 11, 12]) {
+    const classLevelId = classMap.get(numericLevel);
 
-  if (!class10Id || !scienceId || !mathematicsId) {
-    throw new Error("Required Class 10 or subject records were not found.");
-  }
+    if (!classLevelId) {
+      throw new Error(`Class ${numericLevel} was not created.`);
+    }
 
-  const scienceMapping = await prisma.boardClassSubject.findUnique({
-    where: {
-      boardId_classLevelId_subjectId: {
-        boardId: cbseBoardId,
-        classLevelId: class10Id,
-        subjectId: scienceId,
-      },
-    },
-  });
+    for (const subjectSlug of subjectSlugsForClass(numericLevel)) {
+      const subjectId = subjectMap.get(subjectSlug);
 
-  const mathematicsMapping = await prisma.boardClassSubject.findUnique({
-    where: {
-      boardId_classLevelId_subjectId: {
-        boardId: cbseBoardId,
-        classLevelId: class10Id,
-        subjectId: mathematicsId,
-      },
-    },
-  });
+      if (!subjectId) {
+        throw new Error(`Subject ${subjectSlug} was not created.`);
+      }
 
-  if (!scienceMapping || !mathematicsMapping) {
-    throw new Error("Class 10 CBSE subject mappings were not found.");
-  }
-
-  for (const chapter of class10ScienceChapters) {
-    await prisma.chapter.upsert({
-      where: {
-        boardClassSubjectId_slug: {
-          boardClassSubjectId: scienceMapping.id,
-          slug: chapter.slug,
+      const mapping = await prisma.boardClassSubject.findUnique({
+        where: {
+          boardId_classLevelId_subjectId: {
+            boardId,
+            classLevelId,
+            subjectId,
+          },
         },
-      },
-      update: {
-        name: chapter.name,
-        nameHindi: chapter.nameHindi,
-        chapterNumber: chapter.chapterNumber,
-        sortOrder: chapter.chapterNumber,
-        isActive: true,
-      },
-      create: {
-        boardClassSubjectId: scienceMapping.id,
-        name: chapter.name,
-        nameHindi: chapter.nameHindi,
-        slug: chapter.slug,
-        chapterNumber: chapter.chapterNumber,
-        sortOrder: chapter.chapterNumber,
-        isActive: true,
-      },
-    });
-  }
+      });
 
-  for (const chapter of class10MathsChapters) {
-    await prisma.chapter.upsert({
-      where: {
-        boardClassSubjectId_slug: {
-          boardClassSubjectId: mathematicsMapping.id,
-          slug: chapter.slug,
-        },
-      },
-      update: {
-        name: chapter.name,
-        nameHindi: chapter.nameHindi,
-        chapterNumber: chapter.chapterNumber,
-        sortOrder: chapter.chapterNumber,
-        isActive: true,
-      },
-      create: {
-        boardClassSubjectId: mathematicsMapping.id,
-        name: chapter.name,
-        nameHindi: chapter.nameHindi,
-        slug: chapter.slug,
-        chapterNumber: chapter.chapterNumber,
-        sortOrder: chapter.chapterNumber,
-        isActive: true,
-      },
-    });
+      if (!mapping) {
+        throw new Error(`Class ${numericLevel} ${subjectSlug} mapping was not found.`);
+      }
+
+      await upsertChapters(mapping.id, chaptersForSubject(numericLevel, subjectSlug));
+    }
   }
 }
 
@@ -889,13 +893,20 @@ async function main() {
   await seedExams(subjectMap);
   await seedResourceTypes();
 
-  const cbseBoardId = boardMap.get("cbse");
+  for (const boardSlug of ["cbse", "icse"]) {
+    const boardId = boardMap.get(boardSlug);
 
-  if (!cbseBoardId) {
-    throw new Error("CBSE board was not created.");
+    if (!boardId) {
+      throw new Error(`${boardSlug.toUpperCase()} board was not created.`);
+    }
+
+    await seedChapters(boardId, classMap, subjectMap);
   }
 
-  await seedChapters(cbseBoardId, classMap, subjectMap);
+  await prisma.chapter.updateMany({
+    where: { slug: "introduction", name: "Introduction" },
+    data: { isActive: false },
+  });
 
   console.log("VirtualKaksha database seed completed successfully.");
 }

@@ -66,7 +66,10 @@ export async function handleTeacherUploadUrlRequest(
   let provider: ResourceStorageProvider;
   try {
     provider = (dependencies.createProvider ?? (() => createResourceStorageProvider()))();
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[upload-url] storage provider is not configured", error);
+    }
     return jsonError(503, "Uploads are temporarily unavailable.");
   }
 
@@ -88,7 +91,10 @@ export async function handleTeacherUploadUrlRequest(
       expiresInSeconds: presigned.expiresInSeconds,
       maxBytes: uploadMaxMb * 1024 * 1024,
     }, { headers: PRIVATE_JSON_HEADERS });
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[upload-url] could not create a staging URL", error);
+    }
     return jsonError(503, "Uploads are temporarily unavailable.");
   }
 }

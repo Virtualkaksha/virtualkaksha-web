@@ -59,7 +59,7 @@ test("class-subject predicate fails closed for empty or undefined class slugs", 
   });
 });
 
-catalogTest("CBSE track exposes Class 6 through Class 12 once each", async () => {
+catalogTest("CBSE track exposes Class 5 through Class 12 once each", async () => {
   assert.ok(prisma);
   const board = await prisma.board.findFirst({
     where: { slug: "cbse", isActive: true },
@@ -91,11 +91,11 @@ catalogTest("CBSE track exposes Class 6 through Class 12 once each", async () =>
 
   assert.deepEqual(
     classes.map(({ name }) => name),
-    ["Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12"],
+    ["Class 5", "Class 6", "Class 7", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12"],
   );
   assert.deepEqual(
     classes.map(({ slug }) => `/student/resources/cbse/${slug}`),
-    [6, 7, 8, 9, 10, 11, 12].map(
+    [5, 6, 7, 8, 9, 10, 11, 12].map(
       (level) => `/student/resources/cbse/class-${level}`,
     ),
   );
@@ -123,7 +123,7 @@ catalogTest("Class 6 query returns only Class 6 subjects and Mathematics once", 
     (row) => row.subject.slug === "mathematics",
   );
   assert.equal(mathematics.length, 1);
-  assert.equal(mathematics[0]._count.chapters, 0);
+  assert.ok(mathematics[0]._count.chapters >= 1);
   assert.equal(
     `/student/resources/cbse/${mathematics[0].classLevel.slug}/${mathematics[0].subject.slug}`,
     "/student/resources/cbse/class-6/mathematics",

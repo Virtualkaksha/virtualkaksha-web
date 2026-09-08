@@ -3,7 +3,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 
 export async function findAdminDashboardData() {
-  const [pending, published, rejected, archived, teachers, students, recent] = await prisma.$transaction([
+  const [pending, published, rejected, archived, teachers, students, recent] = await Promise.all([
     prisma.resource.count({ where: { status: "PENDING_REVIEW" } }),
     prisma.resource.count({ where: { status: "PUBLISHED" } }),
     prisma.resource.count({ where: { status: "REJECTED" } }),
