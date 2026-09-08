@@ -7,22 +7,26 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/app/generated/prisma/client";
 import { buildBoardClassSubjectWhere } from "@/lib/resources/resource-catalog-query";
 
-if (!process.env.DATABASE_URL) {
-  process.loadEnvFile(".env");
+const runCatalogDbTests = process.env.RUN_CATALOG_DB_TESTS === "1";
+
+if (runCatalogDbTests && !process.env.DATABASE_URL) {
+  try {
+    process.loadEnvFile(".env");
+  } catch {
+    // Opt-in catalogue DB tests need DATABASE_URL or a local .env.
+  }
 }
 
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL is required for resource catalogue tests.");
-}
-
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString }),
-});
+const connectionString = runCatalogDbTests ? process.env.DATABASE_URL : undefined;
+const catalogTest = connectionString ? test : test.skip;
+const prisma = connectionString
+  ? new PrismaClient({
+      adapter: new PrismaPg({ connectionString }),
+    })
+  : null;
 
 after(async () => {
-  await prisma.$disconnect();
+  await prisma?.$disconnect();
 });
 
 test("track route renders a class catalogue without reading a level or subjects", async () => {
@@ -55,7 +59,8 @@ test("class-subject predicate fails closed for empty or undefined class slugs", 
   });
 });
 
-test("CBSE track exposes Class 6 through Class 12 once each", async () => {
+catalogTest("CBSE track exposes Class 6 through Class 12 once each", async () => {
+  assert.ok(prisma);
   const board = await prisma.board.findFirst({
     where: { slug: "cbse", isActive: true },
     select: {
@@ -96,7 +101,8 @@ test("CBSE track exposes Class 6 through Class 12 once each", async () => {
   );
 });
 
-test("Class 6 query returns only Class 6 subjects and Mathematics once", async () => {
+catalogTest("Class 6 query returns only Class 6 subjects and Mathematics once", async () => {
+  assert.ok(prisma);
   const where = buildBoardClassSubjectWhere("cbse", "class-6");
   assert.ok(where);
 
@@ -124,7 +130,8 @@ test("Class 6 query returns only Class 6 subjects and Mathematics once", async (
   );
 });
 
-test("Class 10 Mathematics returns unique published resources with canonical links", async () => {
+catalogTest("Class 10 Mathematics returns unique published resources with canonical links", async () => {
+  assert.ok(prisma);
   const where = buildBoardClassSubjectWhere("cbse", "class-10");
   assert.ok(where);
 
@@ -179,7 +186,8 @@ test("Class 10 Mathematics returns unique published resources with canonical lin
   );
 });
 
-test("unknown boards and classes return no active catalogue records", async () => {
+catalogTest("unknown boards and classes return no active catalogue records", async () => {
+  assert.ok(prisma);
   const unknownBoard = await prisma.board.findFirst({
     where: { slug: "unknown-board", isActive: true },
     select: { id: true },

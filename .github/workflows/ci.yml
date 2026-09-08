@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, test, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        env:
+          # prisma.config.ts requires DATABASE_URL. Generate does not connect.
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/virtualkaksha
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        env:
+          NODE_ENV: test
+          AUTH_SECRET: 0123456789abcdef0123456789abcdef
+          AUTH_URL: http://localhost:3000
+          AUTH_TRUST_HOST: "true"
+          RESOURCE_STORAGE_PROVIDER: local
+          RESOURCE_UPLOAD_MAX_MB: "20"
+          LOCAL_RESOURCE_STORAGE_PATH: ./storage/resources
+          RATE_LIMIT_ADAPTER: memory
+          RATE_LIMIT_KEY_SECRET: 0123456789abcdef0123456789abcdef
+          RATE_LIMIT_TRUSTED_PROXY: test
+          RATE_LIMIT_ENV_PREFIX: test
+        run: npm test
+
+      - name: Production build
+        env:
+          # next build sets NODE_ENV=production. These values are CI placeholders only
+          # and are not production credentials. Runtime validate:env is a deploy check.
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/virtualkaksha
+          AUTH_SECRET: 0123456789abcdef0123456789abcdef
+          AUTH_URL: https://ci.virtualkaksha.test
+          AUTH_TRUST_HOST: "true"
+          RESOURCE_STORAGE_PROVIDER: s3
+          RESOURCE_UPLOAD_MAX_MB: "20"
+          S3_ENDPOINT: https://objects.storage.test
+          S3_REGION: auto
+          S3_BUCKET: private-resources
+          S3_ACCESS_KEY_ID: ci-storage-access-key
+          S3_SECRET_ACCESS_KEY: ci-storage-secret-key
+          S3_FORCE_PATH_STYLE: "false"
+          RATE_LIMIT_ADAPTER: upstash
+          RATE_LIMIT_KEY_SECRET: 0123456789abcdef0123456789abcdef
+          RATE_LIMIT_TRUSTED_PROXY: vercel
+          RATE_LIMIT_ENV_PREFIX: ci
+          UPSTASH_REDIS_REST_URL: https://redis.upstash.test
+          UPSTASH_REDIS_REST_TOKEN: ci-upstash-token
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
