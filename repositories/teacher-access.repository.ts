@@ -93,126 +93,135 @@ export function findTeacherAccessRequestById(id: string) {
   });
 }
 
+const teacherUserSelect = {
+  id: true,
+  roles: { select: { role: { select: { name: true } } } },
+  teacherProfile: { select: { id: true } },
+} as const;
+
+function teacherProfileData(request: {
+  city: string | null;
+  experienceYears: number | null;
+  message: string | null;
+  subjects: string;
+}) {
+  return {
+    city: request.city,
+    yearsOfExperience: request.experienceYears,
+    bio: request.message,
+    headline: request.subjects.slice(0, 120),
+    verificationStatus: "VERIFIED" as const,
+    profileStatus: "PUBLISHED" as const,
+  };
+}
+
 export async function approveTeacherAccessRequest(input: {
   requestId: string;
   adminId: string;
 }) {
-  return prisma.$transaction(async (tx) => {
-    const request = await tx.teacherAccessRequest.findUnique({
-      where: { id: input.requestId },
-    });
-    if (!request || request.status !== "PENDING") {
-      return { outcome: "unavailable" as const };
-    }
+  // Neon pooled connections cannot run Prisma interactive transactions.
+  // Keep this path as sequential queries with an optimistic PENDING claim.
+  const request = await prisma.teacherAccessRequest.findUnique({
+    where: { id: input.requestId },
+  });
+  if (!request || request.status !== "PENDING") {
+    return { outcome: "unavailable" as const };
+  }
 
-    const teacherRole = await tx.role.upsert({
-      where: { name: "TEACHER" },
-      update: {},
-      create: { name: "TEACHER" },
-      select: { id: true },
-    });
+  const teacherRole = await prisma.role.upsert({
+    where: { name: "TEACHER" },
+    update: {},
+    create: { name: "TEACHER" },
+    select: { id: true },
+  });
 
-    let user = await tx.user.findUnique({
-      where: { email: request.email },
-      select: {
-        id: true,
-        roles: { select: { role: { select: { name: true } } } },
-        teacherProfile: { select: { id: true } },
-      },
-    });
+  let user = await prisma.user.findUnique({
+    where: { email: request.email },
+    select: teacherUserSelect,
+  });
 
-    if (user?.roles.some((entry) => entry.role.name === "TEACHER")) {
-      await tx.teacherAccessRequest.update({
-        where: { id: request.id },
-        data: {
-          status: "APPROVED",
-          reviewedByUserId: input.adminId,
-          reviewedAt: new Date(),
-          createdUserId: user.id,
-          adminNote: "Applicant already had teacher access.",
-        },
-      });
-      return { outcome: "already-teacher" as const, userId: user.id };
-    }
-
-    if (!user) {
-      user = await tx.user.create({
-        data: {
-          firstName: request.firstName,
-          lastName: request.lastName,
-          displayName: [request.firstName, request.lastName].filter(Boolean).join(" "),
-          email: request.email,
-          phone: request.phone,
-          passwordHash: request.passwordHash,
-          status: "ACTIVE",
-          roles: { create: { roleId: teacherRole.id } },
-          teacherProfile: {
-            create: {
-              city: request.city,
-              yearsOfExperience: request.experienceYears,
-              bio: request.message,
-              headline: request.subjects.slice(0, 120),
-              verificationStatus: "VERIFIED",
-              profileStatus: "PUBLISHED",
-            },
-          },
-        },
-        select: {
-          id: true,
-          roles: { select: { role: { select: { name: true } } } },
-          teacherProfile: { select: { id: true } },
-        },
-      });
-    } else {
-      await tx.userRole.createMany({
-        data: [{ userId: user.id, roleId: teacherRole.id }],
-        skipDuplicates: true,
-      });
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          status: "ACTIVE",
-          sessionVersion: { increment: 1 },
-          passwordHash: request.passwordHash,
-        },
-      });
-      if (!user.teacherProfile) {
-        await tx.teacherProfile.create({
-          data: {
-            userId: user.id,
-            city: request.city,
-            yearsOfExperience: request.experienceYears,
-            bio: request.message,
-            headline: request.subjects.slice(0, 120),
-            verificationStatus: "VERIFIED",
-            profileStatus: "PUBLISHED",
-          },
-        });
-      } else {
-        await tx.teacherProfile.update({
-          where: { userId: user.id },
-          data: {
-            city: request.city ?? undefined,
-            yearsOfExperience: request.experienceYears ?? undefined,
-            verificationStatus: "VERIFIED",
-            profileStatus: "PUBLISHED",
-          },
-        });
-      }
-    }
-
-    await tx.teacherAccessRequest.update({
-      where: { id: request.id },
+  if (user?.roles.some((entry) => entry.role.name === "TEACHER")) {
+    await prisma.teacherAccessRequest.updateMany({
+      where: { id: request.id, status: "PENDING" },
       data: {
         status: "APPROVED",
         reviewedByUserId: input.adminId,
         reviewedAt: new Date(),
         createdUserId: user.id,
+        adminNote: "Applicant already had teacher access.",
       },
     });
+    return { outcome: "already-teacher" as const, userId: user.id };
+  }
 
-    return { outcome: "approved" as const, userId: user.id };
+  if (!user) {
+    const phoneTaken = request.phone
+      ? await prisma.user.findUnique({
+          where: { phone: request.phone },
+          select: { id: true },
+        })
+      : null;
+    user = await prisma.user.create({
+      data: {
+        firstName: request.firstName,
+        lastName: request.lastName,
+        displayName: [request.firstName, request.lastName].filter(Boolean).join(" "),
+        email: request.email,
+        phone: phoneTaken ? null : request.phone,
+        passwordHash: request.passwordHash,
+        status: "ACTIVE",
+        roles: { create: { roleId: teacherRole.id } },
+        teacherProfile: { create: teacherProfileData(request) },
+      },
+      select: teacherUserSelect,
+    });
+  } else {
+    await prisma.userRole.createMany({
+      data: [{ userId: user.id, roleId: teacherRole.id }],
+      skipDuplicates: true,
+    });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        status: "ACTIVE",
+        sessionVersion: { increment: 1 },
+        passwordHash: request.passwordHash,
+      },
+    });
+    if (!user.teacherProfile) {
+      await prisma.teacherProfile.create({
+        data: {
+          userId: user.id,
+          ...teacherProfileData(request),
+        },
+      });
+    } else {
+      await prisma.teacherProfile.update({
+        where: { userId: user.id },
+        data: {
+          city: request.city ?? undefined,
+          yearsOfExperience: request.experienceYears ?? undefined,
+          verificationStatus: "VERIFIED",
+          profileStatus: "PUBLISHED",
+        },
+      });
+    }
+  }
+
+  const claimed = await prisma.teacherAccessRequest.updateMany({
+    where: { id: request.id, status: "PENDING" },
+    data: {
+      status: "APPROVED",
+      reviewedByUserId: input.adminId,
+      reviewedAt: new Date(),
+      createdUserId: user.id,
+    },
   });
+  if (claimed.count === 0) {
+    return { outcome: "unavailable" as const };
+  }
+
+  return { outcome: "approved" as const, userId: user.id };
 }
 
 export async function rejectTeacherAccessRequest(input: {

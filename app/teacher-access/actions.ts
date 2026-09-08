@@ -94,10 +94,15 @@ export async function approveTeacherAccessAction(formData: FormData) {
   const requestId = String(formData.get("requestId") ?? "").trim();
   if (!requestId) redirect("/admin/teacher-requests?error=missing");
 
-  const result = await approveTeacherAccessRequest({
-    requestId,
-    adminId: admin.id,
-  });
+  let result: Awaited<ReturnType<typeof approveTeacherAccessRequest>>;
+  try {
+    result = await approveTeacherAccessRequest({
+      requestId,
+      adminId: admin.id,
+    });
+  } catch {
+    redirect("/admin/teacher-requests?error=failed");
+  }
 
   revalidatePath("/admin");
   revalidatePath("/admin/teacher-requests");

@@ -77,6 +77,11 @@ export default async function AdminTeacherRequestsPage({ searchParams }: Props) 
           That request is no longer pending.
         </div>
       ) : null}
+      {params.error === "failed" ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-900">
+          Approval could not be completed. Refresh and try again.
+        </div>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
         {[
