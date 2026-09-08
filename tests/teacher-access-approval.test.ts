@@ -14,6 +14,9 @@ test("teacher approval does not use Prisma interactive transactions", async () =
 
   assert.match(approveFunction, /updateMany/);
   assert.doesNotMatch(approveFunction, /\$transaction/);
+  assert.match(repository, /usablePhone/);
+  assert.match(repository, /P2002/);
+  assert.match(repository, /phone: null/);
   assert.match(action, /error=failed/);
   assert.match(page, /Approval could not be completed/);
 });

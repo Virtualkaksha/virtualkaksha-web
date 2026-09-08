@@ -99,6 +99,15 @@ const teacherUserSelect = {
   teacherProfile: { select: { id: true } },
 } as const;
 
+function usablePhone(phone: string | null | undefined) {
+  const value = phone?.trim();
+  return value ? value : null;
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2002");
+}
+
 function teacherProfileData(request: {
   city: string | null;
   experienceYears: number | null;
@@ -115,7 +124,62 @@ function teacherProfileData(request: {
   };
 }
 
+async function createTeacherUser(request: {
+  firstName: string;
+  lastName: string | null;
+  email: string;
+  phone: string | null;
+  passwordHash: string;
+  city: string | null;
+  experienceYears: number | null;
+  message: string | null;
+  subjects: string;
+}, teacherRoleId: string) {
+  const phone = usablePhone(request.phone);
+  const phoneTaken = phone
+    ? await prisma.user.findFirst({ where: { phone }, select: { id: true } })
+    : null;
+  const data = {
+    firstName: request.firstName,
+    lastName: request.lastName,
+    displayName: [request.firstName, request.lastName].filter(Boolean).join(" "),
+    email: request.email,
+    phone: phoneTaken ? null : phone,
+    passwordHash: request.passwordHash,
+    status: "ACTIVE" as const,
+    roles: { create: { roleId: teacherRoleId } },
+    teacherProfile: { create: teacherProfileData(request) },
+  };
+
+  try {
+    return await prisma.user.create({ data, select: teacherUserSelect });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+    const existing = await prisma.user.findUnique({
+      where: { email: request.email },
+      select: teacherUserSelect,
+    });
+    if (existing) return existing;
+    if (data.phone == null) throw error;
+    return prisma.user.create({
+      data: { ...data, phone: null },
+      select: teacherUserSelect,
+    });
+  }
+}
+
 export async function approveTeacherAccessRequest(input: {
+  requestId: string;
+  adminId: string;
+}) {
+  try {
+    return await approvePendingTeacherAccessRequest(input);
+  } catch {
+    return { outcome: "failed" as const };
+  }
+}
+
+async function approvePendingTeacherAccessRequest(input: {
   requestId: string;
   adminId: string;
 }) {
@@ -155,26 +219,7 @@ export async function approveTeacherAccessRequest(input: {
   }
 
   if (!user) {
-    const phoneTaken = request.phone
-      ? await prisma.user.findUnique({
-          where: { phone: request.phone },
-          select: { id: true },
-        })
-      : null;
-    user = await prisma.user.create({
-      data: {
-        firstName: request.firstName,
-        lastName: request.lastName,
-        displayName: [request.firstName, request.lastName].filter(Boolean).join(" "),
-        email: request.email,
-        phone: phoneTaken ? null : request.phone,
-        passwordHash: request.passwordHash,
-        status: "ACTIVE",
-        roles: { create: { roleId: teacherRole.id } },
-        teacherProfile: { create: teacherProfileData(request) },
-      },
-      select: teacherUserSelect,
-    });
+    user = await createTeacherUser(request, teacherRole.id);
   } else {
     await prisma.userRole.createMany({
       data: [{ userId: user.id, roleId: teacherRole.id }],
