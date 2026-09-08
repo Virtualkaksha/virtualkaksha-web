@@ -9,7 +9,9 @@ test("PDF format defaults to native upload with a PDF-only file input", async ()
 
   assert.match(source, /useState<SourceType>\("native-pdf"\)/);
   assert.match(source, /<option value="native-pdf">Upload a PDF file<\/option>/);
-  assert.match(source, /name="file" type="file" accept="application\/pdf,\.pdf" required/);
+  assert.match(source, /name="file" type="file" accept="application\/pdf,\.pdf"/);
+  assert.match(source, /noValidate/);
+  assert.match(source, /Please choose a PDF file before saving this resource/);
 });
 
 test("native PDF mode shows the picker and hides the external PDF URL", async () => {

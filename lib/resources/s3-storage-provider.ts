@@ -72,6 +72,9 @@ export class S3ResourceStorageProvider implements PresignCapableStorageProvider 
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
       },
+      // R2 rejects AWS SDK default checksum headers on Head/Copy/Put.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     }) as unknown as S3CommandClient);
   }
 

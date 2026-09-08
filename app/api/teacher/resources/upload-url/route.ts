@@ -100,5 +100,9 @@ export async function handleTeacherUploadUrlRequest(
 }
 
 export async function POST(request: Request) {
-  return handleTeacherUploadUrlRequest(request);
+  try {
+    return await handleTeacherUploadUrlRequest(request);
+  } catch {
+    return jsonError(503, "Uploads are temporarily unavailable.");
+  }
 }

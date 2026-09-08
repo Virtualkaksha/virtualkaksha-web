@@ -77,22 +77,18 @@ export type ResourceSearchRecord = Prisma.ResourceGetPayload<{ select: typeof re
 
 export async function findStudentResourceSearchPage(query: ResourceSearchQuery) {
   const where = buildStudentResourceWhere(query);
-  return prisma.$transaction(async (transaction) => {
-    const total = await transaction.resource.count({ where });
-    const args = buildClampedSearchPageArguments(where, query, total);
-    const rows = await transaction.resource.findMany({ ...args.rows, select: resourceSearchSelect });
-    return { total, rows, page: args.pagination.page };
-  });
+  const total = await prisma.resource.count({ where });
+  const args = buildClampedSearchPageArguments(where, query, total);
+  const rows = await prisma.resource.findMany({ ...args.rows, select: resourceSearchSelect });
+  return { total, rows, page: args.pagination.page };
 }
 
 export async function findTeacherResourceSearchPage(userId: string, query: TeacherResourceSearchQuery) {
   const where = buildTeacherResourceWhere(userId, query);
-  return prisma.$transaction(async (transaction) => {
-    const total = await transaction.resource.count({ where });
-    const args = buildClampedSearchPageArguments(where, query, total);
-    const rows = await transaction.resource.findMany({ ...args.rows, select: resourceSearchSelect });
-    return { total, rows, page: args.pagination.page };
-  });
+  const total = await prisma.resource.count({ where });
+  const args = buildClampedSearchPageArguments(where, query, total);
+  const rows = await prisma.resource.findMany({ ...args.rows, select: resourceSearchSelect });
+  return { total, rows, page: args.pagination.page };
 }
 
 export async function findResourceSearchFacets() {

@@ -3,11 +3,11 @@ import Link from "next/link";
 import { BookOpen, Inbox, LayoutDashboard, LibraryBig, LogOut } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
-import { requireCurrentRole } from "@/lib/auth/current-identity";
+import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 import { getTeacherNavBadge } from "@/lib/teacher/teacher-cms";
 
 export default async function TeacherLayout({ children }: { children: ReactNode }) {
-  const user = await requireCurrentRole("TEACHER");
+  const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const badge = await getTeacherNavBadge(user.id);
 
   return (

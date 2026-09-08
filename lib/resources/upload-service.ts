@@ -147,8 +147,8 @@ async function activateStoredAsset(
     }
   };
 
-  if (prismaClient.$transaction) await prismaClient.$transaction(finalize);
-  else await finalize(prismaClient);
+  // Neon pooled connections cannot run Prisma interactive transactions.
+  await finalize(prismaClient);
 }
 
 function sanitizeFileName(fileName: string) {

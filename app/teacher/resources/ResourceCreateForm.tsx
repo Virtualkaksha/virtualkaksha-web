@@ -158,41 +158,50 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
     }
 
     startTransition(async () => {
-      let result: TeacherResourceActionResult;
-      if (isPdfNativeUpload && selectedFile) {
-        const staged = await stageNativePdfUpload(formData, selectedFile);
-        if (!staged.ok) {
-          result = staged;
+      try {
+        let result: TeacherResourceActionResult;
+        if (isPdfNativeUpload && selectedFile) {
+          const staged = await stageNativePdfUpload(formData, selectedFile);
+          if (!staged.ok) {
+            result = staged;
+          } else {
+            const response = await fetch("/api/teacher/resources", {
+              method: "POST",
+              credentials: "same-origin",
+              body: staged.formData,
+            }).catch(() => null);
+            if (!response) {
+              result = { ok: false, code: "UPLOAD_FAILED", message: "The resource could not be saved. Please try again.", retryable: true };
+            } else {
+              const body = await response.json().catch(() => null);
+              result = parseTeacherResourceResponse(response, body);
+            }
+          }
+        } else if (isPdfNativeUpload) {
+          result = { ok: false, code: "INVALID_FILE", message: "Please select a PDF file to upload.", retryable: false };
         } else {
-          const response = await fetch("/api/teacher/resources", {
-            method: "POST",
-            credentials: "same-origin",
-            body: staged.formData,
-          });
-          const body = await response.json().catch(() => null);
-          result = parseTeacherResourceResponse(response, body);
+          result = await action(formData);
         }
-      } else if (isPdfNativeUpload) {
-        result = { ok: false, code: "INVALID_FILE", message: "Please select a PDF file to upload.", retryable: false };
-      } else {
-        result = await action(formData);
-      }
-      if (result.ok) {
-        setResultState("success");
-        setResultMessage(result.message);
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
+        if (result.ok) {
+          setResultState("success");
+          setResultMessage(result.message);
+          setSelectedFile(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        } else {
+          setResultState(result.retryable ? "retry" : "upload-failure");
+          setResultMessage(result.message);
         }
-      } else {
-        setResultState(result.retryable ? "retry" : "upload-failure");
-        setResultMessage(result.message);
+      } catch {
+        setResultState("retry");
+        setResultMessage("The resource could not be saved. Please try again.");
       }
     });
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="mt-7 space-y-7">
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-7 space-y-7">
       <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Step 1 · Placement</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -274,7 +283,7 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
               <UploadCloud className="h-8 w-8 text-blue-700" />
               <span className="mt-3 text-sm font-semibold text-slate-900">Choose a PDF file</span>
               <span className="mt-1 text-sm text-slate-500">Or drop a PDF here in supported browsers</span>
-              <input ref={fileInputRef} id="resource-pdf-upload" name="file" type="file" accept="application/pdf,.pdf" required className="sr-only" onChange={handleFileSelection} />
+              <input ref={fileInputRef} id="resource-pdf-upload" name="file" type="file" accept="application/pdf,.pdf" className="sr-only" onChange={handleFileSelection} />
             </label>
             {selectedFile ? <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -11,9 +11,30 @@ function validateNonce(nonce: string) {
   return nonce;
 }
 
-export function buildContentSecurityPolicy(nonce: string, environment: CspEnvironment) {
+const HTTPS_ORIGIN_PATTERN = /^https:\/\/[A-Za-z0-9.-]+(?::\d+)?$/;
+
+function pinnedHttpsOrigins(origins: readonly string[]) {
+  return origins.filter((origin) => HTTPS_ORIGIN_PATTERN.test(origin));
+}
+
+export function storageConnectSrcOrigins(endpoint = process.env.S3_ENDPOINT) {
+  if (!endpoint) return [];
+  try {
+    const url = new URL(endpoint);
+    return url.protocol === "https:" ? pinnedHttpsOrigins([url.origin]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function buildContentSecurityPolicy(
+  nonce: string,
+  environment: CspEnvironment,
+  extraConnectSrc: readonly string[] = [],
+) {
   const safeNonce = validateNonce(nonce);
   const isDevelopment = environment === "development";
+  const connectOrigins = pinnedHttpsOrigins(extraConnectSrc);
   const directives = [
     "default-src 'self'",
     "base-uri 'self'",
@@ -27,7 +48,7 @@ export function buildContentSecurityPolicy(nonce: string, environment: CspEnviro
     // Video lesson posters come from the video providers' image hosts.
     `img-src 'self' data: blob: ${VIDEO_IMAGE_ORIGINS.join(" ")}`,
     "font-src 'self'",
-    `connect-src 'self'${isDevelopment ? " ws: wss:" : ""}`,
+    `connect-src 'self'${isDevelopment ? " ws: wss:" : ""}${connectOrigins.map((origin) => ` ${origin}`).join("")}`,
     "worker-src 'self' blob:",
     // Video lessons are framed only from the pinned player origins.
     `frame-src 'self' ${VIDEO_FRAME_ORIGINS.join(" ")}`,

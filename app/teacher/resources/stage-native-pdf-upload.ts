@@ -64,7 +64,10 @@ export async function stageNativePdfUpload(
   const urlResponse = await fetchImpl("/api/teacher/resources/upload-url", {
     method: "POST",
     credentials: "same-origin",
-  });
+  }).catch(() => null);
+  if (!urlResponse) {
+    return failure("UPLOAD_FAILED", "The file could not be stored. Please try again.", true);
+  }
   if (urlResponse.status === 429) return rateLimitedResult(urlResponse);
   if (!urlResponse.ok) {
     return failure("UPLOAD_FAILED", "The resource could not be saved. Please try again.", true);
@@ -94,8 +97,8 @@ export async function stageNativePdfUpload(
     method: "PUT",
     body: file,
     headers: { "Content-Type": payload.requiredContentType },
-  });
-  if (!putResponse.ok) {
+  }).catch(() => null);
+  if (!putResponse || !putResponse.ok) {
     return failure("UPLOAD_FAILED", "The file could not be stored. Please try again.", true);
   }
 

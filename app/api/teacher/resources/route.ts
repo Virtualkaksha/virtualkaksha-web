@@ -94,5 +94,9 @@ export async function handleNativeTeacherResourceCreation(request: Request, depe
 }
 
 export async function POST(request: Request) {
-  return handleNativeTeacherResourceCreation(request);
+  try {
+    return await handleNativeTeacherResourceCreation(request);
+  } catch {
+    return jsonError(503, "The resource could not be saved. Please try again.");
+  }
 }

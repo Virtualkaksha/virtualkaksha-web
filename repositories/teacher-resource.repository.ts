@@ -73,15 +73,13 @@ export type TeacherManagedResourceRecord = Prisma.ResourceGetPayload<{
 
 export async function findTeacherManagedResourcePage(userId: string, query: TeacherResourceSearchQuery) {
   const where = buildTeacherResourceWhere(userId, query);
-  return prisma.$transaction(async (transaction) => {
-    const total = await transaction.resource.count({ where });
-    const args = buildClampedSearchPageArguments(where, query, total);
-    const rows = await transaction.resource.findMany({
-      ...args.rows,
-      select: teacherManagedResourceSelect,
-    });
-    return { total, rows, page: args.pagination.page };
+  const total = await prisma.resource.count({ where });
+  const args = buildClampedSearchPageArguments(where, query, total);
+  const rows = await prisma.resource.findMany({
+    ...args.rows,
+    select: teacherManagedResourceSelect,
   });
+  return { total, rows, page: args.pagination.page };
 }
 
 export function findTeacherManagedResource(resourceId: string, userId: string, allowAdminRead = false) {

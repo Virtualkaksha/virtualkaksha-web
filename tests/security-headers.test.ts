@@ -43,6 +43,16 @@ test("production requires a nonce for style elements while allowing style attrib
   assert.doesNotMatch(policy, /unsafe-eval|(?:^|\s)\*(?:\s|;|$)/);
 });
 
+test("pinned HTTPS storage origins can be added to connect-src without wildcards", () => {
+  const policy = buildContentSecurityPolicy(nonce, "production", [
+    "https://objects.storage.test",
+    "http://insecure.test",
+    "https://evil.test/path",
+  ]);
+  assert.match(policy, /connect-src 'self' https:\/\/objects\.storage\.test;/);
+  assert.doesNotMatch(policy, /http:\/\/insecure\.test|objects\.storage\.test\/path|\*/);
+});
+
 test("production CSP excludes broad and infrastructure origins", () => {
   const policy = buildContentSecurityPolicy(nonce, "production");
   // A bare `https:` source would trust every host; pinned video origins are allowed.

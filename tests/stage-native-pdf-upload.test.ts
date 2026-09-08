@@ -92,3 +92,27 @@ test("a failed storage PUT is retryable and does not leave an object key on the 
   assert.equal(result.retryable, true);
   assert.equal(formData.get("objectKey"), null);
 });
+
+test("a thrown storage PUT stays on the form as a retryable failure", async () => {
+  const formData = new FormData();
+  const result = await stageNativePdfUpload(formData, pdf, async (url) => {
+    if (String(url) === "/api/teacher/resources/upload-url") {
+      return jsonResponse({
+        ok: true,
+        mode: "presigned",
+        url: "https://storage.test/put",
+        objectKey: "uploads/teacher-1/550e8400-e29b-41d4-a716-446655440000.pdf",
+        requiredContentType: "application/pdf",
+        expiresInSeconds: 60,
+        maxBytes: 20 * 1024 * 1024,
+      });
+    }
+    throw new Error("Failed to fetch");
+  });
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.code, "UPLOAD_FAILED");
+  assert.equal(result.retryable, true);
+  assert.equal(formData.get("objectKey"), null);
+});

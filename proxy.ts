@@ -3,7 +3,7 @@ import type { NextAuthRequest } from "next-auth";
 import { NextFetchEvent, NextRequest, NextResponse, type NextMiddleware } from "next/server";
 
 import { createAuthRuntimeConfig } from "@/auth.config";
-import { buildContentSecurityPolicy } from "@/lib/security/csp";
+import { buildContentSecurityPolicy, storageConnectSrcOrigins } from "@/lib/security/csp";
 
 const CSP_REPORT_ONLY_HEADER = "Content-Security-Policy-Report-Only";
 const NONCE_REQUEST_HEADER = "x-nonce";
@@ -44,7 +44,7 @@ export function applyReportOnlyCsp(request: NextRequest) {
 
   const nonce = generateCspNonce();
   const environment = process.env.NODE_ENV === "production" ? "production" : "development";
-  const policy = buildContentSecurityPolicy(nonce, environment);
+  const policy = buildContentSecurityPolicy(nonce, environment, storageConnectSrcOrigins());
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(CSP_REPORT_ONLY_HEADER, policy);
   requestHeaders.set(NONCE_REQUEST_HEADER, nonce);
