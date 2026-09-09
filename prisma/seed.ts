@@ -3,6 +3,11 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../app/generated/prisma/client";
 import { chaptersForSubject as catalogueChapters } from "./chapter-catalogue";
+import { class10MathematicsQuestions } from "./practice-questions/class-10-mathematics";
+import { class10ScienceQuestions } from "./practice-questions/class-10-science";
+import { class11ChemistryQuestions } from "./practice-questions/class-11-chemistry";
+import { class11MathematicsQuestions } from "./practice-questions/class-11-mathematics";
+import { class11PhysicsQuestions } from "./practice-questions/class-11-physics";
 import { class12ChemistryQuestions } from "./practice-questions/class-12-chemistry";
 import { class12MathematicsQuestions } from "./practice-questions/class-12-mathematics";
 import { class12PhysicsQuestions } from "./practice-questions/class-12-physics";
@@ -875,7 +880,7 @@ const samplePracticeQuestions: Array<{
   chapterSlug: string;
   prompt: string;
   options: [string, string, string, string];
-  correctOption: number;
+  correctOption: 0 | 1 | 2 | 3;
   explanation: string;
 }> = [
   {
@@ -1168,6 +1173,11 @@ async function seedPracticeQuestions() {
       subjectSlug: "science",
       ...question,
     })),
+    ...class10ScienceQuestions,
+    ...class10MathematicsQuestions,
+    ...class11PhysicsQuestions,
+    ...class11ChemistryQuestions,
+    ...class11MathematicsQuestions,
     ...class12PhysicsQuestions,
     ...class12ChemistryQuestions,
     ...class12MathematicsQuestions,

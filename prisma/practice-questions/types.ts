@@ -9,8 +9,9 @@ export type PracticeQuestionSeed = {
   explanation: string;
 };
 
-export function class12Pyq(
-  subjectSlug: "physics" | "chemistry" | "mathematics",
+export function cbsePyq(
+  classSlug: "class-10" | "class-11" | "class-12",
+  subjectSlug: string,
   chapterSlug: string,
   prompt: string,
   options: [string, string, string, string],
@@ -19,7 +20,7 @@ export function class12Pyq(
 ): PracticeQuestionSeed {
   return {
     boardSlug: "cbse",
-    classSlug: "class-12",
+    classSlug,
     subjectSlug,
     chapterSlug,
     prompt,
@@ -27,6 +28,17 @@ export function class12Pyq(
     correctOption,
     explanation,
   };
+}
+
+export function class12Pyq(
+  subjectSlug: "physics" | "chemistry" | "mathematics",
+  chapterSlug: string,
+  prompt: string,
+  options: [string, string, string, string],
+  correctOption: 0 | 1 | 2 | 3,
+  explanation: string,
+): PracticeQuestionSeed {
+  return cbsePyq("class-12", subjectSlug, chapterSlug, prompt, options, correctOption, explanation);
 }
 
 export function assertTwentyPerChapter(questions: PracticeQuestionSeed[], expectedChapters: string[]) {

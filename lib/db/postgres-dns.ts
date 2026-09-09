@@ -5,7 +5,13 @@ const FALLBACK_CODES = new Set(["ENOTFOUND", "ESERVFAIL", "EAI_AGAIN", "ENODATA"
 
 let installed = false;
 
-function fallbackResolve(hostname: string, callback: dns.LookupOneCallback) {
+type DnsLookupCallback = (
+  error: NodeJS.ErrnoException | null,
+  address?: string,
+  family?: number,
+) => void;
+
+function fallbackResolve(hostname: string, callback: DnsLookupCallback) {
   const resolver = new dns.Resolver();
   resolver.setServers([...PUBLIC_DNS_SERVERS]);
   resolver.resolve4(hostname, (ipv4Error, ipv4) => {
@@ -51,22 +57,22 @@ export function installPostgresDnsFallback() {
 
     const continueWith = (error: NodeJS.ErrnoException | null, address?: string, family?: number) => {
       if (!error) {
-        (cb as dns.LookupOneCallback)(null, address as string, family ?? 4);
+        (cb as DnsLookupCallback)(null, address as string, family ?? 4);
         return;
       }
       if (!error.code || !FALLBACK_CODES.has(error.code)) {
-        (cb as dns.LookupOneCallback)(error);
+        (cb as DnsLookupCallback)(error);
         return;
       }
-      fallbackResolve(String(hostname), cb as dns.LookupOneCallback);
+      fallbackResolve(String(hostname), cb as DnsLookupCallback);
     };
 
     if (opts === undefined) {
-      originalLookup(hostname, continueWith as dns.LookupOneCallback);
+      originalLookup(hostname, continueWith as DnsLookupCallback);
       return;
     }
 
-    originalLookup(hostname, opts as never, continueWith as dns.LookupOneCallback);
+    originalLookup(hostname, opts as never, continueWith as DnsLookupCallback);
   }) as typeof dns.lookup;
 }
 

@@ -46,7 +46,7 @@ export default async function StudentTestsPage() {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-bold text-slate-950">Start a new test</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Sample questions are published for CBSE Class 10 Science (chapters 1–5) and for every CBSE Class 12 Physics, Chemistry and Mathematics chapter.
+            Sample questions are published for every CBSE Class 10, 11 and 12 chapter in Science/Physics, Chemistry and Mathematics.
           </p>
           <div className="mt-6">
             <TestSetupForm
