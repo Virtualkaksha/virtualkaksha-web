@@ -14,10 +14,10 @@ test("production session cookie is explicitly secure and prefixed", () => {
   });
   assert.equal(config.useSecureCookies, true);
   assert.deepEqual(config.cookies?.sessionToken, {
-    name: "__Secure-authjs.session-token",
-    options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    name: "__Host-authjs.session-token",
+    options: { httpOnly: true, sameSite: "lax", path: "/", secure: true, maxAge: 60 * 60 * 24 },
   });
-  assert.equal(config.session?.maxAge, 60 * 60 * 24 * 7);
+  assert.equal(config.session?.maxAge, 60 * 60 * 24);
   assert.doesNotMatch(JSON.stringify(config.cookies), /token-value|secret/);
 });
 
@@ -26,6 +26,6 @@ test("development session cookie remains usable over loopback HTTP", () => {
   assert.equal(config.useSecureCookies, false);
   assert.deepEqual(config.cookies?.sessionToken, {
     name: "authjs.session-token",
-    options: { httpOnly: true, sameSite: "lax", path: "/", secure: false },
+    options: { httpOnly: true, sameSite: "lax", path: "/", secure: false, maxAge: 60 * 60 * 24 },
   });
 });

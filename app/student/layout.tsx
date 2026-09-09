@@ -6,6 +6,8 @@ import StudentSidebar from "../components/student/StudentSidebar";
 import StudentTopbar from "../components/student/StudentTopbar";
 import { getCurrentIdentity } from "@/lib/auth/current-identity";
 
+export const dynamic = "force-dynamic";
+
 type StudentLayoutProps = {
   children: ReactNode;
 };

@@ -9,6 +9,13 @@ const CSP_REPORT_ONLY_HEADER = "Content-Security-Policy-Report-Only";
 const NONCE_REQUEST_HEADER = "x-nonce";
 const { auth } = NextAuth(async () => createAuthRuntimeConfig());
 
+function withPrivateNavigationCache(response: NextResponse) {
+  response.headers.set("Cache-Control", "private, no-store");
+  const vary = response.headers.get("Vary");
+  response.headers.set("Vary", vary && !/\bCookie\b/i.test(vary) ? `${vary}, Cookie` : "Cookie");
+  return response;
+}
+
 const EXCLUDED_PAGE_PATHS = new Set([
   "/favicon.ico",
   "/robots.txt",
@@ -40,7 +47,9 @@ export function generateCspNonce() {
 }
 
 export function applyReportOnlyCsp(request: NextRequest) {
-  if (!shouldApplyNonceCsp(request)) return NextResponse.next();
+  if (!shouldApplyNonceCsp(request)) {
+    return withPrivateNavigationCache(NextResponse.next());
+  }
 
   const nonce = generateCspNonce();
   const environment = process.env.NODE_ENV === "production" ? "production" : "development";
@@ -51,7 +60,7 @@ export function applyReportOnlyCsp(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set(CSP_REPORT_ONLY_HEADER, policy);
-  return response;
+  return withPrivateNavigationCache(response);
 }
 
 const authorizedProxyPromise = auth((request: NextAuthRequest, event: NextFetchEvent) => {
@@ -66,12 +75,6 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
 
 export const config = {
   matcher: [
-    {
-      source: "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|site.webmanifest|apple-touch-icon.png).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
+    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|site.webmanifest|apple-touch-icon.png).*)",
   ],
 };

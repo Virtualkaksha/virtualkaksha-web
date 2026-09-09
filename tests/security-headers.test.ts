@@ -107,6 +107,18 @@ test("nonce generation is fresh and base64url safe", () => {
   assert.notEqual(first, second);
 });
 
+test("HTML, RSC and prefetch responses are never stored in a shared cache", () => {
+  for (const request of [
+    pageRequest(),
+    pageRequest("/student", { accept: "text/x-component", rsc: "1" }),
+    pageRequest("/student", { accept: "text/html", "next-router-prefetch": "1" }),
+  ]) {
+    const response = applyReportOnlyCsp(request);
+    assert.equal(response.headers.get("cache-control"), "private, no-store");
+    assert.match(response.headers.get("vary") ?? "", /\bCookie\b/);
+  }
+});
+
 test("HTML requests receive matching request and response report-only CSP", () => {
   const response = applyReportOnlyCsp(pageRequest());
   const responsePolicy = response.headers.get("content-security-policy-report-only");

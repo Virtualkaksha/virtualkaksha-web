@@ -5,6 +5,8 @@ import { BookOpen, ClipboardList, LayoutDashboard, LogOut, ShieldCheck, UserPlus
 import { logoutAction } from "@/app/(auth)/actions";
 import { requireCurrentRole } from "@/lib/auth/current-identity";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   await requireCurrentRole("ADMIN");
   return (

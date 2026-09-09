@@ -6,6 +6,8 @@ import { logoutAction } from "@/app/(auth)/actions";
 import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 import { getTeacherNavBadge } from "@/lib/teacher/teacher-cms";
 
+export const dynamic = "force-dynamic";
+
 export default async function TeacherLayout({ children }: { children: ReactNode }) {
   const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
   const badge = await getTeacherNavBadge(user.id);

@@ -16,6 +16,8 @@ function getRoles(value: unknown): RoleName[] {
   );
 }
 
+export const AUTH_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24;
+
 export const authConfig = {
   pages: {
     signIn: "/login",
@@ -23,9 +25,9 @@ export const authConfig = {
 
   session: {
     strategy: "jwt",
-    // Revocation is database-enforced; a seven-day ceiling also limits exposure of an unused JWT.
-    maxAge: 60 * 60 * 24 * 7,
-    updateAge: 60 * 60 * 24,
+    // Revocation is database-enforced; a one-day ceiling limits an unused JWT.
+    maxAge: AUTH_SESSION_MAX_AGE_SECONDS,
+    updateAge: 60 * 60,
   },
 
   callbacks: {
@@ -90,8 +92,14 @@ export function createAuthRuntimeConfig(
     useSecureCookies: secureCookies,
     cookies: {
       sessionToken: {
-        name: secureCookies ? "__Secure-authjs.session-token" : "authjs.session-token",
-        options: { httpOnly: true, sameSite: "lax", path: "/", secure: secureCookies },
+        name: secureCookies ? "__Host-authjs.session-token" : "authjs.session-token",
+        options: {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: secureCookies,
+          maxAge: AUTH_SESSION_MAX_AGE_SECONDS,
+        },
       },
     },
     basePath: configuredPath === "/" ? "/api/auth" : configuredPath,
