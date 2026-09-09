@@ -19,6 +19,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <Link href="/admin" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700"><LayoutDashboard size={17} />Dashboard</Link>
             <Link href="/admin/teacher-requests" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700"><UserPlus size={17} />Teacher requests</Link>
             <Link href="/admin/resources" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700"><BookOpen size={17} />Moderation</Link>
+            <Link href="/admin/questions" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700"><ClipboardList size={17} />Questions</Link>
             <Link href="/admin/resources/inventory" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700"><ClipboardList size={17} />Resource inventory</Link>
             <Link href="/search" className="rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">Public resources</Link>
             <form action={logoutAction}><button type="submit" className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-rose-700"><LogOut size={17} />Logout</button></form>

@@ -38,6 +38,8 @@ export const RATE_LIMIT_POLICIES = {
   "admin-import-apply-ip": { algorithm: "fixed-window", limit: 5, windowMs: HOUR, failureMode: "closed" },
   "teacher-access-request-ip": { algorithm: "sliding-window", limit: 5, windowMs: HOUR, failureMode: "closed" },
   "teacher-access-request-email": { algorithm: "sliding-window", limit: 3, windowMs: DAY, failureMode: "closed" },
+  "student-test-start-user": { algorithm: "fixed-window", limit: 8, windowMs: 10 * MINUTE, failureMode: "closed" },
+  "student-test-submit-user": { algorithm: "fixed-window", limit: 20, windowMs: 10 * MINUTE, failureMode: "closed" },
 } as const satisfies Record<RateLimitPolicy, RateLimitPolicyConfig>;
 
 export const RATE_LIMIT_POLICY_NAMES = Object.freeze(

@@ -28,10 +28,16 @@ export default async function TeacherDashboardPage() {
         </p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link
-            href="/teacher/resources"
+            href="/teacher/questions/new"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-5 text-sm font-bold text-slate-950"
           >
-            Open resource manager <ArrowRight size={17} />
+            Add a test question <ArrowRight size={17} />
+          </Link>
+          <Link
+            href="/teacher/resources"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 text-sm font-bold text-white hover:bg-white/15"
+          >
+            Open resource manager
           </Link>
           <Link
             href="/teacher/inbox"

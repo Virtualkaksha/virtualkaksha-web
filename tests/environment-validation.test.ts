@@ -284,6 +284,8 @@ test("Prisma import is lazy, first use validates safely, and development caches 
     user: { findUnique: () => undefined },
     resource: { findUnique: () => undefined },
     teacherAccessRequest: { findUnique: () => undefined },
+    practiceQuestion: { findUnique: () => undefined },
+    practiceTestAttempt: { findUnique: () => undefined },
   };
   const dependencies = {
     createClient: () => {

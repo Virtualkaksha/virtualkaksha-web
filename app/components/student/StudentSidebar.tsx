@@ -14,12 +14,14 @@ import {
   LibraryBig,
   LogOut,
   MonitorPlay,
+  ScrollText,
   Users,
 } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
+import { CATALOGUE_TYPE_SLUGS, STUDENT_CATALOGUE_SEARCH_PATH, studentCatalogueTypeHref } from "@/lib/resources/catalogue-types";
 
-export const STUDENT_CATALOGUE_SEARCH_PATH = "/student/resources/search";
+export { STUDENT_CATALOGUE_SEARCH_PATH };
 
 /**
  * Entries carrying a resourceType are filtered views of the existing published
@@ -32,20 +34,25 @@ export const studentNavigationItems = [
   {
     label: "NCERT Solutions",
     icon: BookOpenCheck,
-    href: `${STUDENT_CATALOGUE_SEARCH_PATH}?type=ncert-solutions`,
-    resourceType: "ncert-solutions",
+    href: studentCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.ncertSolutions),
+    resourceType: CATALOGUE_TYPE_SLUGS.ncertSolutions,
   },
   {
     label: "Video Lectures",
     icon: MonitorPlay,
-    href: `${STUDENT_CATALOGUE_SEARCH_PATH}?type=video-lectures`,
-    resourceType: "video-lectures",
+    href: studentCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.videoLectures),
+    resourceType: CATALOGUE_TYPE_SLUGS.videoLectures,
+  },
+  {
+    label: "Previous Year Papers",
+    icon: ScrollText,
+    href: studentCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.previousYearQuestions),
+    resourceType: CATALOGUE_TYPE_SLUGS.previousYearQuestions,
   },
   {
     label: "Tests",
     icon: ClipboardList,
-    href: `${STUDENT_CATALOGUE_SEARCH_PATH}?type=chapter-tests`,
-    resourceType: "chapter-tests",
+    href: "/student/tests",
   },
   { label: "Saved", icon: Bookmark, href: "/student/bookmarks" },
   { label: "Continue Learning", icon: BarChart3, href: "/student/continue-learning" },

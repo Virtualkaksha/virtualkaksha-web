@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { CATALOGUE_TYPE_SLUGS, studentCatalogueTypeHref } from "@/lib/resources/catalogue-types";
+
 const learningTracks = [
   {
     title: "CBSE",
@@ -56,31 +58,37 @@ const resourceTypes = [
     title: "Notes",
     description: "Chapter-wise explanations and revision notes.",
     icon: "📄",
+    href: studentCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.notes),
   },
   {
     title: "NCERT Solutions",
     description: "Step-by-step textbook exercise solutions.",
     icon: "📘",
+    href: studentCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.ncertSolutions),
   },
   {
     title: "Video Lectures",
     description: "Learn from different teachers and teaching styles.",
     icon: "🎥",
+    href: studentCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.videoLectures),
   },
   {
     title: "Important Questions",
     description: "Exam-focused questions selected chapter-wise.",
     icon: "❓",
+    href: studentCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.importantQuestions),
   },
   {
     title: "Previous Year Papers",
     description: "Practice with earlier board and entrance papers.",
     icon: "📚",
+    href: studentCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.previousYearQuestions),
   },
   {
     title: "Practice Tests",
     description: "Chapter, subject and full syllabus assessments.",
     icon: "📝",
+    href: "/student/tests",
   },
 ];
 
@@ -187,9 +195,10 @@ export default function StudentResourcesPage() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {resourceTypes.map((resource) => (
-            <article
+            <Link
               key={resource.title}
-              className="rounded-2xl border border-slate-200 bg-white p-5"
+              href={resource.href}
+              className="rounded-2xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
             >
               <div className="flex items-start gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xl">
@@ -204,9 +213,13 @@ export default function StudentResourcesPage() {
                   <p className="mt-1 text-sm leading-6 text-slate-600">
                     {resource.description}
                   </p>
+
+                  <p className="mt-3 text-sm font-semibold text-blue-700">
+                    Browse {resource.title} <span aria-hidden="true">→</span>
+                  </p>
                 </div>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       </section>

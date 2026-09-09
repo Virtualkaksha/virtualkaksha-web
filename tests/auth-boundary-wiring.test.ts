@@ -155,7 +155,7 @@ test("protected layouts use current identity and proxy remains UX-only", async (
     readFile("proxy.ts", "utf8"),
   ]);
   assert.match(admin, /requireCurrentRole\("ADMIN"\)/);
-  assert.match(teacher, /requireCurrentRole\("TEACHER"\)/);
+  assert.match(teacher, /requireAnyCurrentRole\(\["TEACHER", "ADMIN"\]\)/);
   assert.match(student, /getCurrentIdentity\(\)/);
   assert.doesNotMatch(student, /requireCurrentRole\("STUDENT"\)/);
   assert.doesNotMatch(`${admin}\n${teacher}\n${student}`, /session\.user\.roles|token\.roles|requireAdmin|requireTeacher|requireStudent/);

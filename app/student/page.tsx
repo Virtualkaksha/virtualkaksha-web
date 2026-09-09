@@ -294,6 +294,12 @@ function PersonalizedDashboard({ data }: { data: StudentDashboardData }) {
                 Browse library
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
+              <Link
+                href="/student/tests"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                Attempt a test
+              </Link>
             </div>
           </div>
 

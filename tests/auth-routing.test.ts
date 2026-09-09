@@ -117,7 +117,7 @@ test("logout and protected layouts retain server-side role guards", async () => 
   const studentHome = await readFile("app/student/page.tsx", "utf8");
   assert.match(action, /await signOut\(\{ redirectTo: "\/login" \}\)/);
   assert.match(admin, /requireCurrentRole\("ADMIN"\)/);
-  assert.match(teacher, /requireCurrentRole\("TEACHER"\)/);
+  assert.match(teacher, /requireAnyCurrentRole\(\["TEACHER", "ADMIN"\]\)/);
   assert.match(student, /getCurrentIdentity\(\)/);
   assert.match(studentHome, /requireCurrentRole\("STUDENT"\)/);
 });

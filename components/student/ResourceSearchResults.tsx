@@ -1,12 +1,22 @@
 import type { ResourceSearchResultItem } from "@/lib/resources/resource-search";
 import StudentResourceCard from "./StudentResourceCard";
 
-export default function ResourceSearchResults({ items }: { items: ResourceSearchResultItem[] }) {
+type ResourceSearchResultsProps = {
+  items: ResourceSearchResultItem[];
+  emptyTitle?: string;
+  emptyDescription?: string;
+};
+
+export default function ResourceSearchResults({
+  items,
+  emptyTitle = "No resources found",
+  emptyDescription = "Try a broader search or remove one of the filters.",
+}: ResourceSearchResultsProps) {
   if (items.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-        <h2 className="text-xl font-bold text-slate-900">No resources found</h2>
-        <p className="mt-2 text-sm text-slate-600">Try a broader search or remove one of the filters.</p>
+        <h2 className="text-xl font-bold text-slate-900">{emptyTitle}</h2>
+        <p className="mt-2 text-sm text-slate-600">{emptyDescription}</p>
       </div>
     );
   }
@@ -17,3 +27,4 @@ export default function ResourceSearchResults({ items }: { items: ResourceSearch
     </div>
   );
 }
+

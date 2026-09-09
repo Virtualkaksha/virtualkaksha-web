@@ -1,10 +1,12 @@
 import Link from "next/link";
 
+import { CATALOGUE_TYPE_SLUGS, publicCatalogueTypeHref } from "@/lib/resources/catalogue-types";
+
 const resources = [
   ["Browse resources", "/search"],
-  ["Notes", "/search?type=notes"],
-  ["Practice tests", "/search?type=mock-test"],
-  ["Previous papers", "/search?type=previous-year-paper"],
+  ["Notes", publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.notes)],
+  ["Practice tests", publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.chapterTests)],
+  ["Previous Year Papers", publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.previousYearQuestions)],
 ] as const;
 
 const company = [

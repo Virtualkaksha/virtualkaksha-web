@@ -1,32 +1,34 @@
 import Link from "next/link";
 
+import { CATALOGUE_TYPE_SLUGS, publicCatalogueTypeHref } from "@/lib/resources/catalogue-types";
+
 const quickResources = [
   {
     title: "Study Notes",
     description: "Chapter-wise concepts",
     icon: "📘",
-    href: "/search?type=notes",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.notes),
     background: "bg-blue-50",
   },
   {
     title: "NCERT Solutions",
     description: "Step-by-step answers",
     icon: "📚",
-    href: "/search?type=ncert-solutions",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.ncertSolutions),
     background: "bg-emerald-50",
   },
   {
-    title: "Mock Tests",
-    description: "Test your preparation",
-    icon: "📝",
-    href: "/search?type=mock-test",
+    title: "Previous Year Papers",
+    description: "Board and exam papers",
+    icon: "📄",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.previousYearQuestions),
     background: "bg-amber-50",
   },
   {
     title: "Video Lectures",
     description: "Learn visually",
     icon: "🎥",
-    href: "/search?type=video-lecture",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.videoLectures),
     background: "bg-violet-50",
   },
 ];
@@ -52,8 +54,8 @@ export default function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl text-base leading-8 text-slate-600 sm:text-lg">
-            Access organised notes, NCERT solutions, video lectures,
-            important questions and practice tests—all in one learning
+            Access organised notes, NCERT solutions, previous year papers,
+            video lectures and practice tests—all in one learning
             platform.
           </p>
 

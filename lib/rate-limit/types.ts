@@ -20,7 +20,9 @@ export type RateLimitPolicy =
   | "admin-import-apply-user"
   | "admin-import-apply-ip"
   | "teacher-access-request-ip"
-  | "teacher-access-request-email";
+  | "teacher-access-request-email"
+  | "student-test-start-user"
+  | "student-test-submit-user";
 
 export type RateLimitDecision = {
   allowed: boolean;

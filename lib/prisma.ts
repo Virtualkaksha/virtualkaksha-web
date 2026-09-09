@@ -3,6 +3,7 @@ import "server-only";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/app/generated/prisma/client";
 
+import { installPostgresDnsFallback } from "@/lib/db/postgres-dns";
 import { getDatabaseEnvironment, type EnvironmentSource } from "@/lib/env";
 
 const globalForPrisma = globalThis as unknown as {
@@ -23,14 +24,20 @@ const REQUIRED_MODEL_DELEGATES = [
   "user",
   "resource",
   "teacherAccessRequest",
+  "practiceQuestion",
+  "practiceTestAttempt",
 ] as const;
 
 function createPrismaClient({ connectionString, log }: {
   connectionString: string;
   log: Array<"warn" | "error">;
 }) {
+  installPostgresDnsFallback();
   return new PrismaClient({
-    adapter: new PrismaPg({ connectionString }),
+    adapter: new PrismaPg({
+      connectionString,
+      connectionTimeoutMillis: 20_000,
+    }),
     log,
   });
 }

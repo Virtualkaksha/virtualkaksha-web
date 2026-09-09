@@ -36,6 +36,8 @@ const expectedPolicies = {
   "admin-import-apply-ip": [5, 3_600_000, "closed"],
   "teacher-access-request-ip": [5, 3_600_000, "closed"],
   "teacher-access-request-email": [3, 86_400_000, "closed"],
+  "student-test-start-user": [8, 600_000, "closed"],
+  "student-test-submit-user": [20, 600_000, "closed"],
 } as const;
 
 test("every required policy has the expected limit, window and failure mode", () => {

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { BookOpen, Inbox, LayoutDashboard, LibraryBig, LogOut } from "lucide-react";
+import { BookOpen, ClipboardList, Inbox, LayoutDashboard, LibraryBig, LogOut } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
 import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
@@ -32,6 +32,9 @@ export default async function TeacherLayout({ children }: { children: ReactNode 
             </Link>
             <Link href="/teacher/resources" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
               <LibraryBig size={17} /> Resources
+            </Link>
+            <Link href="/teacher/questions" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
+              <ClipboardList size={17} /> Questions
             </Link>
             <Link href="/search" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-blue-700">
               <BookOpen size={17} /> Public resources

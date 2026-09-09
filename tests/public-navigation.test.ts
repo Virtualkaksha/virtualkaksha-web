@@ -18,6 +18,31 @@ test("public navigation uses real routes and excludes retired destinations", asy
   assert.doesNotMatch(joined, /["']\/(?:courses|notes|tests|student\/settings)["']/);
 });
 
+test("previous year papers and other catalogue links use seeded type slugs", async () => {
+  const source = (
+    await Promise.all(
+      [
+        "app/components/NavbarClient.tsx",
+        "app/components/Footer.tsx",
+        "app/components/Hero.tsx",
+        "app/components/PopularResources.tsx",
+        "app/components/PracticeTests.tsx",
+        "app/components/student/StudentSidebar.tsx",
+        "app/student/resources/page.tsx",
+        "lib/resources/catalogue-types.ts",
+      ].map((file) => readFile(file, "utf8")),
+    )
+  ).join("\n");
+  assert.match(source, /previousYearQuestions:\s*"previous-year-questions"/);
+  assert.match(source, /videoLectures:\s*"video-lectures"/);
+  assert.match(source, /chapterTests:\s*"chapter-tests"/);
+  assert.match(source, /CATALOGUE_TYPE_SLUGS\.previousYearQuestions/);
+  assert.match(source, /Previous Year Papers/);
+  assert.doesNotMatch(source, /type=previous-year-paper(?:["'&]|$)/);
+  assert.doesNotMatch(source, /type=mock-test/);
+  assert.doesNotMatch(source, /type=video-lecture(?!s)/);
+});
+
 test("student navigation exposes only implemented destinations", async () => {
   const sidebar = await readFile("app/components/student/StudentSidebar.tsx", "utf8");
   const topbar = await readFile("app/components/student/StudentTopbar.tsx", "utf8");
@@ -31,6 +56,7 @@ test("student navigation exposes only implemented destinations", async () => {
     "/student/teachers": "app/student/teachers/page.tsx",
     "/student/coaching-institutes": "app/student/coaching-institutes/page.tsx",
     "/student/profile": "app/student/profile/page.tsx",
+    "/student/tests": "app/student/tests/page.tsx",
     "/contact": "app/contact/page.tsx",
   } as const;
 
@@ -42,7 +68,9 @@ test("student navigation exposes only implemented destinations", async () => {
   assert.match(topbar, /studentSupportNavigationItem/);
   // Catalogue filters must stay query parameters on the working search page rather
   // than becoming separate routes with nothing behind them.
-  assert.doesNotMatch(`${sidebar}\n${topbar}\n${resources}`, /\/student\/(?:settings|tests|courses|coachings|ncert-solutions|video-lectures|notifications)/);
+  assert.doesNotMatch(`${sidebar}\n${topbar}\n${resources}`, /\/student\/(?:settings|courses|coachings|ncert-solutions|video-lectures|notifications)/);
+  assert.match(sidebar, /label: "Previous Year Papers"/);
+  assert.match(sidebar, /label: "Tests"[\s\S]{0,80}href: "\/student\/tests"/);
   assert.match(studentLayout, /getCurrentIdentity\(\)/);
   assert.match(studentLayout, /Sign in/);
 });

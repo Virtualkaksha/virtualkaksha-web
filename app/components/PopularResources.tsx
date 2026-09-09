@@ -1,42 +1,44 @@
 import SectionTitle from "./ui/SectionTitle";
 import Link from "next/link";
 
+import { CATALOGUE_TYPE_SLUGS, publicCatalogueTypeHref } from "@/lib/resources/catalogue-types";
+
 const resources = [
   {
     icon: "📚",
     title: "Notes",
     description: "Chapter-wise notes for quick learning and revision.",
-    href: "/search?type=notes",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.notes),
   },
   {
     icon: "📝",
     title: "NCERT Solutions",
     description: "Clear and step-by-step solutions for NCERT questions.",
-    href: "/search?type=ncert-solutions",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.ncertSolutions),
   },
   {
     icon: "🎥",
     title: "Video Lectures",
     description: "Easy-to-understand lectures for difficult concepts.",
-    href: "/search?type=video-lecture",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.videoLectures),
   },
   {
     icon: "🧪",
     title: "Mock Tests",
     description: "Practice tests to improve speed, accuracy and confidence.",
-    href: "/search?type=mock-test",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.chapterTests),
   },
   {
     icon: "📄",
     title: "Previous Year Papers",
     description: "Prepare better with board and competitive exam papers.",
-    href: "/search?type=previous-year-paper",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.previousYearQuestions),
   },
   {
     icon: "❓",
     title: "Important Questions",
     description: "Exam-focused questions selected chapter by chapter.",
-    href: "/search?type=important-questions",
+    href: publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.importantQuestions),
   },
 ];
 

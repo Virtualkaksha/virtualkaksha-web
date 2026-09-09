@@ -5,10 +5,12 @@ import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
 import { logoutAction } from "@/app/(auth)/actions";
+import { CATALOGUE_TYPE_SLUGS, publicCatalogueTypeHref } from "@/lib/resources/catalogue-types";
 
 const links = [
   ["Home", "/"],
   ["Resources", "/search"],
+  ["Previous Year Papers", publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.previousYearQuestions)],
   ["Teachers", "/#teachers"],
   ["About", "/about"],
   ["Contact", "/contact"],

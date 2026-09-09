@@ -3,6 +3,10 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../app/generated/prisma/client";
 import { chaptersForSubject as catalogueChapters } from "./chapter-catalogue";
+import { class12ChemistryQuestions } from "./practice-questions/class-12-chemistry";
+import { class12MathematicsQuestions } from "./practice-questions/class-12-mathematics";
+import { class12PhysicsQuestions } from "./practice-questions/class-12-physics";
+import type { PracticeQuestionSeed } from "./practice-questions/types";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -173,11 +177,11 @@ const resourceTypes = [
     sortOrder: 5,
   },
   {
-    name: "Previous Year Questions",
-    nameHindi: "पिछले वर्ष के प्रश्न",
+    name: "Previous Year Papers",
+    nameHindi: "पिछले वर्ष के प्रश्न पत्र",
     code: "PREVIOUS_YEAR_QUESTIONS",
     slug: "previous-year-questions",
-    description: "Previous board and competitive examination questions.",
+    description: "Previous board and competitive examination papers.",
     iconName: "📚",
     sortOrder: 6,
   },
@@ -867,6 +871,387 @@ async function seedChapters(
   }
 }
 
+const samplePracticeQuestions: Array<{
+  chapterSlug: string;
+  prompt: string;
+  options: [string, string, string, string];
+  correctOption: number;
+  explanation: string;
+}> = [
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "Which observation best shows that a chemical reaction has taken place?",
+    options: ["Ice melting into water", "A new substance forming with a colour change", "Salt dissolving in water", "Water evaporating from a plate"],
+    correctOption: 1,
+    explanation: "A chemical reaction produces new substances, often with a colour change, gas, or temperature change.",
+  },
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "Balancing a chemical equation is required because of the law of conservation of",
+    options: ["energy only", "momentum", "mass", "volume"],
+    correctOption: 2,
+    explanation: "Atoms are neither created nor destroyed, so mass stays the same on both sides.",
+  },
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "Rusting of iron is an example of",
+    options: ["a combination reaction", "a displacement reaction", "a double displacement reaction", "a photochemical decomposition only"],
+    correctOption: 0,
+    explanation: "Iron combines with oxygen (and moisture) to form rust.",
+  },
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "The reaction 2AgCl → 2Ag + Cl2 in sunlight is",
+    options: ["combination", "displacement", "photochemical decomposition", "neutralisation"],
+    correctOption: 2,
+    explanation: "Silver chloride decomposes in light, which is photochemical decomposition.",
+  },
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "In a displacement reaction, a more reactive metal",
+    options: ["combines with a less reactive metal", "replaces a less reactive metal from its compound", "splits into two new metals", "always forms an acid"],
+    correctOption: 1,
+    explanation: "The more reactive metal displaces the less reactive one from its salt solution.",
+  },
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "Which of these is an oxidation process?",
+    options: ["Gain of hydrogen", "Loss of oxygen", "Gain of electrons only", "Gain of oxygen"],
+    correctOption: 3,
+    explanation: "Oxidation can be described as gain of oxygen or loss of hydrogen/electrons.",
+  },
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "A reaction that releases heat is called",
+    options: ["endothermic", "exothermic", "photochemical", "neutral"],
+    correctOption: 1,
+    explanation: "Exothermic reactions give out heat to the surroundings.",
+  },
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "BaCl2 + Na2SO4 → BaSO4 + 2NaCl is an example of",
+    options: ["combination", "decomposition", "double displacement", "displacement"],
+    correctOption: 2,
+    explanation: "The cations exchange partners, which is double displacement.",
+  },
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "Which change is physical rather than chemical?",
+    options: ["Burning of magnesium", "Rusting of an iron nail", "Melting of wax", "Cooking of food"],
+    correctOption: 2,
+    explanation: "Melting changes state but not the chemical identity of wax.",
+  },
+  {
+    chapterSlug: "chemical-reactions-and-equations",
+    prompt: "Oiling or painting iron prevents rusting mainly by",
+    options: ["adding more oxygen", "keeping air and moisture away", "making iron more reactive", "converting iron into copper"],
+    correctOption: 1,
+    explanation: "A coating cuts off contact with oxygen and water needed for rusting.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "An acid turns blue litmus paper",
+    options: ["blue", "green", "red", "colourless"],
+    correctOption: 2,
+    explanation: "Acids turn blue litmus red.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "Aqueous solutions of bases generally feel",
+    options: ["oily or soapy", "sticky like honey", "dry like chalk", "cold like ice only"],
+    correctOption: 0,
+    explanation: "Bases often feel soapy because they react with oils on the skin.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "The pH of a strong acid solution is typically",
+    options: ["close to 14", "exactly 7", "less than 7", "always 10"],
+    correctOption: 2,
+    explanation: "Acids have pH below 7; strong acids are much lower than 7.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "Neutralisation of an acid with a base produces",
+    options: ["only hydrogen gas", "salt and water", "only oxygen", "metal and acid"],
+    correctOption: 1,
+    explanation: "Acid + base → salt + water.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "Which of the following is a strong acid among typical school examples?",
+    options: ["Acetic acid", "Citric acid", "Hydrochloric acid", "Carbonic acid"],
+    correctOption: 2,
+    explanation: "HCl ionises almost completely in water, so it is a strong acid.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "Tooth enamel starts to corrode when the mouth pH falls below about",
+    options: ["9.5", "7.0", "5.5", "2.0"],
+    correctOption: 2,
+    explanation: "Acidic food and bacteria can drop mouth pH below 5.5 and damage enamel.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "Plaster of Paris is obtained by heating",
+    options: ["washing soda", "gypsum", "bleaching powder", "baking soda"],
+    correctOption: 1,
+    explanation: "Controlled heating of gypsum gives plaster of Paris.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "Bleaching powder is produced by the action of chlorine on",
+    options: ["dry slaked lime", "washing soda", "common salt only", "sulphuric acid"],
+    correctOption: 0,
+    explanation: "Chlorine gas passed over dry slaked lime gives bleaching powder.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "Washing soda is",
+    options: ["sodium hydrogen carbonate", "calcium hydroxide", "sodium carbonate", "ammonium chloride"],
+    correctOption: 2,
+    explanation: "Washing soda is sodium carbonate, used in cleaning and glass making.",
+  },
+  {
+    chapterSlug: "acids-bases-and-salts",
+    prompt: "Which indicator is an olfactory indicator?",
+    options: ["Litmus", "Methyl orange", "Vanilla essence", "Phenolphthalein"],
+    correctOption: 2,
+    explanation: "Olfactory indicators such as vanilla change smell in acid or base.",
+  },
+  {
+    chapterSlug: "metals-and-non-metals",
+    prompt: "Which property is typical of metals?",
+    options: ["They are generally brittle in solid state", "They are generally good conductors of heat", "They form acidic oxides only", "They are poor conductors of electricity"],
+    correctOption: 1,
+    explanation: "Most metals conduct heat and electricity well and are malleable and ductile.",
+  },
+  {
+    chapterSlug: "metals-and-non-metals",
+    prompt: "The most reactive metal among these is",
+    options: ["Copper", "Iron", "Sodium", "Gold"],
+    correctOption: 2,
+    explanation: "Sodium is a highly reactive alkali metal; gold is among the least reactive.",
+  },
+  {
+    chapterSlug: "metals-and-non-metals",
+    prompt: "Anodising is used to protect",
+    options: ["Iron from rusting", "Aluminium by thickening its oxide layer", "Copper from turning green", "Gold from tarnishing"],
+    correctOption: 1,
+    explanation: "Anodising thickens the natural oxide film on aluminium.",
+  },
+  {
+    chapterSlug: "metals-and-non-metals",
+    prompt: "Which oxide is amphoteric?",
+    options: ["Na2O", "MgO", "Al2O3", "SO2"],
+    correctOption: 2,
+    explanation: "Aluminium oxide reacts with both acids and bases, so it is amphoteric.",
+  },
+  {
+    chapterSlug: "metals-and-non-metals",
+    prompt: "In the activity series, a metal can displace another metal from solution if it is",
+    options: ["less reactive", "more reactive", "heavier", "a non-metal"],
+    correctOption: 1,
+    explanation: "A more reactive metal displaces a less reactive metal from its salt solution.",
+  },
+  {
+    chapterSlug: "metals-and-non-metals",
+    prompt: "Ionic compounds in the solid state generally",
+    options: ["conduct electricity well", "have low melting points", "do not conduct electricity", "are always liquids"],
+    correctOption: 2,
+    explanation: "Ions are not free to move in the solid lattice, so they do not conduct until molten or dissolved.",
+  },
+  {
+    chapterSlug: "metals-and-non-metals",
+    prompt: "The process used to obtain a metal from its ore is called",
+    options: ["galvanisation", "metallurgy", "neutralisation", "photosynthesis"],
+    correctOption: 1,
+    explanation: "Metallurgy covers extraction and refining of metals from ores.",
+  },
+  {
+    chapterSlug: "carbon-and-its-compounds",
+    prompt: "Carbon forms a large number of compounds mainly because of",
+    options: ["its metallic nature", "catenation and tetravalency", "its high density", "its radioactivity"],
+    correctOption: 1,
+    explanation: "Carbon can form four bonds and long chains with other carbon atoms.",
+  },
+  {
+    chapterSlug: "carbon-and-its-compounds",
+    prompt: "A hydrocarbon with only single bonds is called",
+    options: ["an alkene", "an alkyne", "an alkane", "an ester"],
+    correctOption: 2,
+    explanation: "Alkanes are saturated hydrocarbons with C–C single bonds.",
+  },
+  {
+    chapterSlug: "carbon-and-its-compounds",
+    prompt: "Ethanol on heating with alkaline KMnO4 is oxidised to",
+    options: ["ethene", "ethanoic acid", "methane", "glucose"],
+    correctOption: 1,
+    explanation: "Alkaline KMnO4 oxidises ethanol to ethanoic acid.",
+  },
+  {
+    chapterSlug: "carbon-and-its-compounds",
+    prompt: "Soap molecules clean grease because they have",
+    options: ["only a hydrophilic part", "only a hydrophobic part", "both hydrophobic and hydrophilic parts", "no charged groups"],
+    correctOption: 2,
+    explanation: "The tail mixes with oil and the head mixes with water, forming micelles.",
+  },
+  {
+    chapterSlug: "carbon-and-its-compounds",
+    prompt: "The functional group in carboxylic acids is",
+    options: ["–OH", "–CHO", "–COOH", "–CO–"],
+    correctOption: 2,
+    explanation: "Carboxylic acids contain the –COOH group.",
+  },
+  {
+    chapterSlug: "carbon-and-its-compounds",
+    prompt: "Covalent compounds generally",
+    options: ["have high melting points and conduct in solid state", "have low melting points and do not conduct electricity", "are always soluble in water", "are all metals"],
+    correctOption: 1,
+    explanation: "They have weak intermolecular forces and no free ions or electrons.",
+  },
+  {
+    chapterSlug: "carbon-and-its-compounds",
+    prompt: "Addition reactions are characteristic of",
+    options: ["saturated hydrocarbons", "unsaturated hydrocarbons", "ionic salts", "noble gases"],
+    correctOption: 1,
+    explanation: "Alkenes and alkynes add hydrogen, halogens or water across the multiple bond.",
+  },
+  {
+    chapterSlug: "life-processes",
+    prompt: "The process by which green plants make food using sunlight is",
+    options: ["respiration", "transpiration", "photosynthesis", "excretion"],
+    correctOption: 2,
+    explanation: "Photosynthesis converts carbon dioxide and water into glucose using sunlight.",
+  },
+  {
+    chapterSlug: "life-processes",
+    prompt: "In humans, most digestion of food occurs in the",
+    options: ["mouth", "stomach", "small intestine", "large intestine"],
+    correctOption: 2,
+    explanation: "The small intestine is the main site of digestion and absorption.",
+  },
+  {
+    chapterSlug: "life-processes",
+    prompt: "Which blood vessel carries oxygenated blood from the lungs to the heart?",
+    options: ["Pulmonary artery", "Pulmonary vein", "Vena cava", "Aorta from the lungs"],
+    correctOption: 1,
+    explanation: "Pulmonary veins bring oxygen-rich blood from the lungs to the left atrium.",
+  },
+  {
+    chapterSlug: "life-processes",
+    prompt: "The breakdown of glucose in the presence of oxygen is called",
+    options: ["anaerobic respiration", "aerobic respiration", "transpiration", "fermentation only in leaves"],
+    correctOption: 1,
+    explanation: "Aerobic respiration uses oxygen and releases more energy than anaerobic respiration.",
+  },
+  {
+    chapterSlug: "life-processes",
+    prompt: "The basic filtration unit in the human kidney is the",
+    options: ["neuron", "alveolus", "nephron", "capillary only"],
+    correctOption: 2,
+    explanation: "Each kidney contains many nephrons that filter blood and form urine.",
+  },
+  {
+    chapterSlug: "life-processes",
+    prompt: "Stomata in leaves mainly help in",
+    options: ["absorbing minerals from soil", "exchange of gases and transpiration", "transport of food to roots", "producing blood cells"],
+    correctOption: 1,
+    explanation: "Stomata allow CO2 in, O2 out, and water vapour to leave during transpiration.",
+  },
+];
+
+async function seedPracticeQuestions() {
+  const questions: PracticeQuestionSeed[] = [
+    ...samplePracticeQuestions.map((question) => ({
+      boardSlug: "cbse",
+      classSlug: "class-10",
+      subjectSlug: "science",
+      ...question,
+    })),
+    ...class12PhysicsQuestions,
+    ...class12ChemistryQuestions,
+    ...class12MathematicsQuestions,
+  ];
+
+  const groups = new Map<string, PracticeQuestionSeed[]>();
+  for (const question of questions) {
+    const key = `${question.boardSlug}:${question.classSlug}:${question.subjectSlug}`;
+    const group = groups.get(key) ?? [];
+    group.push(question);
+    groups.set(key, group);
+  }
+
+  const now = new Date();
+
+  for (const [key, group] of groups) {
+    const [boardSlug, classSlug, subjectSlug] = key.split(":");
+    const board = await prisma.board.findUnique({ where: { slug: boardSlug }, select: { id: true } });
+    const classLevel = await prisma.classLevel.findUnique({ where: { slug: classSlug }, select: { id: true } });
+    const subject = await prisma.subject.findUnique({ where: { slug: subjectSlug }, select: { id: true } });
+
+    if (!board || !classLevel || !subject) {
+      throw new Error(`${boardSlug} ${classSlug} ${subjectSlug} was not created.`);
+    }
+
+    const mapping = await prisma.boardClassSubject.findUnique({
+      where: {
+        boardId_classLevelId_subjectId: {
+          boardId: board.id,
+          classLevelId: classLevel.id,
+          subjectId: subject.id,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!mapping) {
+      throw new Error(`${boardSlug} ${classSlug} ${subjectSlug} mapping was not created.`);
+    }
+
+    const chapterSlugs = [...new Set(group.map((question) => question.chapterSlug))];
+    const chapters = await prisma.chapter.findMany({
+      where: {
+        boardClassSubjectId: mapping.id,
+        slug: { in: chapterSlugs },
+      },
+      select: { id: true, slug: true },
+    });
+    const chapterIds = new Map(chapters.map((chapter) => [chapter.slug, chapter.id]));
+
+    const existing = await prisma.practiceQuestion.findMany({
+      where: { chapterId: { in: [...chapterIds.values()] } },
+      select: { chapterId: true, prompt: true },
+    });
+    const seen = new Set(existing.map((row) => `${row.chapterId}::${row.prompt}`));
+
+    const data = [];
+    for (const question of group) {
+      const chapterId = chapterIds.get(question.chapterSlug);
+      if (!chapterId) {
+        throw new Error(`Chapter ${question.chapterSlug} was not created for ${key}.`);
+      }
+      if (seen.has(`${chapterId}::${question.prompt}`)) continue;
+      data.push({
+        chapterId,
+        prompt: question.prompt,
+        optionA: question.options[0],
+        optionB: question.options[1],
+        optionC: question.options[2],
+        optionD: question.options[3],
+        correctOption: question.correctOption,
+        explanation: question.explanation,
+        status: "PUBLISHED" as const,
+        publishedAt: now,
+        reviewedAt: now,
+      });
+    }
+
+    if (data.length) {
+      await prisma.practiceQuestion.createMany({ data });
+    }
+  }
+}
+
 async function main() {
   console.log("Starting VirtualKaksha database seed...");
 
@@ -908,10 +1293,18 @@ async function main() {
     data: { isActive: false },
   });
 
+  await seedPracticeQuestions();
+
   console.log("VirtualKaksha database seed completed successfully.");
 }
 
-main()
+const run = process.argv.includes("--practice-questions-only")
+  ? seedPracticeQuestions().then(() => {
+      console.log("Practice questions seed completed successfully.");
+    })
+  : main();
+
+run
   .then(async () => {
     await prisma.$disconnect();
   })

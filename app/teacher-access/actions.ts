@@ -57,15 +57,23 @@ export async function requestTeacherAccessAction(
     };
   }
 
-  const result = await submitTeacherAccessRequest({
-    ...parsed.data,
-    lastName: parsed.data.lastName || undefined,
-    phone: parsed.data.phone || undefined,
-    city: parsed.data.city || undefined,
-    message: parsed.data.message || undefined,
-    experienceYears: parsed.data.experienceYears || undefined,
-    request: buildRequestFromHeaders(headerList),
-  });
+  let result;
+  try {
+    result = await submitTeacherAccessRequest({
+      ...parsed.data,
+      lastName: parsed.data.lastName || undefined,
+      phone: parsed.data.phone || undefined,
+      city: parsed.data.city || undefined,
+      message: parsed.data.message || undefined,
+      experienceYears: parsed.data.experienceYears || undefined,
+      request: buildRequestFromHeaders(headerList),
+    });
+  } catch {
+    return {
+      status: "error",
+      message: "The service is temporarily unavailable. Please try again in a moment.",
+    };
+  }
 
   if (!result.accepted) {
     if (result.reason === "already-teacher") {

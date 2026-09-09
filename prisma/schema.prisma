@@ -120,6 +120,18 @@ enum TeacherAccessRequestStatus {
   REJECTED
 }
 
+enum PracticeTestKind {
+  CHAPTER
+  COMBINED_CHAPTER
+  SUBJECT
+  FULL_CLASS
+}
+
+enum PracticeTestAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
 // ======================================================
 // USERS AND ROLES
 // ======================================================
@@ -149,8 +161,11 @@ model User {
   resourcesReviewed      Resource[]              @relation("ResourceReviewedBy")
   resourceMetadataAudits ResourceMetadataAudit[] @relation("ResourceMetadataAuditActor")
   resourceAssetAudits    ResourceAssetAudit[]    @relation("ResourceAssetAuditActor")
-  teacherAccessReviews   TeacherAccessRequest[]  @relation("TeacherAccessReviewedBy")
-  teacherAccessAccounts  TeacherAccessRequest[]  @relation("TeacherAccessCreatedUser")
+  teacherAccessReviews          TeacherAccessRequest[]  @relation("TeacherAccessReviewedBy")
+  teacherAccessAccounts         TeacherAccessRequest[]  @relation("TeacherAccessCreatedUser")
+  practiceQuestionsCreated      PracticeQuestion[]      @relation("PracticeQuestionCreatedBy")
+  practiceQuestionsReviewed     PracticeQuestion[]      @relation("PracticeQuestionReviewedBy")
+  practiceTestAttempts          PracticeTestAttempt[]
 }
 
 model Role {
@@ -305,8 +320,9 @@ model Board {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  boardClassSubjects BoardClassSubject[]
-  studentProfiles    StudentProfile[]
+  boardClassSubjects     BoardClassSubject[]
+  studentProfiles        StudentProfile[]
+  practiceTestAttempts   PracticeTestAttempt[]
 
   @@unique([shortName, stateCode])
   @@index([boardType])
@@ -324,8 +340,9 @@ model ClassLevel {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  boardClassSubjects BoardClassSubject[]
-  studentProfiles    StudentProfile[]
+  boardClassSubjects     BoardClassSubject[]
+  studentProfiles        StudentProfile[]
+  practiceTestAttempts   PracticeTestAttempt[]
 
   @@index([isActive])
   @@index([sortOrder])
@@ -343,8 +360,9 @@ model Subject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  boardClassSubjects BoardClassSubject[]
-  examSubjects       ExamSubject[]
+  boardClassSubjects     BoardClassSubject[]
+  examSubjects           ExamSubject[]
+  practiceTestAttempts   PracticeTestAttempt[]
 
   @@index([isActive])
   @@index([sortOrder])
@@ -384,8 +402,10 @@ model Chapter {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  boardClassSubject BoardClassSubject @relation(fields: [boardClassSubjectId], references: [id], onDelete: Cascade)
-  resources         Resource[]
+  boardClassSubject            BoardClassSubject @relation(fields: [boardClassSubjectId], references: [id], onDelete: Cascade)
+  resources                    Resource[]
+  practiceQuestions            PracticeQuestion[]
+  practiceTestAttemptChapters  PracticeTestAttemptChapter[]
 
   @@unique([boardClassSubjectId, slug])
   @@index([boardClassSubjectId])
@@ -692,4 +712,99 @@ model TeacherAccessRequest {
   @@index([email])
   @@index([reviewedByUserId])
   @@index([createdUserId])
+}
+
+// ======================================================
+// PRACTICE TESTS
+// Teachers write MCQs. Students sit auto-generated papers.
+// ======================================================
+
+model PracticeQuestion {
+  id               String            @id @default(cuid())
+  chapterId        String
+  createdByUserId  String?
+  reviewedByUserId String?
+  prompt           String
+  optionA          String
+  optionB          String
+  optionC          String
+  optionD          String
+  correctOption    Int
+  explanation      String?
+  status           PublicationStatus @default(DRAFT)
+  publishedAt      DateTime?
+  reviewedAt       DateTime?
+  moderationNote   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  chapter    Chapter                 @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  createdBy  User?                   @relation("PracticeQuestionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reviewedBy User?                   @relation("PracticeQuestionReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  attemptItems PracticeTestAttemptItem[]
+
+  @@index([chapterId, status])
+  @@index([createdByUserId])
+  @@index([reviewedByUserId])
+  @@index([status])
+}
+
+model PracticeTestAttempt {
+  id             String                     @id @default(cuid())
+  studentUserId  String
+  kind           PracticeTestKind
+  boardId        String
+  classLevelId   String
+  subjectId      String?
+  status         PracticeTestAttemptStatus  @default(IN_PROGRESS)
+  scoreCorrect   Int                        @default(0)
+  scoreTotal     Int                        @default(0)
+  startedAt      DateTime                   @default(now())
+  submittedAt    DateTime?
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+
+  student    User                           @relation(fields: [studentUserId], references: [id], onDelete: Cascade)
+  board      Board                          @relation(fields: [boardId], references: [id], onDelete: Restrict)
+  classLevel ClassLevel                     @relation(fields: [classLevelId], references: [id], onDelete: Restrict)
+  subject    Subject?                       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  chapters   PracticeTestAttemptChapter[]
+  items      PracticeTestAttemptItem[]
+
+  @@index([studentUserId, status, startedAt])
+  @@index([boardId])
+  @@index([classLevelId])
+  @@index([subjectId])
+}
+
+model PracticeTestAttemptChapter {
+  attemptId String
+  chapterId String
+
+  attempt PracticeTestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  chapter Chapter             @relation(fields: [chapterId], references: [id], onDelete: Restrict)
+
+  @@id([attemptId, chapterId])
+  @@index([chapterId])
+}
+
+model PracticeTestAttemptItem {
+  id             String  @id @default(cuid())
+  attemptId      String
+  questionId     String
+  sortOrder      Int
+  prompt         String
+  optionA        String
+  optionB        String
+  optionC        String
+  optionD        String
+  correctOption  Int
+  selectedOption Int?
+
+  attempt  PracticeTestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question PracticeQuestion    @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, sortOrder])
+  @@index([attemptId])
+  @@index([questionId])
 }
