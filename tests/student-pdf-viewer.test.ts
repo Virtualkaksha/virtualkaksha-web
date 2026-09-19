@@ -106,6 +106,16 @@ test("React-PDF navigation changes only the selected Page while Document stays m
   assert.match(source, /navigationLockedRef\.current/);
 });
 
+test("React-PDF page turns animate and keep Document mounted", async () => {
+  const source = await readFile("components/student/StudentPdfCanvasViewer.tsx", "utf8");
+  assert.match(source, /pdf-page-enter-next/);
+  assert.match(source, /pdf-page-enter-previous/);
+  assert.match(source, /pdf-scroller/);
+  assert.match(source, /addEventListener\("wheel"/);
+  assert.doesNotMatch(source, /<Document\s+key=/);
+  assert.doesNotMatch(source, /<Page\s+key=/);
+});
+
 test("React-PDF navigation disables Previous and Next at boundaries and during rendering", async () => {
   const source = await readFile("components/student/StudentPdfCanvasViewer.tsx", "utf8");
   assert.match(source, /disabled=\{!numPages \|\| isPageRendering \|\| page <= 1\}/);

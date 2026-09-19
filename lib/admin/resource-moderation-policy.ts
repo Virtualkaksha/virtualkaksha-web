@@ -1,4 +1,4 @@
-export type AdminModerationAction = "APPROVE" | "REJECT" | "ARCHIVE";
+export type AdminModerationAction = "APPROVE" | "REJECT" | "ARCHIVE" | "UNARCHIVE";
 
 type ModerationStatus =
   | "DRAFT"
@@ -12,13 +12,14 @@ const actionsByStatus: Record<ModerationStatus, readonly AdminModerationAction[]
   PENDING_REVIEW: ["APPROVE", "REJECT", "ARCHIVE"],
   PUBLISHED: ["ARCHIVE"],
   REJECTED: ["ARCHIVE"],
-  ARCHIVED: [],
+  ARCHIVED: ["UNARCHIVE"],
 };
 
 const allowedStatusesByAction: Record<AdminModerationAction, readonly ModerationStatus[]> = {
   APPROVE: ["PENDING_REVIEW"],
   REJECT: ["PENDING_REVIEW"],
   ARCHIVE: ["PENDING_REVIEW", "PUBLISHED", "REJECTED"],
+  UNARCHIVE: ["ARCHIVED"],
 };
 
 export function getAdminModerationActions(status: ModerationStatus) {
@@ -38,7 +39,7 @@ type ModerationUpdate = {
     status: { in: ModerationStatus[] };
   };
   data: {
-    status: "PUBLISHED" | "REJECTED" | "ARCHIVED";
+    status: "PUBLISHED" | "REJECTED" | "ARCHIVED" | "PENDING_REVIEW";
     publishedAt: Date | null;
     reviewedAt: Date;
     reviewedByUserId: string;
@@ -62,7 +63,9 @@ export async function transitionAdminResource(
     ? { ...common, status: "PUBLISHED" as const, publishedAt: now, moderationNote: null }
     : input.action === "REJECT"
       ? { ...common, status: "REJECTED" as const, publishedAt: null, moderationNote: input.reason ?? "" }
-      : { ...common, status: "ARCHIVED" as const, publishedAt: null };
+      : input.action === "UNARCHIVE"
+        ? { ...common, status: "PENDING_REVIEW" as const, publishedAt: null, moderationNote: null }
+        : { ...common, status: "ARCHIVED" as const, publishedAt: null };
 
   const result = await updateMany({
     where: {

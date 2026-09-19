@@ -20,7 +20,7 @@ export const AUTH_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24;
 
 export const authConfig = {
   pages: {
-    signIn: "/login",
+    signIn: "/login/student",
   },
 
   session: {

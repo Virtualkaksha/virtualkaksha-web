@@ -1,6 +1,6 @@
 import { enforceRateLimitChecks, type RateLimitAdapter } from "@/lib/rate-limit";
 
-export type AdminModerationAction = "APPROVE" | "REJECT" | "ARCHIVE" | "EDIT_METADATA";
+export type AdminModerationAction = "APPROVE" | "REJECT" | "ARCHIVE" | "UNARCHIVE" | "EDIT_METADATA";
 
 export async function limitAdminModeration(
   adminId: string,

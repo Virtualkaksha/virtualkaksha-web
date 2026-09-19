@@ -61,7 +61,7 @@ test("teacher academic and text filters remain ANDed with ownership", () => {
   const and = where.AND as unknown[];
   assert.ok(and.length >= 5);
   const serialized = JSON.stringify(and.slice(1));
-  for (const value of ["Newton", "cbse", "class-9", "science", "force", "notes"]) assert.match(serialized, new RegExp(value));
+  for (const value of ["Newton", "cbse", "class-9", "force", "notes"]) assert.match(serialized, new RegExp(value));
 });
 
 test("teacher pagination count and rows share ownership-scoped predicate", () => {

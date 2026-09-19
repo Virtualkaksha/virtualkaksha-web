@@ -119,7 +119,7 @@ function loginActionHarness(options: { authenticationError?: boolean } = {}) {
 
 for (const [role, destination] of [
   ["STUDENT", "/student"],
-  ["TEACHER", "/teacher"],
+  ["TEACHER", "/teacher/dashboard"],
   ["ADMIN", "/admin"],
 ] as const) {
   test(`${role.toLowerCase()} login completes one sign-in and propagates its redirect`, async () => {

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { PROTECTED_PDF_HEADERS } from "@/lib/security/headers";
 import {
   PRESIGNED_URL_TTL_SECONDS,
   supportsPresignedTransfer,
@@ -54,4 +55,37 @@ export async function presignedPdfResponse(
     status: 307,
     headers: { ...PRESIGNED_PDF_REDIRECT_HEADERS, Location: signedUrl },
   });
+}
+
+/**
+ * pdf.js cannot follow a 307 to object storage (CORS). Fetch the signed URL
+ * on the server and return the PDF from this origin instead.
+ */
+export async function proxyPresignedPdfRedirect(
+  redirect: Response,
+  fetchImpl: typeof fetch = fetch,
+): Promise<Response | null> {
+  if (redirect.status !== 307 && redirect.status !== 302) return null;
+  const location = redirect.headers.get("location");
+  if (!location) return null;
+
+  try {
+    const upstream = await fetchImpl(location, { redirect: "follow" });
+    if (!upstream.ok || !upstream.body) return null;
+    const contentType = (upstream.headers.get("content-type") ?? "").toLowerCase();
+    if (
+      contentType
+      && !contentType.includes("pdf")
+      && !contentType.includes("octet-stream")
+      && !contentType.includes("binary")
+    ) {
+      return null;
+    }
+    return new Response(upstream.body, {
+      status: 200,
+      headers: PROTECTED_PDF_HEADERS,
+    });
+  } catch {
+    return null;
+  }
 }

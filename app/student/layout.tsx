@@ -22,7 +22,7 @@ export default async function StudentLayout({ children }: StudentLayoutProps) {
         <Navbar />
         <div className="border-b border-blue-100 bg-blue-50 px-4 py-3 text-center text-sm text-blue-950 sm:px-6">
           Browsing free study resources.{" "}
-          <Link href="/login" className="font-semibold text-blue-700 underline-offset-2 hover:underline">
+          <Link href="/login/student" className="font-semibold text-blue-700 underline-offset-2 hover:underline">
             Sign in
           </Link>{" "}
           to bookmark material and save reading progress.

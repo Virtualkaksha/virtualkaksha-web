@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useMemo, useState } from "react";
 
 import { getAcademicUnitOptions, type ResourceSearchQuery } from "@/lib/resources/resource-search-query";
 
@@ -7,15 +10,71 @@ type Facets = {
   exams: Array<{ name: string; shortName: string; slug: string }>;
   levels: Array<{ name: string; slug: string }>;
   subjects: Array<{ name: string; slug: string }>;
-  chapters: Array<{ name: string; slug: string }>;
+  chapters: Array<{
+    name: string;
+    slug: string;
+    boardClassSubject?: {
+      board: { slug: string };
+      classLevel: { slug: string };
+      subject: { name: string; slug: string };
+    };
+  }>;
   examTopics: Array<{ name: string; slug: string; examSubject: { exam: { slug: string }; subject: { name: string; slug: string } } }>;
   resourceTypes: Array<{ name: string; slug: string }>;
 };
 
 const fieldClass = "min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
 
+function inferTrackType(track: string, facets: Facets) {
+  if (!track) return "";
+  const isBoard = facets.boards.some((item) => item.slug === track);
+  const isExam = facets.exams.some((item) => item.slug === track);
+  if (isBoard && !isExam) return "BOARD";
+  if (isExam && !isBoard) return "EXAM";
+  return "";
+}
+
 export default function ResourceSearchForm({ query, facets }: { query: ResourceSearchQuery; facets: Facets }) {
-  const academicUnits = getAcademicUnitOptions(query, facets);
+  const [trackType, setTrackType] = useState(query.trackType ?? inferTrackType(query.track, facets));
+  const [track, setTrack] = useState(query.track);
+  const [level, setLevel] = useState(query.level);
+  const [subject, setSubject] = useState(query.subject);
+  const [chapter, setChapter] = useState(query.chapter);
+
+  const academicUnits = useMemo(
+    () => getAcademicUnitOptions({ trackType: trackType === "BOARD" || trackType === "EXAM" ? trackType : null, track, level, subject }, facets),
+    [trackType, track, level, subject, facets],
+  );
+  const visibleSubjects = useMemo(() => {
+    if (trackType === "EXAM") return facets.subjects;
+    const allowed = new Set(
+      facets.chapters
+        .filter((item) => {
+          const mapping = item.boardClassSubject;
+          if (!mapping) return true;
+          if (track && mapping.board.slug !== track) return false;
+          if (level && mapping.classLevel.slug !== level) return false;
+          return true;
+        })
+        .map((item) => item.boardClassSubject?.subject.slug)
+        .filter((slug): slug is string => Boolean(slug)),
+    );
+    if (allowed.has("science")) {
+      allowed.add("chemistry");
+      allowed.add("physics");
+      allowed.add("biology");
+    }
+    if (allowed.size === 0) return facets.subjects;
+    return facets.subjects.filter((item) => allowed.has(item.slug) || item.slug === subject);
+  }, [facets, trackType, track, level, subject]);
+
+  function updateTrack(nextTrack: string) {
+    setTrack(nextTrack);
+    const inferred = inferTrackType(nextTrack, facets);
+    if (inferred) setTrackType(inferred);
+    setChapter("");
+  }
+
   return (
     <form action="/student/resources/search" method="get" className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       <label className="md:col-span-2 xl:col-span-4">
@@ -24,7 +83,7 @@ export default function ResourceSearchForm({ query, facets }: { query: ResourceS
       </label>
       <label>
         <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Track type</span>
-        <select name="trackType" defaultValue={query.trackType ?? ""} className={fieldClass}>
+        <select name="trackType" value={trackType} onChange={(event) => { setTrackType(event.target.value); setChapter(""); }} className={fieldClass}>
           <option value="">All track types</option>
           <option value="BOARD">School board</option>
           <option value="EXAM">Competitive exam</option>
@@ -32,7 +91,7 @@ export default function ResourceSearchForm({ query, facets }: { query: ResourceS
       </label>
       <label>
         <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Track</span>
-        <select name="track" defaultValue={query.track} className={fieldClass}>
+        <select name="track" value={track} onChange={(event) => updateTrack(event.target.value)} className={fieldClass}>
           <option value="">All tracks</option>
           <optgroup label="School boards">
             {facets.boards.map((item) => <option key={`board-${item.slug}`} value={item.slug}>{item.shortName}</option>)}
@@ -44,21 +103,21 @@ export default function ResourceSearchForm({ query, facets }: { query: ResourceS
       </label>
       <label>
         <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Class</span>
-        <select name="level" defaultValue={query.level} className={fieldClass}>
+        <select name="level" value={level} onChange={(event) => { setLevel(event.target.value); setChapter(""); }} className={fieldClass}>
           <option value="">All classes</option>
           {facets.levels.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
         </select>
       </label>
       <label>
         <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Subject</span>
-        <select name="subject" defaultValue={query.subject} className={fieldClass}>
+        <select name="subject" value={subject} onChange={(event) => { setSubject(event.target.value); setChapter(""); }} className={fieldClass}>
           <option value="">All subjects</option>
-          {facets.subjects.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
+          {visibleSubjects.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
         </select>
       </label>
       <label>
         <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">{academicUnits.label}</span>
-        <select name="chapter" defaultValue={query.chapter} className={fieldClass}>
+        <select name="chapter" value={chapter} onChange={(event) => setChapter(event.target.value)} className={fieldClass}>
           <option value="">All {academicUnits.label.toLowerCase()}s</option>
           {academicUnits.options.map((item, index) => <option key={`${item.slug}-${index}`} value={item.slug}>{item.name}</option>)}
         </select>

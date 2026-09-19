@@ -10,6 +10,7 @@ import {
 import { buildSearchPagination, resolveResourceSearchHref, type ResourceSearchQuery, type TeacherResourceSearchQuery } from "./resource-search-query";
 import { findBookmarkedResourceIds, findStudentProfileIdByUserId } from "@/repositories/student-learning.repository";
 import { hasReadyActiveAsset } from "./active-asset";
+import { formatStudentResourceTitle } from "./display-title";
 import { resolveResourcePosterUrl } from "./video-embed";
 
 function teacherName(record: ResourceSearchRecord) {
@@ -32,7 +33,7 @@ function mapResource(record: ResourceSearchRecord, bookmarked = false) {
   });
   return {
     id: record.id,
-    title: record.title,
+    title: formatStudentResourceTitle(record.title),
     description: record.description,
     format: record.format,
     access: record.access,

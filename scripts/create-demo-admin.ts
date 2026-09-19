@@ -58,7 +58,7 @@ async function main() {
     console.log("Login with:");
     console.log("  email:", email);
     console.log("  password:", password);
-    console.log("  url: http://localhost:3001/admin/login");
+    console.log("  url: http://localhost:3001/login/admin");
   } finally {
     await prisma.$disconnect();
   }

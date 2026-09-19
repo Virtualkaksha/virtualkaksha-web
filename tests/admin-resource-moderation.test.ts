@@ -13,16 +13,16 @@ test("moderation controls match the current resource status", () => {
   assert.deepEqual(getAdminModerationActions("PENDING_REVIEW"), ["APPROVE", "REJECT", "ARCHIVE"]);
   assert.deepEqual(getAdminModerationActions("PUBLISHED"), ["ARCHIVE"]);
   assert.deepEqual(getAdminModerationActions("REJECTED"), ["ARCHIVE"]);
-  assert.deepEqual(getAdminModerationActions("ARCHIVED"), []);
+  assert.deepEqual(getAdminModerationActions("ARCHIVED"), ["UNARCHIVE"]);
 });
 
-test("the moderation page gates every mutation control and renders archived resources read-only", async () => {
+test("the moderation page gates every mutation control and can restore archived resources", async () => {
   const page = await readFile("app/admin/resources/[resourceId]/page.tsx", "utf8");
   assert.match(page, /actions\.includes\("APPROVE"\)/);
   assert.match(page, /actions\.includes\("REJECT"\)/);
   assert.match(page, /actions\.includes\("ARCHIVE"\)/);
-  assert.match(page, /item\.status === "ARCHIVED"/);
-  assert.match(page, /archived and read-only/);
+  assert.match(page, /actions\.includes\("UNARCHIVE"\)/);
+  assert.match(page, /Unarchive/);
 });
 
 test("approval and rejection accept only pending-review resources", () => {
@@ -37,6 +37,27 @@ test("archive accepts only active moderated statuses", () => {
     "REJECTED",
   ]);
   assert.equal(getAllowedAdminModerationStatuses("ARCHIVE").includes("ARCHIVED"), false);
+});
+
+test("unarchive restores archived resources to pending review", async () => {
+  assert.deepEqual(getAllowedAdminModerationStatuses("UNARCHIVE"), ["ARCHIVED"]);
+  const now = new Date("2026-07-30T00:00:00.000Z");
+  const updates: Array<Record<string, unknown>> = [];
+  await transitionAdminResource(
+    { resourceId: "archived-1", adminId: "admin-1", action: "UNARCHIVE", now },
+    async (update) => { updates.push(update); return { count: 1 }; },
+  );
+  assert.deepEqual(updates[0], {
+    where: { id: "archived-1", status: { in: ["ARCHIVED"] } },
+    data: { status: "PENDING_REVIEW", publishedAt: null, moderationNote: null, reviewedAt: now, reviewedByUserId: "admin-1" },
+  });
+  await assert.rejects(
+    transitionAdminResource(
+      { resourceId: "pending-1", adminId: "admin-1", action: "UNARCHIVE" },
+      async (update) => ({ count: update.where.status.in.includes("PENDING_REVIEW") ? 1 : 0 }),
+    ),
+    new RegExp(INVALID_ADMIN_MODERATION_TRANSITION),
+  );
 });
 
 test("server actions use atomic status predicates and reject stale transitions", async () => {
@@ -113,7 +134,8 @@ test("successful moderation still revalidates before redirecting", async () => {
   const actions = await readFile("app/admin/resources/actions.ts", "utf8");
   assert.match(actions, /revalidatePath\(`\/admin\/resources\/\$\{resourceId\}`\)/);
   assert.match(actions, /revalidatePath\("\/student\/resources"\)/);
-  assert.match(actions, /await refresh\(resourceId\); redirect\(`\/admin\/resources\/\$\{resourceId\}\?approved=true`\)/);
-  assert.match(actions, /await refresh\(resourceId\); redirect\(`\/admin\/resources\/\$\{resourceId\}\?rejected=true`\)/);
+  assert.match(actions, /await refresh\(resourceId\); redirectAfterModeration\(resourceId, field\(formData, "from"\), "approved"\)/);
+  assert.match(actions, /await refresh\(resourceId\); redirectAfterModeration\(resourceId, field\(formData, "from"\), "rejected"\)/);
+  assert.match(actions, /await refresh\(resourceId\); redirectAfterModeration\(resourceId, field\(formData, "from"\), "restored"\)/);
   assert.match(actions, /await refresh\(resourceId\); redirect\("\/admin\/resources\?archived=true"\)/);
 });

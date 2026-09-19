@@ -100,17 +100,44 @@ export function parseTeacherSearchQuery(params: RawSearchParams): TeacherResourc
   };
 }
 
-function textPredicate(q: string): Prisma.ResourceWhereInput | null {
-  if (!q) return null;
-  const contains = { contains: q, mode: "insensitive" as const };
+const SEARCH_STOP_TOKENS = new Set(["pdf", "doc", "docx", "ppt", "pptx"]);
+
+const SCHOOL_SUBJECT_ALIASES: Record<string, string[]> = {
+  chemistry: ["science"],
+  physics: ["science"],
+  biology: ["science"],
+};
+
+export function relatedSubjectSlugs(subject: string) {
+  const normalized = subject.trim().toLowerCase();
+  return normalized ? [normalized, ...(SCHOOL_SUBJECT_ALIASES[normalized] ?? [])] : [];
+}
+
+export function searchTokens(q: string) {
+  const tokens = q
+    .replace(/[_\-.]+/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2 && !SEARCH_STOP_TOKENS.has(token.toLowerCase()));
+  return [...new Set(tokens)].slice(0, 8);
+}
+
+function containsInsensitive(value: string): Prisma.StringFilter {
+  return { contains: value, mode: "insensitive" };
+}
+
+function tokenPredicate(token: string): Prisma.ResourceWhereInput {
+  const contains = containsInsensitive(token);
   return {
     OR: [
       { title: contains },
       { titleHindi: contains },
       { description: contains },
-      { chapter: { is: { name: contains } } },
+      { slug: contains },
+      { resourceType: { is: { OR: [{ name: contains }, { slug: contains }] } } },
+      { chapter: { is: { OR: [{ name: contains }, { slug: contains }] } } },
       { chapter: { is: { boardClassSubject: { is: { subject: { is: { name: contains } } } } } } },
-      { examTopic: { is: { name: contains } } },
+      { examTopic: { is: { OR: [{ name: contains }, { slug: contains }] } } },
       { examTopic: { is: { examSubject: { is: { subject: { is: { name: contains } } } } } } },
       {
         teachers: {
@@ -135,45 +162,82 @@ function textPredicate(q: string): Prisma.ResourceWhereInput | null {
   };
 }
 
-function academicPredicate(query: Pick<ResourceSearchQuery, "track" | "trackType" | "level" | "subject" | "chapter">, requireActive: boolean): Prisma.ResourceWhereInput | null {
-  const { track, trackType, level, subject, chapter } = query;
-  if (!track && !level && !subject && !chapter) return null;
-  if (track && !trackType) return { id: "__ambiguous_track_requires_track_type__" };
+function textPredicate(q: string): Prisma.ResourceWhereInput | null {
+  if (!q) return null;
+  const tokens = searchTokens(q);
+  if (tokens.length === 0) return tokenPredicate(q);
+  if (tokens.length === 1) return tokenPredicate(tokens[0]);
+  return { AND: tokens.map(tokenPredicate) };
+}
 
-  if (trackType === "EXAM") {
-    return {
-      examTopic: {
-        is: {
-          ...(chapter ? { slug: chapter } : {}),
-          ...(requireActive ? { isActive: true } : {}),
-          examSubject: {
-            is: {
-              ...(requireActive ? { isActive: true } : {}),
-              ...(track ? { exam: { is: { slug: track, ...(requireActive ? { isActive: true } : {}) } } } : {}),
-              ...(subject ? { subject: { is: { slug: subject, ...(requireActive ? { isActive: true } : {}) } } } : {}),
-            },
-          },
-        },
+function activeName(requireActive: boolean) {
+  return requireActive ? { isActive: true } : {};
+}
+
+function subjectRelation(subject: string, requireActive: boolean) {
+  const slugs = relatedSubjectSlugs(subject);
+  return {
+    subject: {
+      is: {
+        ...(slugs.length > 1 ? { slug: { in: slugs } } : { slug: slugs[0] ?? subject }),
+        ...activeName(requireActive),
       },
-    };
-  }
+    },
+  };
+}
 
+function boardAcademicPredicate(
+  query: Pick<ResourceSearchQuery, "track" | "level" | "subject" | "chapter">,
+  requireActive: boolean,
+): Prisma.ResourceWhereInput {
+  const { track, level, subject, chapter } = query;
   return {
     chapter: {
       is: {
         ...(chapter ? { slug: chapter } : {}),
-        ...(requireActive ? { isActive: true } : {}),
+        ...activeName(requireActive),
         boardClassSubject: {
           is: {
-            ...(requireActive ? { isActive: true } : {}),
-            ...(track ? { board: { is: { slug: track, ...(requireActive ? { isActive: true } : {}) } } } : {}),
-            ...(level ? { classLevel: { is: { slug: level, ...(requireActive ? { isActive: true } : {}) } } } : {}),
-            ...(subject ? { subject: { is: { slug: subject, ...(requireActive ? { isActive: true } : {}) } } } : {}),
+            ...activeName(requireActive),
+            ...(track ? { board: { is: { slug: track, ...activeName(requireActive) } } } : {}),
+            ...(level ? { classLevel: { is: { slug: level, ...activeName(requireActive) } } } : {}),
+            ...(!chapter && subject ? subjectRelation(subject, requireActive) : {}),
           },
         },
       },
     },
   };
+}
+
+function examAcademicPredicate(
+  query: Pick<ResourceSearchQuery, "track" | "subject" | "chapter">,
+  requireActive: boolean,
+): Prisma.ResourceWhereInput {
+  const { track, subject, chapter } = query;
+  return {
+    examTopic: {
+      is: {
+        ...(chapter ? { slug: chapter } : {}),
+        ...activeName(requireActive),
+        examSubject: {
+          is: {
+            ...activeName(requireActive),
+            ...(track ? { exam: { is: { slug: track, ...activeName(requireActive) } } } : {}),
+            ...(!chapter && subject ? subjectRelation(subject, requireActive) : {}),
+          },
+        },
+      },
+    },
+  };
+}
+
+function academicPredicate(query: Pick<ResourceSearchQuery, "track" | "trackType" | "level" | "subject" | "chapter">, requireActive: boolean): Prisma.ResourceWhereInput | null {
+  const { track, trackType, level, subject, chapter } = query;
+  if (!track && !level && !subject && !chapter) return null;
+  if (trackType === "EXAM") return examAcademicPredicate(query, requireActive);
+  if (trackType === "BOARD") return boardAcademicPredicate(query, requireActive);
+  if (track) return { OR: [boardAcademicPredicate(query, requireActive), examAcademicPredicate(query, requireActive)] };
+  return boardAcademicPredicate(query, requireActive);
 }
 
 export function buildStudentResourceWhere(query: ResourceSearchQuery): Prisma.ResourceWhereInput {
@@ -293,6 +357,16 @@ export function resolveResourceSearchHref(resource: {
   return "#";
 }
 
+export type ChapterFacet = {
+  name: string;
+  slug: string;
+  boardClassSubject?: {
+    board: { slug: string };
+    classLevel: { slug: string };
+    subject: { name: string; slug: string };
+  };
+};
+
 export type ExamTopicFacet = {
   name: string;
   slug: string;
@@ -300,14 +374,27 @@ export type ExamTopicFacet = {
 };
 
 export function getAcademicUnitOptions(
-  query: Pick<ResourceSearchQuery, "trackType" | "track" | "subject">,
-  facets: { chapters: Array<{ name: string; slug: string }>; examTopics: ExamTopicFacet[] },
+  query: Pick<ResourceSearchQuery, "trackType" | "track" | "level" | "subject">,
+  facets: { chapters: ChapterFacet[]; examTopics: ExamTopicFacet[] },
 ) {
-  if (query.trackType !== "EXAM") return { label: "Chapter" as const, options: facets.chapters };
+  if (query.trackType === "EXAM") {
+    return {
+      label: "Topic" as const,
+      options: facets.examTopics.filter((item) =>
+        (!query.track || item.examSubject.exam.slug === query.track) &&
+        (!query.subject || relatedSubjectSlugs(query.subject).includes(item.examSubject.subject.slug))),
+    };
+  }
+  const subjectSlugs = query.subject ? relatedSubjectSlugs(query.subject) : [];
   return {
-    label: "Topic" as const,
-    options: facets.examTopics.filter((item) =>
-      (!query.track || item.examSubject.exam.slug === query.track) &&
-      (!query.subject || item.examSubject.subject.slug === query.subject)),
+    label: "Chapter" as const,
+    options: facets.chapters.filter((item) => {
+      const mapping = item.boardClassSubject;
+      if (!mapping) return true;
+      if (query.track && mapping.board.slug !== query.track) return false;
+      if (query.level && mapping.classLevel.slug !== query.level) return false;
+      if (subjectSlugs.length && !subjectSlugs.includes(mapping.subject.slug)) return false;
+      return true;
+    }),
   };
 }

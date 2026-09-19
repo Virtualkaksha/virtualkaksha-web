@@ -5,6 +5,7 @@ import { FileText, Link2, Save, Send, Trash2, UploadCloud } from "lucide-react";
 
 import type { TeacherResourceActionResult } from "./actions";
 import { getResourceTypeContentProfile } from "@/lib/resources/resource-type-content";
+import { formatStudentResourceTitle } from "@/lib/resources/display-title";
 import { parseTeacherResourceResponse, stageNativePdfUpload } from "./stage-native-pdf-upload";
 
 type ChapterOption = {
@@ -119,6 +120,10 @@ export default function ResourceCreateForm({ chapters, resourceTypes, canPublish
 
     setSelectedFile(nextFile);
     setResultState("file-selected");
+    const titleInput = formRef.current?.elements.namedItem("title");
+    if (titleInput instanceof HTMLInputElement && !titleInput.value.trim()) {
+      titleInput.value = formatStudentResourceTitle(nextFile.name);
+    }
   }
 
   function removeSelectedFile() {

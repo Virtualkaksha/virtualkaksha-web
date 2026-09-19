@@ -7,6 +7,7 @@ import {
 } from "@/repositories/student-dashboard.repository";
 import { resolveStudentResumeHref } from "@/lib/resources/student-learning-query";
 import { hasReadyActiveAsset } from "@/lib/resources/active-asset";
+import { formatStudentResourceTitle } from "@/lib/resources/display-title";
 
 const WEEK_IN_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
@@ -91,7 +92,7 @@ function mapResource(resource: DashboardResourceRecord, lastPosition?: number | 
   const exam = resource.examTopic?.examSubject;
   return {
     id: resource.id,
-    title: resource.title,
+    title: formatStudentResourceTitle(resource.title),
     slug: resource.slug,
     description: resource.description,
     format: resource.format,

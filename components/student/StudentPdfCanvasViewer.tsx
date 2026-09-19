@@ -16,6 +16,8 @@ type StudentPdfCanvasViewerProps = {
   onUseIframeFallback?: () => void;
 };
 
+type TurnDirection = "next" | "previous" | "none";
+
 const VIEWER_HORIZONTAL_PADDING = 32;
 
 export default function StudentPdfCanvasViewer({
@@ -25,7 +27,10 @@ export default function StudentPdfCanvasViewer({
   onUseIframeFallback,
 }: StudentPdfCanvasViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const navigationLockedRef = useRef(true);
+  const pageRef = useRef(Math.max(1, initialPage ?? 1));
+  const numPagesRef = useRef<number | undefined>(undefined);
   const [availableWidth, setAvailableWidth] = useState<number>();
   const [devicePixelRatio] = useState(() =>
     typeof window === "undefined" ? 1 : Math.min(window.devicePixelRatio || 1, 2),
@@ -33,9 +38,18 @@ export default function StudentPdfCanvasViewer({
   const [numPages, setNumPages] = useState<number>();
   const [page, setPage] = useState(Math.max(1, initialPage ?? 1));
   const [isPageRendering, setIsPageRendering] = useState(true);
+  const [turnDirection, setTurnDirection] = useState<TurnDirection>("none");
   const [loadError, setLoadError] = useState<"document" | "page" | null>(null);
   const file = useMemo(() => ({ url: sourceUrl }), [sourceUrl]);
   const options = useMemo(() => ({ withCredentials: true }), []);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    numPagesRef.current = numPages;
+  }, [numPages]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -56,19 +70,62 @@ export default function StudentPdfCanvasViewer({
   const finishPageRender = useCallback(() => {
     navigationLockedRef.current = false;
     setIsPageRendering(false);
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
   const navigate = (nextPage: number) => {
-    if (!numPages || navigationLockedRef.current) return;
-    const safePage = Math.min(numPages, Math.max(1, nextPage));
-    if (safePage === page) return;
+    const currentPage = pageRef.current;
+    const pageCount = numPagesRef.current;
+    if (!pageCount || navigationLockedRef.current) return;
+    const safePage = Math.min(pageCount, Math.max(1, nextPage));
+    if (safePage === currentPage) return;
 
     navigationLockedRef.current = true;
     setIsPageRendering(true);
     setLoadError(null);
+    setTurnDirection(safePage > currentPage ? "next" : "previous");
     setPage(safePage);
-    onPageChange?.(safePage, numPages);
+    onPageChange?.(safePage, pageCount);
   };
+
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return undefined;
+
+    const onWheel = (event: WheelEvent) => {
+      if (navigationLockedRef.current || !numPagesRef.current) return;
+      const atTop = scroller.scrollTop <= 1;
+      const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2;
+      if (event.deltaY > 24 && atBottom && pageRef.current < numPagesRef.current) {
+        event.preventDefault();
+        navigate(pageRef.current + 1);
+      } else if (event.deltaY < -24 && atTop && pageRef.current > 1) {
+        event.preventDefault();
+        navigate(pageRef.current - 1);
+      }
+    };
+
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+    return () => scroller.removeEventListener("wheel", onWheel);
+  });
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return undefined;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowRight" || event.key === "PageDown") {
+        event.preventDefault();
+        navigate(pageRef.current + 1);
+      } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+        event.preventDefault();
+        navigate(pageRef.current - 1);
+      }
+    };
+
+    viewer.addEventListener("keydown", onKeyDown);
+    return () => viewer.removeEventListener("keydown", onKeyDown);
+  });
 
   if (loadError) {
     return (
@@ -90,14 +147,17 @@ export default function StudentPdfCanvasViewer({
     );
   }
 
+  const pageMotionClass =
+    turnDirection === "next" ? "pdf-page-enter-next" : turnDirection === "previous" ? "pdf-page-enter-previous" : "pdf-page-enter";
+
   return (
-    <div ref={viewerRef} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+    <div ref={viewerRef} tabIndex={0} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-blue-200">
       <div className="sticky top-0 z-20 flex min-h-16 items-center justify-center gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm">
         <button
           type="button"
           onClick={() => navigate(page - 1)}
           disabled={!numPages || isPageRendering || page <= 1}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ChevronLeft className="h-4 w-4" />
           Previous
@@ -109,14 +169,14 @@ export default function StudentPdfCanvasViewer({
           type="button"
           onClick={() => navigate(page + 1)}
           disabled={!numPages || isPageRendering || page >= numPages}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Next
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="relative max-h-[calc(100vh-12rem)] min-h-[420px] overflow-y-auto overflow-x-hidden p-4">
+      <div ref={scrollRef} className="pdf-scroller relative max-h-[calc(100vh-12rem)] min-h-[420px] overflow-y-auto overflow-x-hidden p-4">
         <Document
           file={file}
           options={options}
@@ -129,15 +189,16 @@ export default function StudentPdfCanvasViewer({
             const restoredPage = Math.min(loadedPageCount, Math.max(1, initialPage ?? 1));
             setNumPages(loadedPageCount);
             setPage(restoredPage);
+            setTurnDirection("none");
             navigationLockedRef.current = true;
             setIsPageRendering(true);
           }}
           onLoadError={() => setLoadError("document")}
         >
           {numPages && availableWidth ? (
-            <div className="relative mx-auto w-fit max-w-full shadow-sm">
+            <div className={`relative mx-auto w-fit max-w-full shadow-sm ${pageMotionClass}`}>
               {isPageRendering ? (
-                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-slate-100/60">
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-slate-100/60 transition-opacity duration-200">
                   <p role="status" aria-live="polite" className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
                     Rendering page…
                   </p>

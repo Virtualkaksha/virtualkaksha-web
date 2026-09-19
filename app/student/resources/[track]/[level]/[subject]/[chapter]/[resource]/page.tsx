@@ -13,6 +13,7 @@ import {
 } from "@/lib/resources/student-resource-service";
 import { resolveActiveAsset } from "@/lib/resources/active-asset";
 import { resolveVideoEmbed, VIDEO_FRAME_REFERRER_POLICY } from "@/lib/resources/video-embed";
+import { formatStudentResourceTitle } from "@/lib/resources/display-title";
 
 import ResourceActions from "./ResourceActions";
 
@@ -396,7 +397,7 @@ export default async function ResourceViewerPage({
   });
   const duration = formatDuration(selectedResource.durationSeconds);
   const fileSize =
-    selectedResource.fileSizeBytes !== null
+    selectedResource.fileSizeBytes !== null && Number(selectedResource.fileSizeBytes) >= 1024
       ? `${(Number(selectedResource.fileSizeBytes) / 1024 / 1024).toFixed(1)} MB`
       : null;
 
@@ -439,7 +440,7 @@ export default async function ResourceViewerPage({
         </Link>
         <span aria-hidden="true">/</span>
         <span className="font-medium text-slate-900">
-          {selectedResource.title}
+          {formatStudentResourceTitle(selectedResource.title)}
         </span>
       </nav>
 
@@ -452,7 +453,7 @@ export default async function ResourceViewerPage({
             </p>
 
             <h1 className="mt-3 text-3xl font-bold leading-tight sm:text-4xl">
-              {selectedResource.title}
+              {formatStudentResourceTitle(selectedResource.title)}
             </h1>
 
             {selectedResource.description ? (

@@ -11,7 +11,6 @@ const links = [
   ["Home", "/"],
   ["Resources", "/search"],
   ["Previous Year Papers", publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.previousYearQuestions)],
-  ["Teachers", "/#teachers"],
   ["About", "/about"],
   ["Contact", "/contact"],
 ] as const;
@@ -63,7 +62,7 @@ export default function NavbarClient({ isAuthenticated, workspacePath }: NavbarC
             </>
           ) : (
             <>
-              <Link href="/login" className="rounded-lg px-3 py-2 font-semibold text-blue-700 hover:bg-blue-50">
+              <Link href="/login/student" className="rounded-lg px-3 py-2 font-semibold text-blue-700 hover:bg-blue-50">
                 Login
               </Link>
               <Link
@@ -122,7 +121,7 @@ export default function NavbarClient({ isAuthenticated, workspacePath }: NavbarC
             ) : (
               <>
                 <Link
-                  href="/login"
+                  href="/login/student"
                   onClick={() => setOpen(false)}
                   className="rounded-lg border border-blue-600 px-4 py-2 font-semibold text-blue-700"
                 >

@@ -137,7 +137,7 @@ test("admin and teacher server actions fresh-authorize before rate limiting and 
   const admin = await readFile("app/admin/resources/actions.ts", "utf8");
   const boards = await readFile("app/admin/boards/actions.ts", "utf8");
   const teacher = await readFile("app/teacher/resources/actions.ts", "utf8");
-  for (const action of ["approveResource", "rejectResource", "archiveResource"]) {
+  for (const action of ["approveResource", "rejectResource", "archiveResource", "unarchiveResource"]) {
     const body = admin.slice(admin.indexOf(`export async function ${action}`));
     assert.ok(body.indexOf('requireCurrentRole("ADMIN")') < body.indexOf("enforceAdminMutation"));
   }

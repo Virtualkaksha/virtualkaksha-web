@@ -2,6 +2,7 @@ import "server-only";
 
 import { findResourceSearchFacets, findStudentResourceSearchPage, type ResourceSearchRecord } from "@/repositories/resource-search.repository";
 import { hasReadyActiveAsset } from "./active-asset";
+import { formatStudentResourceTitle } from "./display-title";
 import { buildSearchPagination, resolveResourceSearchHref, type ResourceSearchQuery } from "./resource-search-query";
 
 function academicLabel(record: ResourceSearchRecord) {
@@ -36,7 +37,7 @@ export async function searchPublicResources(query: ResourceSearchQuery) {
       ? `/student/resources/${school!.board.slug}/${school!.classLevel.slug}/${school!.subject.slug}/${record.chapter.slug}/${record.slug}`
       : null;
     return {
-      title: record.title,
+      title: formatStudentResourceTitle(record.title),
       description: record.description,
       format: record.format,
       resourceType: record.resourceType.name,

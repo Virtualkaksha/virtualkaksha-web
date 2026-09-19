@@ -23,9 +23,17 @@ async function pathsFor(resourceId: string) {
 
 async function refresh(resourceId: string) {
   revalidatePath("/admin"); revalidatePath("/admin/resources"); revalidatePath(`/admin/resources/${resourceId}`);
-  revalidatePath("/teacher"); revalidatePath("/teacher/resources"); revalidatePath("/student/resources");
+  revalidatePath("/teacher"); revalidatePath("/teacher/resources"); revalidatePath(`/teacher/resources/${resourceId}`); revalidatePath("/student/resources");
   const data = await pathsFor(resourceId); const chapter = data?.chapter;
   if (chapter) revalidatePath(`/student/resources/${chapter.boardClassSubject.board.slug}/${chapter.boardClassSubject.classLevel.slug}/${chapter.boardClassSubject.subject.slug}/${chapter.slug}`);
+}
+
+function redirectAfterModeration(resourceId: string, from: string, result: "approved" | "rejected" | "restored") {
+  if (from === "teacher") {
+    const query = result === "approved" ? "published" : result === "rejected" ? "rejected" : "restored";
+    redirect(`/teacher/resources/${resourceId}?${query}=true`);
+  }
+  redirect(`/admin/resources/${resourceId}?${result}=true`);
 }
 
 async function enforceAdminMutation(adminId: string, resourceId: string, action: AdminModerationAction) {
@@ -41,7 +49,7 @@ export async function approveResource(formData: FormData) {
     { resourceId, adminId: admin.id, action: "APPROVE" },
     (update) => prisma.resource.updateMany(update),
   );
-  await refresh(resourceId); redirect(`/admin/resources/${resourceId}?approved=true`);
+  await refresh(resourceId); redirectAfterModeration(resourceId, field(formData, "from"), "approved");
 }
 
 export async function rejectResource(formData: FormData) {
@@ -53,7 +61,7 @@ export async function rejectResource(formData: FormData) {
     { resourceId, adminId: admin.id, action: "REJECT", reason },
     (update) => prisma.resource.updateMany(update),
   );
-  await refresh(resourceId); redirect(`/admin/resources/${resourceId}?rejected=true`);
+  await refresh(resourceId); redirectAfterModeration(resourceId, field(formData, "from"), "rejected");
 }
 
 export async function archiveResource(formData: FormData) {
@@ -65,4 +73,15 @@ export async function archiveResource(formData: FormData) {
     (update) => prisma.resource.updateMany(update),
   );
   await refresh(resourceId); redirect("/admin/resources?archived=true");
+}
+
+export async function unarchiveResource(formData: FormData) {
+  const admin = await requireCurrentRole("ADMIN"); const resourceId = field(formData, "resourceId");
+  if (!resourceId) throw new Error("Resource ID is required.");
+  await enforceAdminMutation(admin.id, resourceId, "UNARCHIVE");
+  await transitionAdminResource(
+    { resourceId, adminId: admin.id, action: "UNARCHIVE" },
+    (update) => prisma.resource.updateMany(update),
+  );
+  await refresh(resourceId); redirectAfterModeration(resourceId, field(formData, "from"), "restored");
 }

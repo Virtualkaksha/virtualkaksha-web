@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
+import { FileText } from "lucide-react";
 
+import { formatStudentResourceTitle } from "@/lib/resources/display-title";
 import { isDisplayableThumbnailUrl } from "@/lib/resources/video-embed";
 import BookmarkButton from "./BookmarkButton";
 
@@ -31,6 +33,7 @@ function progressStatus(status: string) {
 
 export default function StudentResourceCard({ item, bookmarked, showBookmark = true }: StudentResourceCardProps) {
   const posterUrl = isDisplayableThumbnailUrl(item.thumbnailUrl) ? item.thumbnailUrl! : null;
+  const title = formatStudentResourceTitle(item.title);
 
   return (
     <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md">
@@ -44,9 +47,14 @@ export default function StudentResourceCard({ item, bookmarked, showBookmark = t
             className="object-cover"
           />
         ) : (
-          <span className="flex h-full items-center justify-center px-4 text-center text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-            {item.resourceType.name}
-          </span>
+          <div className="flex h-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-blue-50 to-slate-100 px-4 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-700 shadow-sm">
+              <FileText size={22} />
+            </span>
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+              {item.format === "PDF" ? "PDF" : item.resourceType.name}
+            </span>
+          </div>
         )}
       </div>
       <div className="flex items-start justify-between gap-4">
@@ -57,7 +65,7 @@ export default function StudentResourceCard({ item, bookmarked, showBookmark = t
         </div>
         {showBookmark ? <BookmarkButton resourceId={item.id} initialBookmarked={bookmarked} /> : null}
       </div>
-      <h2 className="mt-4 text-lg font-bold text-slate-900">{item.title}</h2>
+      <h2 className="mt-4 text-lg font-bold text-slate-900">{title}</h2>
       {item.description ? <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{item.description}</p> : null}
       <p className="mt-4 text-xs leading-5 text-slate-500">{item.academicLabel}</p>
       {item.progress ? (

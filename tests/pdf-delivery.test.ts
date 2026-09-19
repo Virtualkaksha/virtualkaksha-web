@@ -74,6 +74,24 @@ test("a signing failure falls back rather than failing the request", async () =>
   assert.equal(response, null);
 });
 
+test("student viewers receive proxied PDF bytes instead of a cross-origin redirect", async () => {
+  const { proxyPresignedPdfRedirect } = await import("@/lib/resources/pdf-delivery");
+  const redirect = await presignedPdfResponse(asset, {
+    createProvider: () => presignCapableProvider("https://storage.example.test/signed?sig=abc"),
+  });
+  assert.ok(redirect);
+  const pdf = Buffer.from("%PDF-1.7 test");
+  const proxied = await proxyPresignedPdfRedirect(redirect!, async (url) => {
+    assert.equal(String(url), "https://storage.example.test/signed?sig=abc");
+    return new Response(pdf, { status: 200, headers: { "Content-Type": "application/pdf" } });
+  });
+  assert.ok(proxied);
+  assert.equal(proxied.status, 200);
+  assert.equal(proxied.headers.get("content-type"), "application/pdf");
+  assert.equal(proxied.headers.get("cache-control"), "private, no-store");
+  assert.equal(await proxied.text(), pdf.toString());
+});
+
 test("every asset route authorizes and then redirects before reading any bytes", async () => {
   const routes = [
     "app/api/student/resources/[resourceId]/asset/route.ts",
@@ -84,6 +102,9 @@ test("every asset route authorizes and then redirects before reading any bytes",
   for (const route of routes) {
     const source = await readFile(route, "utf8");
     assert.match(source, /presignedPdfResponse/, `${route} must offer a presigned redirect`);
+    if (route.includes("/student/")) {
+      assert.match(source, /proxyPresignedPdfRedirect/, `${route} must proxy the signed URL for pdf.js`);
+    }
 
     const redirectAt = source.indexOf("presignedPdfResponse(");
     const authorizeAt = source.search(/resolve(?:Optional)?(?:Student|Teacher|Admin)Identity\(/);

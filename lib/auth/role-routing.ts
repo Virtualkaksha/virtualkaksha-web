@@ -4,27 +4,31 @@ export type LoginRole = "STUDENT" | "TEACHER" | "ADMIN";
 
 export function getRoleHome(roles: readonly RoleName[]) {
   if (roles.includes("ADMIN")) return "/admin";
-  if (roles.includes("TEACHER")) return "/teacher";
+  if (roles.includes("TEACHER")) return "/teacher/dashboard";
   if (roles.includes("STUDENT")) return "/student";
   return "/";
 }
 
 export const ROLE_LOGIN_CONFIG = Object.freeze({
-  STUDENT: { loginPath: "/login", homePath: "/student" },
-  TEACHER: { loginPath: "/teacher/login", homePath: "/teacher" },
-  ADMIN: { loginPath: "/admin/login", homePath: "/admin" },
+  STUDENT: { loginPath: "/login/student", homePath: "/student" },
+  TEACHER: { loginPath: "/login/teacher", homePath: "/teacher/dashboard" },
+  ADMIN: { loginPath: "/login/admin", homePath: "/admin" },
 } satisfies Record<LoginRole, { loginPath: string; homePath: string }>);
 
 function loginRoleForPath(pathname: string): LoginRole | null {
-  if (pathname === "/login") return "STUDENT";
-  if (pathname === "/teacher/login") return "TEACHER";
-  if (pathname === "/admin/login") return "ADMIN";
+  if (pathname === "/login" || pathname === "/login/student") return "STUDENT";
+  if (pathname === "/login/teacher" || pathname === "/teacher/login") return "TEACHER";
+  if (pathname === "/login/admin" || pathname === "/admin/login") return "ADMIN";
   return null;
 }
 
 /** Published free catalogue and PDF viewers stay open without a student session. */
 export function isPublicStudentResourcePath(pathname: string) {
   return pathname === "/student/resources" || pathname.startsWith("/student/resources/");
+}
+
+export function isTeacherWorkspacePath(pathname: string) {
+  return pathname.startsWith("/teacher/") && pathname !== "/teacher/login";
 }
 
 export function getAuthenticatedRouteRedirect(
@@ -36,7 +40,7 @@ export function getAuthenticatedRouteRedirect(
   const isSignupRoute = pathname === "/signup";
   const requiredArea = pathname.startsWith("/admin/") || pathname === "/admin"
     ? "ADMIN"
-    : pathname.startsWith("/teacher/") || pathname === "/teacher"
+    : isTeacherWorkspacePath(pathname)
       ? "TEACHER"
       : pathname.startsWith("/student/") || pathname === "/student"
         ? "STUDENT"
@@ -89,8 +93,10 @@ export function resolveRolePostLoginRedirect(
     return roleHome;
   }
 
-  const permitted = destination.pathname === roleHome
-    || destination.pathname.startsWith(`${roleHome}/`);
+  const permitted = expectedRole === "TEACHER"
+    ? isTeacherWorkspacePath(destination.pathname)
+    : destination.pathname === roleHome
+      || destination.pathname.startsWith(`${roleHome}/`);
   return permitted
     ? `${destination.pathname}${destination.search}${destination.hash}`
     : roleHome;
@@ -119,7 +125,10 @@ export function resolvePostLoginRedirect(
     return roleHome;
   }
 
-  if (destination.pathname === "/login" || destination.pathname === "/signup") {
+  if (
+    destination.pathname === "/signup"
+    || loginRoleForPath(destination.pathname)
+  ) {
     return roleHome;
   }
 

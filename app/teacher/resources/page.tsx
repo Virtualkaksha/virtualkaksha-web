@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Archive, Eye, Pencil, PlusCircle, Send, Undo2 } from "lucide-react";
+import { Archive, CheckCircle2, Eye, Pencil, PlusCircle, RotateCcw, Send, Undo2 } from "lucide-react";
 
+import { approveResource, unarchiveResource } from "@/app/admin/resources/actions";
 import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
 import { buildResourceSearchUrl, getAcademicUnitOptions, parseTeacherSearchQuery, type RawSearchParams } from "@/lib/resources/resource-search-query";
 import { getTeacherCms } from "@/lib/teacher/teacher-cms";
@@ -12,6 +13,7 @@ const field = "min-h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm
 
 export default async function TeacherResourcesPage({ searchParams }: Props) {
   const user = await requireAnyCurrentRole(["TEACHER", "ADMIN"]);
+  const isAdmin = user.roles.includes("ADMIN");
   const rawParams = await searchParams;
   const query = parseTeacherSearchQuery(rawParams);
   const cms = await getTeacherCms(user.id, query);
@@ -47,7 +49,7 @@ export default async function TeacherResourcesPage({ searchParams }: Props) {
           <td className="px-3 py-4"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{resource.status.replaceAll("_", " ")}</span>{resource.moderationNote ? <p className="mt-2 max-w-xs text-xs leading-5 text-rose-600">{resource.moderationNote}</p> : null}</td>
           <td className="px-3 py-4 text-slate-600">{resource.access.replaceAll("_", " ")}</td><td className="px-3 py-4 text-slate-600">{resource.assetState ?? "Not applicable"}</td>
           <td className="px-3 py-4 text-xs leading-5 text-slate-600"><span className="block">Created {resource.createdAt.toLocaleDateString()}</span><span className="block">Updated {resource.updatedAt.toLocaleDateString()}</span></td>
-          <td className="px-3 py-4"><div className="flex flex-wrap justify-end gap-2"><Link href={`/teacher/resources/${resource.id}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"><Eye size={15}/> View</Link>{resource.actions.includes("EDIT") ? <Link href={`/teacher/resources/${resource.id}/edit`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"><Pencil size={15}/> Edit</Link> : null}{resource.actions.includes("SUBMIT") ? <ResourceAction resourceId={resource.id} action={submitTeacherResource} label="Submit" icon={<Send size={15}/>}/> : null}{resource.actions.includes("RESUBMIT") ? <ResourceAction resourceId={resource.id} action={resubmitTeacherResource} label="Resubmit" icon={<Send size={15}/>}/> : null}{resource.actions.includes("UNPUBLISH") ? <ResourceAction resourceId={resource.id} action={unpublishTeacherResource} label="Unpublish" icon={<Undo2 size={15}/>}/> : null}{resource.actions.includes("ARCHIVE") ? <ResourceAction resourceId={resource.id} action={archiveTeacherResource} label="Archive" icon={<Archive size={15}/>} destructive/> : null}</div></td>
+          <td className="px-3 py-4"><div className="flex flex-wrap justify-end gap-2"><Link href={`/teacher/resources/${resource.id}`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"><Eye size={15}/> View</Link>{resource.actions.includes("EDIT") ? <Link href={`/teacher/resources/${resource.id}/edit`} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700 hover:bg-slate-50"><Pencil size={15}/> Edit</Link> : null}{isAdmin && resource.status === "PENDING_REVIEW" ? <ResourceAction resourceId={resource.id} action={approveResource} label="Publish" icon={<CheckCircle2 size={15}/>} extraFields={{ from: "teacher" }}/> : null}{isAdmin && resource.status === "ARCHIVED" ? <ResourceAction resourceId={resource.id} action={unarchiveResource} label="Unarchive" icon={<RotateCcw size={15}/>} extraFields={{ from: "teacher" }}/> : null}{resource.actions.includes("SUBMIT") ? <ResourceAction resourceId={resource.id} action={submitTeacherResource} label="Submit" icon={<Send size={15}/>}/> : null}{resource.actions.includes("RESUBMIT") ? <ResourceAction resourceId={resource.id} action={resubmitTeacherResource} label="Resubmit" icon={<Send size={15}/>}/> : null}{resource.actions.includes("UNPUBLISH") ? <ResourceAction resourceId={resource.id} action={unpublishTeacherResource} label="Unpublish" icon={<Undo2 size={15}/>}/> : null}{resource.actions.includes("ARCHIVE") ? <ResourceAction resourceId={resource.id} action={archiveTeacherResource} label="Archive" icon={<Archive size={15}/>} destructive/> : null}</div></td>
         </tr>)}{cms.search.items.length === 0 ? <tr><td colSpan={7} className="px-3 py-10 text-center text-slate-500">No resources match these filters.</td></tr> : null}</tbody>
       </table></div>
       {totalPages > 1 ? <nav className="mt-5 flex justify-center gap-3" aria-label="Teacher resource pages">{page > 1 ? <Link href={buildResourceSearchUrl("/teacher/resources", query, page - 1)} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold">Previous</Link> : null}{page < totalPages ? <Link href={buildResourceSearchUrl("/teacher/resources", query, page + 1)} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white">Next</Link> : null}</nav> : null}
@@ -55,6 +57,6 @@ export default async function TeacherResourcesPage({ searchParams }: Props) {
   </main>;
 }
 
-function ResourceAction({ resourceId, action, label, icon, destructive = false }: { resourceId: string; action: (formData: FormData) => Promise<void>; label: string; icon: ReactNode; destructive?: boolean }) {
-  return <form action={action}><input type="hidden" name="resourceId" value={resourceId}/><button type="submit" className={`inline-flex items-center gap-1 rounded-lg border px-3 py-2 font-semibold ${destructive ? "border-rose-200 text-rose-700 hover:bg-rose-50" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>{icon} {label}</button></form>;
+function ResourceAction({ resourceId, action, label, icon, destructive = false, extraFields }: { resourceId: string; action: (formData: FormData) => Promise<void>; label: string; icon: ReactNode; destructive?: boolean; extraFields?: Record<string, string> }) {
+  return <form action={action}><input type="hidden" name="resourceId" value={resourceId}/>{extraFields ? Object.entries(extraFields).map(([name, value]) => <input type="hidden" name={name} value={value} key={name}/>) : null}<button type="submit" className={`inline-flex items-center gap-1 rounded-lg border px-3 py-2 font-semibold ${destructive ? "border-rose-200 text-rose-700 hover:bg-rose-50" : label === "Publish" || label === "Unarchive" ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" : "border-slate-200 text-slate-700 hover:bg-slate-50"}`}>{icon} {label}</button></form>;
 }

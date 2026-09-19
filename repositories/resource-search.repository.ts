@@ -97,7 +97,21 @@ export async function findResourceSearchFacets() {
     prisma.exam.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { name: true, shortName: true, slug: true } }),
     prisma.classLevel.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { numericLevel: "asc" }], select: { name: true, slug: true } }),
     prisma.subject.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { name: true, slug: true } }),
-    prisma.chapter.findMany({ where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { name: true, slug: true } }),
+    prisma.chapter.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: {
+        name: true,
+        slug: true,
+        boardClassSubject: {
+          select: {
+            board: { select: { slug: true } },
+            classLevel: { select: { slug: true } },
+            subject: { select: { name: true, slug: true } },
+          },
+        },
+      },
+    }),
     prisma.examTopic.findMany({
       where: { isActive: true, examSubject: { isActive: true, exam: { isActive: true }, subject: { isActive: true } } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],

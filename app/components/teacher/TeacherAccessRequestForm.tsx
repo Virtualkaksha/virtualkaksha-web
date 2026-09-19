@@ -135,7 +135,7 @@ export default function TeacherAccessRequestForm() {
 
       <p className="text-sm leading-6 text-slate-600">
         After an admin approves your request, sign in at{" "}
-        <Link href="/teacher/login" className="font-semibold text-blue-700">
+        <Link href="/login/teacher" className="font-semibold text-blue-700">
           Teacher login
         </Link>{" "}
         with this email and password.

@@ -6,6 +6,8 @@ import { requireCurrentRole } from "@/lib/auth/current-identity";
 import { canAdminEditResourceMapping, canAdminEditResourceMetadata } from "@/lib/admin/resource-metadata-policy";
 import { findAdminResourceMetadata, findAdminResourceMetadataOptions } from "@/repositories/admin-resource-metadata.repository";
 import { updateAdminResourceMetadataAction } from "../../metadata-actions";
+import { unarchiveResource } from "../../actions";
+import MutationSubmitButton from "@/components/MutationSubmitButton";
 
 const field = "min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-600 disabled:bg-slate-100";
 function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="space-y-2 text-sm font-semibold text-slate-700"><span>{label}</span>{children}</label>; }
@@ -36,7 +38,7 @@ export default async function AdminResourceMetadataEditPage({ params, searchPara
       <div><p className="text-xs uppercase text-slate-500">Immutable file data</p><p className="font-semibold">{resource.format} · {resource.pageCount ?? "—"} pages · {resource.fileSizeBytes?.toString() ?? "—"} bytes</p></div>
       <div className="sm:col-span-3"><p className="text-xs uppercase text-slate-500">Stable slug</p><code className="select-all text-sm">{resource.slug}</code></div>
     </section>
-    {!editable ? <section className="rounded-2xl border border-slate-200 bg-white p-8 text-center"><h2 className="font-bold">Archived resources are read-only</h2><p className="mt-2 text-sm text-slate-600">Restore must be a separate authorized action.</p></section> :
+    {!editable ? <section className="rounded-2xl border border-slate-200 bg-white p-8 text-center"><h2 className="font-bold">Archived resources are read-only</h2><p className="mt-2 text-sm text-slate-600">Restore this resource to pending review, then you can edit metadata or publish it.</p><form action={unarchiveResource} className="mt-5"><input type="hidden" name="resourceId" value={resource.id}/><MutationSubmitButton className="min-h-11 rounded-xl bg-emerald-600 px-5 font-semibold text-white">Unarchive</MutationSubmitButton></form></section> :
     <form action={updateAdminResourceMetadataAction} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6">
       <input type="hidden" name="resourceId" value={resource.id}/><input type="hidden" name="expectedVersion" value={resource.version}/>
       <div className="grid gap-4 sm:grid-cols-2"><Field label="Title"><input name="title" required minLength={3} maxLength={200} defaultValue={resource.title} className={field}/></Field><Field label="Hindi title"><input name="titleHindi" maxLength={200} defaultValue={resource.titleHindi ?? ""} className={field}/></Field></div>

@@ -124,7 +124,7 @@ export default function SignupForm() {
 
       <p className="text-center text-sm text-slate-600">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-blue-700 hover:text-blue-800">
+        <Link href="/login/student" className="font-semibold text-blue-700 hover:text-blue-800">
           Sign in
         </Link>
       </p>

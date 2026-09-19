@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import prisma from "@/lib/prisma";
+import { formatStudentResourceTitle } from "@/lib/resources/display-title";
 
 type ChapterLearningHubPageProps = {
   params: Promise<{
@@ -420,7 +421,7 @@ export default async function ChapterLearningHubPage({
 
                           <div className="min-w-0 flex-1">
                             <h3 className="font-semibold text-slate-900">
-                              {resource.title}
+                              {formatStudentResourceTitle(resource.title)}
                             </h3>
 
                             {resource.description ? (

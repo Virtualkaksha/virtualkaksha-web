@@ -41,10 +41,10 @@ test("admin user/action limits and backend outage fail closed with sanitized res
 
 test("admin actions authenticate, limit, then retain atomic updateMany transitions", async () => {
   const source = await readFile("app/admin/resources/actions.ts", "utf8");
-  for (const action of ["APPROVE", "REJECT", "ARCHIVE"]) {
+  for (const action of ["APPROVE", "REJECT", "ARCHIVE", "UNARCHIVE"]) {
     assert.match(source, new RegExp(`enforceAdminMutation\\(admin\\.id, resourceId, "${action}"\\)`));
   }
-  for (const functionName of ["approveResource", "rejectResource", "archiveResource"]) {
+  for (const functionName of ["approveResource", "rejectResource", "archiveResource", "unarchiveResource"]) {
     const actionSource = source.slice(source.indexOf(`export async function ${functionName}`));
     assert.ok(actionSource.indexOf('requireCurrentRole("ADMIN")') < actionSource.indexOf("enforceAdminMutation"), functionName);
   }

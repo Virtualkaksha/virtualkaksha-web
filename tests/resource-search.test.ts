@@ -73,11 +73,23 @@ test("student text predicate searches all required fields case-insensitively", (
   assert.doesNotMatch(serialized, /textContent/);
 });
 
-test("school academic filters include board, level, subject, chapter and type", () => {
+test("school academic filters include board, level, chapter and type", () => {
   const where = buildStudentResourceWhere(parseStudentSearchQuery({ trackType: "BOARD", track: "cbse", level: "class-10", subject: "science", chapter: "light", type: "notes" }));
   const serialized = JSON.stringify(where);
-  for (const value of ["cbse", "class-10", "science", "light", "notes"]) assert.match(serialized, new RegExp(value));
+  for (const value of ["cbse", "class-10", "light", "notes"]) assert.match(serialized, new RegExp(value));
   assert.match(serialized, /boardClassSubject/);
+});
+
+test("chemistry also matches class 10 science resources", () => {
+  const where = buildStudentResourceWhere(parseStudentSearchQuery({ trackType: "BOARD", track: "cbse", level: "class-10", subject: "chemistry" }));
+  assert.match(JSON.stringify(where), /"in":\["chemistry","science"\]/);
+});
+
+test("a selected chapter does not require the parent subject", () => {
+  const where = buildStudentResourceWhere(parseStudentSearchQuery({ trackType: "BOARD", track: "cbse", level: "class-10", subject: "chemistry", chapter: "chemical-reactions-and-equations" }));
+  const serialized = JSON.stringify(where);
+  assert.match(serialized, /chemical-reactions-and-equations/);
+  assert.doesNotMatch(serialized, /"slug":"chemistry"/);
 });
 
 test("exam filters use exam topic and exam subject relations", () => {
@@ -89,9 +101,22 @@ test("exam filters use exam topic and exam subject relations", () => {
   assert.match(serialized, /mechanics/);
 });
 
-test("track without trackType does not silently guess a catalogue", () => {
-  const where = buildStudentResourceWhere(parseStudentSearchQuery({ track: "shared-slug" }));
-  assert.match(JSON.stringify(where), /__ambiguous_track_requires_track_type__/);
+test("track without trackType matches board or exam catalogues", () => {
+  const where = buildStudentResourceWhere(parseStudentSearchQuery({ track: "cbse" }));
+  const serialized = JSON.stringify(where);
+  assert.doesNotMatch(serialized, /__ambiguous_track_requires_track_type__/);
+  assert.match(serialized, /"slug":"cbse"/);
+  assert.match(serialized, /boardClassSubject/);
+  assert.match(serialized, /examSubject/);
+});
+
+test("filename-like queries match tokenized title words", () => {
+  const where = buildStudentResourceWhere(parseStudentSearchQuery({ q: "Class_10_Science_Chapter_1_NCERT_Solutions.pdf" }));
+  const serialized = JSON.stringify(where);
+  for (const token of ["Class", "Science", "Chapter", "NCERT", "Solutions"]) {
+    assert.match(serialized, new RegExp(`"contains":"${token}"`));
+  }
+  assert.match(serialized, /resourceType/);
 });
 
 test("all sort modes use stable id tie-breaking", () => {

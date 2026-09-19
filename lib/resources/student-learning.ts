@@ -6,6 +6,7 @@ import type { StudentLearningResourceRecord } from "@/repositories/student-learn
 import { resolveStudentResumeHref, type StudentLearningQuery } from "./student-learning-query";
 import type { StudentUser } from "./student-resource-service";
 import { hasReadyActiveAsset } from "./active-asset";
+import { formatStudentResourceTitle } from "./display-title";
 import { resolveResourcePosterUrl } from "./video-embed";
 
 type BookmarkPrismaClient = {
@@ -34,7 +35,7 @@ export function mapStudentLearningResource(
   const hasReadyPrimaryAsset = hasReadyActiveAsset(resource);
   return {
     id: resource.id,
-    title: resource.title,
+    title: formatStudentResourceTitle(resource.title),
     description: resource.description,
     format: resource.format,
     thumbnailUrl: resolveResourcePosterUrl(resource),

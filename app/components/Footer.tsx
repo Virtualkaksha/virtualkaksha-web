@@ -17,10 +17,10 @@ const company = [
 ] as const;
 
 const accounts = [
-  ["Student login", "/login"],
-  ["Teacher login", "/teacher/login"],
+  ["Student login", "/login/student"],
+  ["Teacher login", "/login/teacher"],
   ["Request teacher access", "/teacher-access"],
-  ["Admin login", "/admin/login"],
+  ["Admin login", "/login/admin"],
   ["Create account", "/signup"],
 ] as const;
 
@@ -42,7 +42,7 @@ export default function Footer() {
       <div className="border-t border-slate-800">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-6 text-sm sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} VirtualKaksha. All rights reserved.</p>
-          <Link href="/#teachers" className="font-medium text-slate-400 hover:text-white">
+          <Link href="/teacher" className="font-medium text-slate-400 hover:text-white">
             For teachers
           </Link>
         </div>

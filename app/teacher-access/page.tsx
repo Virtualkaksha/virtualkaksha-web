@@ -43,7 +43,7 @@ export default async function TeacherAccessRequestPage({ searchParams }: Props) 
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
-                href="/teacher/login"
+                href="/login/teacher"
                 className="inline-flex min-h-11 items-center rounded-xl bg-emerald-700 px-5 font-semibold text-white"
               >
                 Go to Teacher login
@@ -61,7 +61,7 @@ export default async function TeacherAccessRequestPage({ searchParams }: Props) 
             <TeacherAccessRequestForm />
             <p className="mt-6 text-center text-sm text-slate-600">
               Already approved?{" "}
-              <Link href="/teacher/login" className="font-semibold text-blue-700">
+              <Link href="/login/teacher" className="font-semibold text-blue-700">
                 Teacher login
               </Link>
             </p>

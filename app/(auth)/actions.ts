@@ -145,5 +145,5 @@ export async function signupAction(
       message: "Too many requests. Please try again later.",
     };
   }
-  redirect("/login?signup=received");
+  redirect("/login/student?signup=received");
 }

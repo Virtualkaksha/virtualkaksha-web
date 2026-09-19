@@ -5,14 +5,16 @@ import { readFile } from "node:fs/promises";
 import { getAuthenticatedRouteRedirect, getRoleHome, resolveRolePostLoginRedirect } from "@/lib/auth/role-routing";
 
 test("role login pages identify their workspace and share the secured form", async () => {
-  const student = await readFile("app/(auth)/login/page.tsx", "utf8");
-  const teacher = await readFile("app/(auth)/teacher/login/page.tsx", "utf8");
-  const admin = await readFile("app/(auth)/admin/login/page.tsx", "utf8");
+  const student = await readFile("app/(auth)/login/student/page.tsx", "utf8");
+  const teacher = await readFile("app/(auth)/login/teacher/page.tsx", "utf8");
+  const admin = await readFile("app/(auth)/login/admin/page.tsx", "utf8");
+  const alias = await readFile("app/(auth)/login/page.tsx", "utf8");
   const content = await readFile("app/components/auth/RoleLoginPage.tsx", "utf8");
   const form = await readFile("app/components/auth/LoginForm.tsx", "utf8");
   assert.match(student, /role="STUDENT"/);
   assert.match(teacher, /role="TEACHER"/);
   assert.match(admin, /role="ADMIN"/);
+  assert.match(alias, /redirect\(`\/login\/student/);
   assert.match(content, /Student Login/);
   assert.match(content, /Teacher Login/);
   assert.match(content, /Admin Login/);
@@ -20,11 +22,12 @@ test("role login pages identify their workspace and share the secured form", asy
   assert.match(form, /teacherLoginAction/);
   assert.match(form, /adminLoginAction/);
   assert.doesNotMatch(form, /name="role"/);
+  assert.doesNotMatch(form, /role="tablist"|roleTabs|Choose login workspace/);
 });
 
 test("each login entry defaults to its selected workspace for multi-role accounts", () => {
   assert.equal(resolveRolePostLoginRedirect("STUDENT"), "/student");
-  assert.equal(resolveRolePostLoginRedirect("TEACHER"), "/teacher");
+  assert.equal(resolveRolePostLoginRedirect("TEACHER"), "/teacher/dashboard");
   assert.equal(resolveRolePostLoginRedirect("ADMIN"), "/admin");
 });
 
@@ -33,13 +36,13 @@ test("callbacks are restricted to the selected workspace", () => {
   assert.equal(resolveRolePostLoginRedirect("TEACHER", "/teacher/resources?status=DRAFT"), "/teacher/resources?status=DRAFT");
   assert.equal(resolveRolePostLoginRedirect("ADMIN", "/admin/resources#queue"), "/admin/resources#queue");
   assert.equal(resolveRolePostLoginRedirect("STUDENT", "/admin"), "/student");
-  assert.equal(resolveRolePostLoginRedirect("TEACHER", "/student"), "/teacher");
+  assert.equal(resolveRolePostLoginRedirect("TEACHER", "/student"), "/teacher/dashboard");
   assert.equal(resolveRolePostLoginRedirect("ADMIN", "/teacher"), "/admin");
 });
 
 test("external, malformed and cross-workspace callbacks cannot escape", () => {
   assert.equal(resolveRolePostLoginRedirect("ADMIN", "https://evil.test/admin", "https://virtual.test"), "/admin");
-  assert.equal(resolveRolePostLoginRedirect("TEACHER", "not a url", "https://virtual.test"), "/teacher");
+  assert.equal(resolveRolePostLoginRedirect("TEACHER", "not a url", "https://virtual.test"), "/teacher/dashboard");
   assert.equal(resolveRolePostLoginRedirect("STUDENT", "//evil.test/student", "https://virtual.test"), "/student");
   assert.equal(resolveRolePostLoginRedirect("ADMIN", "https://virtual.test/admin/resources", "https://virtual.test"), "/admin/resources");
 });
@@ -67,16 +70,20 @@ test("credentials provider enforces ACTIVE status, expected role, and session cl
 
 test("authenticated visits and protected redirects respect exact roles", () => {
   assert.equal(getAuthenticatedRouteRedirect("/login", true, ["STUDENT", "TEACHER", "ADMIN"]), "/student");
-  assert.equal(getAuthenticatedRouteRedirect("/teacher/login", true, ["STUDENT", "TEACHER", "ADMIN"]), "/teacher");
+  assert.equal(getAuthenticatedRouteRedirect("/login/student", true, ["STUDENT", "TEACHER", "ADMIN"]), "/student");
+  assert.equal(getAuthenticatedRouteRedirect("/login/teacher", true, ["STUDENT", "TEACHER", "ADMIN"]), "/teacher/dashboard");
+  assert.equal(getAuthenticatedRouteRedirect("/login/admin", true, ["STUDENT", "TEACHER", "ADMIN"]), "/admin");
+  assert.equal(getAuthenticatedRouteRedirect("/teacher/login", true, ["STUDENT", "TEACHER", "ADMIN"]), "/teacher/dashboard");
   assert.equal(getAuthenticatedRouteRedirect("/admin/login", true, ["STUDENT", "TEACHER", "ADMIN"]), "/admin");
   assert.equal(getAuthenticatedRouteRedirect("/admin/login", true, ["STUDENT"]), null);
   assert.equal(getAuthenticatedRouteRedirect("/teacher/login", true, ["STUDENT"]), null);
-  assert.equal(getAuthenticatedRouteRedirect("/admin", false, []), "/admin/login");
-  assert.equal(getAuthenticatedRouteRedirect("/teacher", false, []), "/teacher/login");
-  assert.equal(getAuthenticatedRouteRedirect("/student", false, []), "/login");
+  assert.equal(getAuthenticatedRouteRedirect("/admin", false, []), "/login/admin");
+  assert.equal(getAuthenticatedRouteRedirect("/teacher", false, []), null);
+  assert.equal(getAuthenticatedRouteRedirect("/teacher/dashboard", false, []), "/login/teacher");
+  assert.equal(getAuthenticatedRouteRedirect("/student", false, []), "/login/student");
   assert.equal(getAuthenticatedRouteRedirect("/student/resources", false, []), null);
   assert.equal(getAuthenticatedRouteRedirect("/student/resources/cbse/class-10/mathematics/polynomials/notes", false, []), null);
-  assert.equal(getAuthenticatedRouteRedirect("/student/bookmarks", false, []), "/login");
+  assert.equal(getAuthenticatedRouteRedirect("/student/bookmarks", false, []), "/login/student");
   assert.equal(getAuthenticatedRouteRedirect("/signup", false, []), null);
   assert.equal(getAuthenticatedRouteRedirect("/signup", true, ["ADMIN"]), null);
   assert.equal(getAuthenticatedRouteRedirect("/signup", true, ["TEACHER"]), null);
@@ -87,11 +94,13 @@ test("authenticated visits and protected redirects respect exact roles", () => {
 });
 
 test("single-role accounts cannot cross protected workspace boundaries", () => {
-  assert.equal(getAuthenticatedRouteRedirect("/teacher", true, ["STUDENT"]), "/student");
+  assert.equal(getAuthenticatedRouteRedirect("/teacher", true, ["STUDENT"]), null);
+  assert.equal(getAuthenticatedRouteRedirect("/teacher/dashboard", true, ["STUDENT"]), "/student");
   assert.equal(getAuthenticatedRouteRedirect("/admin", true, ["STUDENT"]), "/student");
-  assert.equal(getAuthenticatedRouteRedirect("/student", true, ["TEACHER"]), "/teacher");
-  assert.equal(getAuthenticatedRouteRedirect("/admin", true, ["TEACHER"]), "/teacher");
-  assert.equal(getAuthenticatedRouteRedirect("/teacher", true, ["ADMIN"]), "/admin");
+  assert.equal(getAuthenticatedRouteRedirect("/student", true, ["TEACHER"]), "/teacher/dashboard");
+  assert.equal(getAuthenticatedRouteRedirect("/admin", true, ["TEACHER"]), "/teacher/dashboard");
+  assert.equal(getAuthenticatedRouteRedirect("/teacher", true, ["ADMIN"]), null);
+  assert.equal(getAuthenticatedRouteRedirect("/teacher/dashboard", true, ["ADMIN"]), "/admin");
   assert.equal(getAuthenticatedRouteRedirect("/admin", true, ["ADMIN"]), null);
 });
 
@@ -104,8 +113,8 @@ test("role homes and route redirects cannot loop", () => {
 
 test("public navigation exposes student and teacher entry points", async () => {
   const publicSource = `${await readFile("app/components/Navbar.tsx", "utf8")}\n${await readFile("app/components/NavbarClient.tsx", "utf8")}\n${await readFile("app/components/Footer.tsx", "utf8")}`;
-  assert.match(publicSource, /href="\/login"/);
-  assert.match(publicSource, /\/teacher\/login/);
+  assert.match(publicSource, /href="\/login\/student"/);
+  assert.match(publicSource, /\/login\/teacher/);
   assert.match(publicSource, /\/teacher-access/);
 });
 

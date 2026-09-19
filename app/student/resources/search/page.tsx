@@ -16,7 +16,7 @@ export default async function StudentResourceSearchPage({ searchParams }: { sear
   const presentation = getCatalogueFilterPresentation(query.type, result.facets.resourceTypes);
   const description = query.type && presentation.description
     ? presentation.description
-    : "Search published, free resources by title, chapter, subject, or teacher. Curated order is the default; it is not full-text relevance ranking.";
+    : "Search published free resources by title, chapter, subject or teacher. Words in filenames like NCERT Solutions still match.";
 
   return (
     <div className="mx-auto max-w-7xl space-y-7">
