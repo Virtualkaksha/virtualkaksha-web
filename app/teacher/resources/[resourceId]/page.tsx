@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { approveResource, unarchiveResource } from "@/app/admin/resources/actions";
+import { approveResource, rejectResource, unarchiveResource } from "@/app/admin/resources/actions";
 import MutationSubmitButton from "@/components/MutationSubmitButton";
 import { getAdminModerationActions } from "@/lib/admin/resource-moderation-policy";
 import { requireAnyCurrentRole } from "@/lib/auth/current-identity";
