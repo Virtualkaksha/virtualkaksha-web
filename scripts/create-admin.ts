@@ -13,9 +13,17 @@ export type AdminBootstrapInput = {
   resetPassword: boolean;
 };
 
+export type AdminBootstrapEnvironment = {
+  NODE_ENV?: string;
+  ADMIN_EMAIL?: string;
+  ADMIN_PASSWORD?: string;
+  ADMIN_BOOTSTRAP?: string;
+  DATABASE_URL?: string;
+};
+
 export function resolveAdminBootstrapInput(
   arguments_: string[],
-  environment: NodeJS.ProcessEnv,
+  environment: AdminBootstrapEnvironment,
 ): AdminBootstrapInput {
   if (!arguments_.includes("--confirm")) {
     throw new Error("Pass --confirm after setting ADMIN_EMAIL and ADMIN_PASSWORD.");
@@ -41,7 +49,7 @@ export function resolveAdminBootstrapInput(
   };
 }
 
-export async function main(arguments_ = process.argv.slice(2), environment = process.env): Promise<void> {
+export async function main(arguments_ = process.argv.slice(2), environment: AdminBootstrapEnvironment = process.env): Promise<void> {
   const input = resolveAdminBootstrapInput(arguments_, environment);
   const connectionString = environment.DATABASE_URL;
   if (!connectionString) throw new Error("Database configuration is unavailable.");
