@@ -8,6 +8,10 @@ const email = "teacher@virtualkaksha.local";
 const password = "Teacher@1234";
 
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Demo teacher is local-only.");
+  }
+
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL is missing.");

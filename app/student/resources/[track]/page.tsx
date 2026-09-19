@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getBoardClassCatalog } from "@/lib/resources/resource-catalog";
+import { redirectStudentToOwnClass } from "@/lib/students/class-scope";
 
 type BoardClassesPageProps = {
   params: Promise<{
@@ -13,6 +14,7 @@ export default async function BoardClassesPage({
   params,
 }: BoardClassesPageProps) {
   const { track } = await params;
+  await redirectStudentToOwnClass({ boardSlug: track });
   const catalog = await getBoardClassCatalog(track);
 
   if (!catalog) {

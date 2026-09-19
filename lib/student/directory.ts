@@ -8,6 +8,7 @@ import {
   type PublishedTeacherRecord,
   type StudentAccountRecord,
 } from "@/repositories/student-directory.repository";
+import type { StudentNavProfile } from "@/lib/students/nav-profile";
 
 const DIRECTORY_PAGE_SIZE = 24;
 
@@ -45,6 +46,9 @@ export type DirectoryInstitute = {
 export type StudentAccountSummary = {
   name: string;
   initials: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
   email: string;
   roles: string[];
   memberSince: string;
@@ -144,9 +148,24 @@ export async function getStudentAccountSummary(userId: string): Promise<StudentA
   return {
     name,
     initials: initialsFor(name),
+    firstName: record.firstName,
+    lastName: record.lastName ?? "",
+    avatarUrl: record.avatarUrl,
     email: record.email,
     roles: record.roles.map((entry) => entry.role.name),
     memberSince: formatDate(record.createdAt),
     lastSignIn: record.lastLoginAt ? formatDate(record.lastLoginAt) : null,
+  };
+}
+
+export type { StudentNavProfile } from "@/lib/students/nav-profile";
+
+export async function getStudentNavProfile(userId: string): Promise<StudentNavProfile | null> {
+  const account = await getStudentAccountSummary(userId);
+  if (!account) return null;
+  return {
+    name: account.name,
+    initials: account.initials,
+    hasPhoto: Boolean(account.avatarUrl),
   };
 }

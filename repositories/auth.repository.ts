@@ -35,7 +35,25 @@ export async function createStudentUser(input: {
   lastName?: string;
   email: string;
   passwordHash: string;
+  classLevelSlug: string;
+  boardSlug?: string;
 }) {
+  const boardSlug = input.boardSlug?.trim() || "cbse";
+  const [board, classLevel] = await Promise.all([
+    prisma.board.findFirst({
+      where: { slug: boardSlug, isActive: true },
+      select: { id: true },
+    }),
+    prisma.classLevel.findFirst({
+      where: { slug: input.classLevelSlug, isActive: true },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!board || !classLevel) {
+    throw Object.assign(new Error("CLASS_SCOPE_UNAVAILABLE"), { code: "CLASS_SCOPE_UNAVAILABLE" });
+  }
+
   return prisma.$transaction(async (tx) => {
     const studentRole = await tx.role.upsert({
       where: {
@@ -64,7 +82,10 @@ export async function createStudentUser(input: {
           },
         },
         studentProfile: {
-          create: {},
+          create: {
+            boardId: board.id,
+            classLevelId: classLevel.id,
+          },
         },
       },
       select: {

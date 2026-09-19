@@ -54,7 +54,8 @@ export const authConfig = {
         // JWT roles are navigation hints only. Server authorization must use current database roles.
         token.roles = getRoles(user.roles);
       }
-
+      // Profile photos stay in the database. Putting them on the JWT overflows cookies (HTTP 431).
+      delete token.picture;
       return token;
     },
 
@@ -70,6 +71,7 @@ export const authConfig = {
         }
         // Session roles remain temporarily for Stage 1 compatibility and are not authoritative.
         session.user.roles = getRoles(token.roles);
+        session.user.image = undefined;
       }
 
       return session;

@@ -8,6 +8,10 @@ const email = "admin@virtualkaksha.local";
 const password = "Admin@1234";
 
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Demo admin is local-only. Use scripts/create-admin.ts with ADMIN_EMAIL and ADMIN_PASSWORD.");
+  }
+
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL is missing.");

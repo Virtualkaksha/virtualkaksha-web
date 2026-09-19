@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { CATALOGUE_TYPE_SLUGS, studentCatalogueTypeHref } from "@/lib/resources/catalogue-types";
+import { getCurrentStudentClassScope } from "@/lib/students/class-scope";
+import { studentCatalogueHome } from "@/lib/students/class-options";
 
 const learningTracks = [
   {
@@ -92,7 +95,12 @@ const resourceTypes = [
   },
 ];
 
-export default function StudentResourcesPage() {
+export default async function StudentResourcesPage() {
+  const scope = await getCurrentStudentClassScope();
+  if (scope) {
+    redirect(studentCatalogueHome(scope.boardSlug, scope.classSlug));
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-10">
       <section className="rounded-3xl border border-slate-200 bg-white px-6 py-8 shadow-sm sm:px-10 sm:py-10">

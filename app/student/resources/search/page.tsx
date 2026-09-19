@@ -6,11 +6,14 @@ import { getCurrentIdentity } from "@/lib/auth/current-identity";
 import { getCatalogueFilterPresentation } from "@/lib/resources/catalogue-types";
 import { searchStudentResources } from "@/lib/resources/resource-search";
 import { buildResourceSearchUrl, parseStudentSearchQuery, type RawSearchParams } from "@/lib/resources/resource-search-query";
+import { applyClassScopeToSearchQuery } from "@/lib/students/class-options";
+import { getCurrentStudentClassScope } from "@/lib/students/class-scope";
 
 export default async function StudentResourceSearchPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const identity = await getCurrentIdentity();
   const studentId = identity?.roles.includes("STUDENT") ? identity.id : undefined;
-  const query = parseStudentSearchQuery(await searchParams);
+  const scope = await getCurrentStudentClassScope();
+  const query = applyClassScopeToSearchQuery(parseStudentSearchQuery(await searchParams), scope);
   const result = await searchStudentResources(query, studentId);
   const { page, totalPages, total } = result.pagination;
   const presentation = getCatalogueFilterPresentation(query.type, result.facets.resourceTypes);
@@ -25,7 +28,7 @@ export default async function StudentResourceSearchPage({ searchParams }: { sear
         <h1 className="mt-3 text-3xl font-bold text-slate-900">{presentation.heading}</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
         <div className="mt-6 rounded-2xl bg-slate-50 p-4 sm:p-5">
-          <ResourceSearchForm query={query} facets={result.facets} />
+          <ResourceSearchForm query={query} facets={result.facets} lockedClass={scope} />
         </div>
       </header>
 

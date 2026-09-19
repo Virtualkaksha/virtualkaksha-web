@@ -20,6 +20,8 @@ import {
 
 import { logoutAction } from "@/app/(auth)/actions";
 import { CATALOGUE_TYPE_SLUGS, STUDENT_CATALOGUE_SEARCH_PATH, studentCatalogueTypeHref } from "@/lib/resources/catalogue-types";
+import type { StudentNavProfile } from "@/lib/students/nav-profile";
+import { StudentAvatar, StudentProfileChip } from "./StudentAvatar";
 
 export { STUDENT_CATALOGUE_SEARCH_PATH };
 
@@ -93,7 +95,7 @@ export function isStudentNavigationActive(
   return pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
-export default function StudentSidebar() {
+export default function StudentSidebar({ profile }: { profile?: StudentNavProfile | null }) {
   const pathname = usePathname();
   const activeResourceType = useSearchParams().get("type");
 
@@ -117,6 +119,7 @@ export default function StudentSidebar() {
             const active = isStudentNavigationActive(pathname, item, activeResourceType);
             const Icon = item.icon;
 
+            const isProfile = item.href === "/student/profile";
             return (
               <Link
                 key={item.href}
@@ -127,7 +130,15 @@ export default function StudentSidebar() {
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                 }`}
               >
-                <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                {isProfile && profile ? (
+                  <StudentAvatar
+                    initials={profile.initials}
+                    hasPhoto={profile.hasPhoto}
+                    className={`h-6 w-6 text-[10px] ${active ? "ring-1 ring-white/40" : ""}`}
+                  />
+                ) : (
+                  <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                )}
                 <span>{item.label}</span>
               </Link>
             );
@@ -135,6 +146,7 @@ export default function StudentSidebar() {
         </nav>
 
         <div className="border-t border-slate-200/80 p-4">
+          {profile ? <StudentProfileChip profile={profile} /> : null}
           <Link href={studentSupportNavigationItem.href} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950">
             <CircleHelp className="h-[18px] w-[18px]" aria-hidden="true" />
             {studentSupportNavigationItem.label}

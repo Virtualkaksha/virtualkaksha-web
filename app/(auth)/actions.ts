@@ -122,6 +122,8 @@ export async function signupAction(
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
     guardianAcknowledgement: formData.get("guardianAcknowledgement"),
+    board: formData.get("board") || undefined,
+    classLevel: formData.get("classLevel"),
   });
 
   if (!parsed.success) {
@@ -132,18 +134,31 @@ export async function signupAction(
     };
   }
 
-  const result = await registerStudentAccount({
-    firstName: parsed.data.firstName,
-    lastName: parsed.data.lastName || undefined,
-    email: parsed.data.email,
-    password: parsed.data.password,
-    request: requestFromHeaders(await headers()),
-  });
-  if (!result.accepted) {
-    return {
-      status: "error",
-      message: "Too many requests. Please try again later.",
-    };
+  try {
+    const result = await registerStudentAccount({
+      firstName: parsed.data.firstName,
+      lastName: parsed.data.lastName || undefined,
+      email: parsed.data.email,
+      password: parsed.data.password,
+      classLevelSlug: parsed.data.classLevel,
+      boardSlug: parsed.data.board,
+      request: requestFromHeaders(await headers()),
+    });
+    if (!result.accepted) {
+      return {
+        status: "error",
+        message: "Too many requests. Please try again later.",
+      };
+    }
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "CLASS_SCOPE_UNAVAILABLE") {
+      return {
+        status: "error",
+        message: "Please choose an available class.",
+        fieldErrors: { classLevel: ["Select an available class."] },
+      };
+    }
+    throw error;
   }
   redirect("/login/student?signup=received");
 }

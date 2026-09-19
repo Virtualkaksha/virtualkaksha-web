@@ -23,6 +23,7 @@ import {
 } from "@/lib/dashboard/student-dashboard";
 import prisma from "@/lib/prisma";
 import { requireCurrentRole } from "@/lib/auth/current-identity";
+import { STUDENT_AVATAR_SRC } from "@/lib/students/profile-avatar";
 
 type PublicDashboardResource = {
   id: string;
@@ -268,8 +269,24 @@ function PersonalizedDashboard({ data }: { data: StudentDashboardData }) {
               {academicTrack || "Your learning workspace"}
             </div>
 
-            <h1 className="mt-5 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              {getGreeting()}, {firstName}.
+            <h1 className="mt-5 flex items-center gap-4 text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+              <Link
+                href="/student/profile"
+                className="flex h-14 w-14 shrink-0 overflow-hidden rounded-full bg-white/10 text-lg font-bold ring-2 ring-white/20 transition hover:ring-white/50 sm:h-16 sm:w-16 sm:text-xl"
+                aria-label="Edit profile photo"
+              >
+                {data.student.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={STUDENT_AVATAR_SRC} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center text-white">
+                    {firstName.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+              </Link>
+              <span className="min-w-0">
+                {getGreeting()}, {firstName}.
+              </span>
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">

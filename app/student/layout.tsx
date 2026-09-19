@@ -5,6 +5,7 @@ import Navbar from "../components/Navbar";
 import StudentSidebar from "../components/student/StudentSidebar";
 import StudentTopbar from "../components/student/StudentTopbar";
 import { getCurrentIdentity } from "@/lib/auth/current-identity";
+import { getStudentNavProfile } from "@/lib/student/directory";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,8 @@ type StudentLayoutProps = {
 export default async function StudentLayout({ children }: StudentLayoutProps) {
   const identity = await getCurrentIdentity();
   const isStudent = Boolean(identity?.roles.includes("STUDENT"));
+
+  const navProfile = isStudent && identity ? await getStudentNavProfile(identity.id) : null;
 
   if (!isStudent) {
     return (
@@ -35,9 +38,9 @@ export default async function StudentLayout({ children }: StudentLayoutProps) {
   return (
     <div className="min-h-screen bg-[#f7f8fa]">
       <div className="flex min-h-screen">
-        <StudentSidebar />
+        <StudentSidebar profile={navProfile} />
         <div className="min-w-0 flex-1">
-          <StudentTopbar />
+          <StudentTopbar profile={navProfile} />
           <main className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
         </div>
       </div>

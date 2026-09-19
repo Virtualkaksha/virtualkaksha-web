@@ -4,12 +4,27 @@ import { getRateLimitAdapter, resolveRequestClientIp } from "@/lib/rate-limit";
 
 export type SignupServiceResult = { accepted: true } | { accepted: false; retryAfterSeconds: number };
 
-type SignupInput = { firstName: string; lastName?: string; email: string; password: string; request: Request };
+type SignupInput = {
+  firstName: string;
+  lastName?: string;
+  email: string;
+  password: string;
+  classLevelSlug: string;
+  boardSlug?: string;
+  request: Request;
+};
 type SignupDependencies = {
   rateLimit?: RateLimitAdapter;
   resolveIp?: (request: Request) => ReturnType<typeof resolveRequestClientIp>;
   hash?: (password: string) => Promise<string>;
-  createUser?: (input: { firstName: string; lastName?: string; email: string; passwordHash: string }) => Promise<unknown>;
+  createUser?: (input: {
+    firstName: string;
+    lastName?: string;
+    email: string;
+    passwordHash: string;
+    classLevelSlug: string;
+    boardSlug?: string;
+  }) => Promise<unknown>;
   isUniqueConflict?: (error: unknown) => boolean;
 };
 
@@ -44,7 +59,14 @@ export async function registerStudentAccount(
 
   const passwordHash = await (dependencies.hash ?? hashPassword)(input.password);
   try {
-    const createUser = dependencies.createUser ?? (async (value: { firstName: string; lastName?: string; email: string; passwordHash: string }) => {
+    const createUser = dependencies.createUser ?? (async (value: {
+      firstName: string;
+      lastName?: string;
+      email: string;
+      passwordHash: string;
+      classLevelSlug: string;
+      boardSlug?: string;
+    }) => {
       const repository = await import("@/repositories/auth.repository");
       return repository.createStudentUser(value);
     });
@@ -53,6 +75,8 @@ export async function registerStudentAccount(
       lastName: input.lastName,
       email: input.email,
       passwordHash,
+      classLevelSlug: input.classLevelSlug,
+      boardSlug: input.boardSlug,
     });
   } catch (error) {
     if (!(dependencies.isUniqueConflict ?? defaultIsUniqueConflict)(error)) throw error;

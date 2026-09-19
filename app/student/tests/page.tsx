@@ -30,7 +30,7 @@ export default async function StudentTestsPage() {
         <p className="text-sm font-semibold uppercase tracking-wider text-blue-700">Practice tests</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Attempt a test</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-          Choose your class and subject. The paper is generated automatically from published teacher questions.
+          Choose your subject. Papers stay inside your class.
         </p>
       </header>
 
@@ -53,6 +53,7 @@ export default async function StudentTestsPage() {
               catalogue={catalogue}
               defaultBoardId={profile?.boardId ?? undefined}
               defaultClassLevelId={profile?.classLevelId ?? undefined}
+              lockClass={Boolean(profile?.boardId && profile?.classLevelId)}
             />
           </div>
         </section>

@@ -5,6 +5,7 @@ import { useActionState } from "react";
 
 import { signupAction, type AuthActionState } from "@/app/(auth)/actions";
 import AuthSubmitButton from "@/app/components/auth/AuthSubmitButton";
+import { STUDENT_BOARD_OPTIONS, STUDENT_CLASS_OPTIONS } from "@/lib/students/class-options";
 
 const initialState: AuthActionState = {
   status: "idle",
@@ -74,6 +75,50 @@ export default function SignupForm() {
           className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
         />
         <FieldError messages={state.fieldErrors?.email} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="board" className="text-sm font-semibold text-slate-800">
+            Board
+          </label>
+          <select
+            id="board"
+            name="board"
+            required
+            defaultValue="cbse"
+            className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          >
+            {STUDENT_BOARD_OPTIONS.map((board) => (
+              <option key={board.slug} value={board.slug}>
+                {board.name}
+              </option>
+            ))}
+          </select>
+          <FieldError messages={state.fieldErrors?.board} />
+        </div>
+        <div>
+          <label htmlFor="classLevel" className="text-sm font-semibold text-slate-800">
+            Class
+          </label>
+          <select
+            id="classLevel"
+            name="classLevel"
+            required
+            defaultValue=""
+            className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          >
+            <option value="" disabled>
+              Select your class
+            </option>
+            {STUDENT_CLASS_OPTIONS.map((item) => (
+              <option key={item.slug} value={item.slug}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+          <FieldError messages={state.fieldErrors?.classLevel} />
+        </div>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">

@@ -33,6 +33,35 @@ test("role inspection is sanitized and scripts do not run unconditionally on imp
   ]);
 });
 
+test("admin bootstrap reads secrets from the environment and never hardcodes credentials", async () => {
+  const { resolveAdminBootstrapInput } = await import("../scripts/create-admin");
+  const env = {
+    ADMIN_EMAIL: "owner@virtualkaksha.com",
+    ADMIN_PASSWORD: "StrongPass1",
+  };
+  assert.deepEqual(resolveAdminBootstrapInput(["--confirm"], env), {
+    email: "owner@virtualkaksha.com",
+    password: "StrongPass1",
+    resetPassword: false,
+  });
+  assert.equal(resolveAdminBootstrapInput(["--confirm", "--reset-password"], env).resetPassword, true);
+  assert.throws(() => resolveAdminBootstrapInput([], env));
+  assert.throws(() => resolveAdminBootstrapInput(["--confirm"], { ...env, ADMIN_EMAIL: "admin@virtualkaksha.local" }));
+  assert.throws(() => resolveAdminBootstrapInput(["--confirm"], { ...env, NODE_ENV: "production" }));
+  assert.equal(
+    resolveAdminBootstrapInput(["--confirm"], { ...env, NODE_ENV: "production", ADMIN_BOOTSTRAP: "true" }).email,
+    "owner@virtualkaksha.com",
+  );
+
+  const source = await readFile("scripts/create-admin.ts", "utf8");
+  assert.doesNotMatch(source, /Admin@1234|admin@virtualkaksha\.local/);
+  assert.doesNotMatch(source, /console\.(log|error)\([^\n]*(email|ADMIN_PASSWORD|ADMIN_EMAIL)/i);
+  assert.match(source, /--confirm/);
+  const demo = await readFile("scripts/create-demo-admin.ts", "utf8");
+  assert.match(demo, /NODE_ENV === "production"/);
+  assert.match(demo, /create-admin\.ts/);
+});
+
 test("logout all capability revokes before clearing only the current browser cookie", async () => {
   const source = await readFile("app/(auth)/actions.ts", "utf8");
   const action = source.slice(source.indexOf("export async function logoutAllSessionsAction"), source.indexOf("async function getRequestedLoginRedirect"));

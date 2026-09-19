@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getSubjectChapterCatalog } from "@/lib/resources/resource-catalog";
+import { redirectStudentToOwnClass } from "@/lib/students/class-scope";
 
 type SubjectChaptersPageProps = {
   params: Promise<{ track: string; level: string; subject: string }>;
@@ -11,6 +12,7 @@ export default async function SubjectChaptersPage({
   params,
 }: SubjectChaptersPageProps) {
   const { track, level, subject } = await params;
+  await redirectStudentToOwnClass({ boardSlug: track, classSlug: level });
   const catalog = await getSubjectChapterCatalog(track, level, subject);
 
   if (!catalog) notFound();

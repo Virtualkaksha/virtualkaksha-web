@@ -77,6 +77,31 @@ Test-only IP injection requires both `NODE_ENV=test` and `RATE_LIMIT_TRUSTED_PRO
 7. Use a deployment-specific rate-limit prefix so staging and production do not collide.
 8. Run `npm run validate:env` after the deployment platform injects production configuration and before serving traffic. The command requires `NODE_ENV=production`, validates configuration only, and does not connect to the database, storage, or rate-limit backend.
 9. Confirm no server configuration or secret appears in browser bundles, logs, error pages, or monitoring metadata.
+10. Create the first administrator with the CLI bootstrap below. Do not commit passwords, do not keep `ADMIN_PASSWORD` in the hosting environment, and do not run `scripts/create-demo-admin.ts` against production.
+
+## Administrator bootstrap (CLI only)
+
+These variables are for a one-off terminal command. They are not Next.js runtime configuration and must not stay in the production environment after the account exists.
+
+| Variable | Classification | Rules |
+| --- | --- | --- |
+| `ADMIN_EMAIL` | CLI secret | A real mailbox you control. Placeholder and `*.local` demo addresses are rejected. |
+| `ADMIN_PASSWORD` | CLI secret | Same strength rules as student signup. Read from the environment only, never from git. |
+| `ADMIN_BOOTSTRAP` | Production confirmation | Must be exactly `true` when `NODE_ENV=production`. |
+
+Create or promote the first admin, then remove `ADMIN_PASSWORD`:
+
+```bash
+ADMIN_EMAIL=you@yourdomain.com ADMIN_PASSWORD='your-strong-password' ADMIN_BOOTSTRAP=true npx tsx scripts/create-admin.ts --confirm
+```
+
+To rotate that password later, add `--reset-password` (this signs out every existing session). To make an existing user an admin without touching their password:
+
+```bash
+npx tsx scripts/assign-admin-role.ts you@yourdomain.com --confirm
+```
+
+Local demo accounts (`admin@virtualkaksha.local`) are development-only and refuse to run when `NODE_ENV=production`.
 
 ## Deployment validation command
 

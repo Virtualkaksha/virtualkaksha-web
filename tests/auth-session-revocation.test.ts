@@ -102,20 +102,25 @@ test("successful credentials result carries the current sessionVersion", async (
 test("JWT and server session callbacks preserve sessionVersion", async () => {
   const jwtCallback = authConfig.callbacks?.jwt as unknown as (input: {
     token: Record<string, unknown>;
-    user: { id: string; roles: string[]; sessionVersion: number };
+    user: { id: string; roles: string[]; sessionVersion: number; image?: string };
   }) => Promise<Record<string, unknown>> | Record<string, unknown>;
   const token = await jwtCallback({
-    token: {},
-    user: { id: "user-1", roles: ["ADMIN"], sessionVersion: 9 },
+    token: { picture: "data:image/jpeg;base64,AAAA" },
+    user: { id: "user-1", roles: ["ADMIN"], sessionVersion: 9, image: "data:image/jpeg;base64,AAAA" },
   });
   assert.equal(token.sessionVersion, 9);
+  assert.equal(token.picture, undefined);
 
   const sessionCallback = authConfig.callbacks?.session as unknown as (input: {
-    session: { user: { id?: string; roles?: string[]; sessionVersion?: number } };
+    session: { user: { id?: string; roles?: string[]; sessionVersion?: number; image?: string } };
     token: Record<string, unknown>;
-  }) => Promise<{ user: { sessionVersion?: number } }> | { user: { sessionVersion?: number } };
-  const currentSession = await sessionCallback({ session: { user: {} }, token });
+  }) => Promise<{ user: { sessionVersion?: number; image?: string } }> | { user: { sessionVersion?: number; image?: string } };
+  const currentSession = await sessionCallback({
+    session: { user: { image: "data:image/jpeg;base64,AAAA" } },
+    token,
+  });
   assert.equal(currentSession.user.sessionVersion, 9);
+  assert.equal(currentSession.user.image, undefined);
 });
 
 test("identity authorization has no global map, Redis or persistent Next cache", async () => {

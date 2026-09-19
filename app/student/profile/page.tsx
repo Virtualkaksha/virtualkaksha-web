@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { logoutAllSessionsAction } from "@/app/(auth)/actions";
 import { requireCurrentRole } from "@/lib/auth/current-identity";
 import { getStudentAccountSummary } from "@/lib/student/directory";
+import { getStudentClassScope } from "@/lib/students/class-scope";
+import { STUDENT_AVATAR_SRC } from "@/lib/students/profile-avatar";
+import StudentClassForm from "./StudentClassForm";
+import StudentPasswordForm from "./StudentPasswordForm";
+import StudentProfileForm from "./StudentProfileForm";
 
 export const metadata: Metadata = {
   title: "My Profile",
@@ -12,7 +16,10 @@ export const metadata: Metadata = {
 
 export default async function StudentProfilePage() {
   const user = await requireCurrentRole("STUDENT");
-  const account = await getStudentAccountSummary(user.id);
+  const [account, classScope] = await Promise.all([
+    getStudentAccountSummary(user.id),
+    getStudentClassScope(user.id),
+  ]);
 
   if (!account) {
     return (
@@ -33,15 +40,17 @@ export default async function StudentProfilePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-7">
       <header className="rounded-3xl border border-slate-200 bg-white px-6 py-8 shadow-sm sm:px-10">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-950 text-lg font-bold text-white">
-            {account.initials}
-          </span>
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Your account</p>
-            <h1 className="mt-1 text-3xl font-bold text-slate-950">{account.name}</h1>
-          </div>
-        </div>
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Your account</p>
+        <h1 className="mt-1 text-3xl font-bold text-slate-950">My Profile</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+          Update your name and photo. Email stays the same so you can keep signing in.
+        </p>
+        <StudentProfileForm
+          firstName={account.firstName}
+          lastName={account.lastName}
+          initials={account.initials}
+          photoSrc={account.avatarUrl ? STUDENT_AVATAR_SRC : null}
+        />
       </header>
 
       <section className="rounded-3xl border border-slate-200 bg-white px-6 py-7 shadow-sm sm:px-10">
@@ -54,11 +63,22 @@ export default async function StudentProfilePage() {
             </div>
           ))}
         </dl>
-        <p className="mt-6 text-sm leading-6 text-slate-600">
-          Name and email changes are not available yet. Contact{" "}
-          <Link href="/contact" className="font-semibold text-blue-700 hover:text-blue-800">support</Link>{" "}
-          if these details are wrong.
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white px-6 py-7 shadow-sm sm:px-10">
+        <h2 className="text-lg font-bold text-slate-950">Class and board</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+          Resources, chapters and tests stay limited to this class. Update it when you move to the next class.
         </p>
+        <StudentClassForm boardSlug={classScope?.boardSlug ?? "cbse"} classSlug={classScope?.classSlug ?? ""} />
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white px-6 py-7 shadow-sm sm:px-10">
+        <h2 className="text-lg font-bold text-slate-950">Password</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+          Changing your password signs out other browsers and devices. You stay signed in here.
+        </p>
+        <StudentPasswordForm />
       </section>
 
       <section className="rounded-3xl border border-slate-200 bg-white px-6 py-7 shadow-sm sm:px-10">

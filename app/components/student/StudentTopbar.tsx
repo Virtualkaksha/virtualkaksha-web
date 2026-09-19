@@ -7,8 +7,10 @@ import { useState } from "react";
 
 import { isStudentNavigationActive, studentNavigationItems, studentSupportNavigationItem } from "./StudentSidebar";
 import { logoutAction } from "@/app/(auth)/actions";
+import type { StudentNavProfile } from "@/lib/students/nav-profile";
+import { StudentAvatar, StudentProfileChip } from "./StudentAvatar";
 
-export default function StudentTopbar() {
+export default function StudentTopbar({ profile }: { profile?: StudentNavProfile | null }) {
   const pathname = usePathname();
   const activeResourceType = useSearchParams().get("type");
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -40,6 +42,16 @@ export default function StudentTopbar() {
             Search learning resources
           </Link>
 
+          {profile ? (
+            <Link href="/student/profile" className="flex items-center gap-2 rounded-xl p-1 hover:bg-slate-100 lg:pr-2" aria-label="My Profile">
+              <StudentAvatar initials={profile.initials} hasPhoto={profile.hasPhoto} className="h-10 w-10 text-sm" />
+              <span className="hidden min-w-0 lg:block">
+                <span className="block truncate text-sm font-semibold text-slate-950">{profile.name}</span>
+                <span className="block text-xs text-slate-500">My Profile</span>
+              </span>
+            </Link>
+          ) : null}
+
         </div>
       </header>
 
@@ -60,14 +72,24 @@ export default function StudentTopbar() {
               {studentNavigationItems.map((item) => {
                 const active = isStudentNavigationActive(pathname, item, activeResourceType);
                 const Icon = item.icon;
+                const isProfile = item.href === "/student/profile";
                 return (
                   <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold ${active ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
-                    <Icon className="h-[18px] w-[18px]" />
+                    {isProfile && profile ? (
+                      <StudentAvatar initials={profile.initials} hasPhoto={profile.hasPhoto} className={`h-6 w-6 text-[10px] ${active ? "ring-1 ring-white/40" : ""}`} />
+                    ) : (
+                      <Icon className="h-[18px] w-[18px]" />
+                    )}
                     {item.label}
                   </Link>
                 );
               })}
             </nav>
+            {profile ? (
+              <div className="mt-5 border-t border-slate-200 pt-4">
+                <StudentProfileChip profile={profile} onNavigate={() => setMobileOpen(false)} />
+              </div>
+            ) : null}
             <div className="mt-5 border-t border-slate-200 pt-4">
               <Link href={studentSupportNavigationItem.href} onClick={() => setMobileOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">
                 <SupportIcon className="h-[18px] w-[18px]" aria-hidden="true" />

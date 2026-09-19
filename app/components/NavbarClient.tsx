@@ -11,6 +11,7 @@ const links = [
   ["Home", "/"],
   ["Resources", "/search"],
   ["Previous Year Papers", publicCatalogueTypeHref(CATALOGUE_TYPE_SLUGS.previousYearQuestions)],
+  ["Teachers", "/teacher"],
   ["About", "/about"],
   ["Contact", "/contact"],
 ] as const;

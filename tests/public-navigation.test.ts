@@ -14,9 +14,10 @@ test("public navigation uses real routes and excludes retired destinations", asy
   const source = await Promise.all(["app/components/Navbar.tsx", "app/components/NavbarClient.tsx", "app/components/Footer.tsx", "app/components/Hero.tsx", "app/components/PopularResources.tsx", "app/components/TeacherSection.tsx", "app/components/student/StudentSidebar.tsx", "app/components/student/StudentTopbar.tsx"].map((file) => readFile(file, "utf8")));
   const joined = source.join("\n");
   const navbarClient = source[1];
-  for (const route of ["/", "/search", "/about", "/contact", "/privacy", "/terms", "/login/student", "/signup", "/login/teacher", "/teacher-access"]) assert.match(joined, new RegExp(route.replace("/", "\\/")));
+  for (const route of ["/", "/search", "/about", "/contact", "/privacy", "/terms", "/login/student", "/signup", "/login/teacher", "/teacher-access", "/teacher"]) assert.match(joined, new RegExp(route.replace("/", "\\/")));
+  assert.match(navbarClient, /\["Teachers", "\/teacher"\]/);
   assert.match(joined, /Built for teachers|Teacher login|Request teacher access/);
-  assert.doesNotMatch(navbarClient, /\["Teachers"/);
+  assert.doesNotMatch(navbarClient, /\["Teachers", "\/teachers"\]/);
   assert.doesNotMatch(joined, /["']\/(?:courses|notes|tests|student\/settings)["']/);
 });
 

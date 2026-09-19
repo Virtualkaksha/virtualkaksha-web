@@ -162,7 +162,7 @@ test("signup IP and normalized-email limits are enforced before hashing", async 
     let hashed = false;
     const limiter = adapter({ decision: (policy) => policy === blockedPolicy ? limited : allowed });
     const result = await registerStudentAccount(
-      { firstName: "Person", email: "person@example.com", password: "Password1", request },
+      { firstName: "Person", email: "person@example.com", password: "Password1", classLevelSlug: "class-10", request },
       { rateLimit: limiter.value, resolveIp: () => ip, hash: async () => { hashed = true; return "hash"; } },
     );
     assert.deepEqual(result, { accepted: false, retryAfterSeconds: 60 });
@@ -173,11 +173,11 @@ test("signup IP and normalized-email limits are enforced before hashing", async 
 test("new and duplicate signup emails have the same accepted result", async () => {
   const base = { rateLimit: adapter().value, resolveIp: () => ip, hash: async () => "hash" };
   const created = await registerStudentAccount(
-    { firstName: "Person", email: "person@example.com", password: "Password1", request },
+    { firstName: "Person", email: "person@example.com", password: "Password1", classLevelSlug: "class-10", request },
     { ...base, createUser: async () => ({ id: "user-1", email: "person@example.com" }) },
   );
   const duplicate = await registerStudentAccount(
-    { firstName: "Person", email: "person@example.com", password: "Password1", request },
+    { firstName: "Person", email: "person@example.com", password: "Password1", classLevelSlug: "class-10", request },
     { ...base, createUser: async () => { throw new Error("database uniqueness details"); }, isUniqueConflict: () => true },
   );
   assert.deepEqual(created, { accepted: true });
@@ -188,7 +188,7 @@ test("new and duplicate signup emails have the same accepted result", async () =
 test("signup limiter outage fails closed before hashing or creation", async () => {
   let touched = false;
   const result = await registerStudentAccount(
-    { firstName: "Person", email: "person@example.com", password: "Password1", request },
+    { firstName: "Person", email: "person@example.com", password: "Password1", classLevelSlug: "class-10", request },
     {
       rateLimit: adapter({ fail: true }).value,
       resolveIp: () => ip,

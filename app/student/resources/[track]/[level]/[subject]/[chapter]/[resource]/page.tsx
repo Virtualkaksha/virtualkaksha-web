@@ -14,6 +14,7 @@ import {
 import { resolveActiveAsset } from "@/lib/resources/active-asset";
 import { resolveVideoEmbed, VIDEO_FRAME_REFERRER_POLICY } from "@/lib/resources/video-embed";
 import { formatStudentResourceTitle } from "@/lib/resources/display-title";
+import { redirectStudentToOwnClass } from "@/lib/students/class-scope";
 
 import ResourceActions from "./ResourceActions";
 
@@ -197,6 +198,7 @@ export default async function ResourceViewerPage({
   params,
 }: ResourceViewerPageProps) {
   const { track, level, subject, chapter, resource } = await params;
+  await redirectStudentToOwnClass({ boardSlug: track, classSlug: level });
 
   const selectedResource = await prisma.resource.findFirst({
     where: {

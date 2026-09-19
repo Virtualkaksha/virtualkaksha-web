@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import prisma from "@/lib/prisma";
 import { formatStudentResourceTitle } from "@/lib/resources/display-title";
+import { redirectStudentToOwnClass } from "@/lib/students/class-scope";
 
 type ChapterLearningHubPageProps = {
   params: Promise<{
@@ -51,6 +52,7 @@ export default async function ChapterLearningHubPage({
   params,
 }: ChapterLearningHubPageProps) {
   const { track, level, subject, chapter } = await params;
+  await redirectStudentToOwnClass({ boardSlug: track, classSlug: level });
 
   const [selectedChapter, resourceTypes] = await Promise.all([
     prisma.chapter.findFirst({

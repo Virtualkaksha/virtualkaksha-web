@@ -132,7 +132,6 @@ export async function authorizeCredentials(
     id: usableUser.id,
     email: usableUser.email,
     name: usableUser.displayName ?? [usableUser.firstName, usableUser.lastName].filter(Boolean).join(" "),
-    image: usableUser.avatarUrl,
     sessionVersion: usableUser.sessionVersion,
     roles: usableUser.roles.map(({ role }) => role.name),
   };

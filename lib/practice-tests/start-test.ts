@@ -11,6 +11,7 @@ import {
   findPublishedQuestionsForChapters,
   findStudentOpenAttempt,
 } from "@/repositories/practice-test.repository";
+import { getStudentClassScope } from "@/lib/students/class-scope";
 
 export type StartPracticeTestResult =
   | { ok: true; attemptId: string }
@@ -32,7 +33,10 @@ export async function startPracticeTest(input: {
     return { ok: false, code: "IN_PROGRESS", message: "Finish your current test before starting another." };
   }
 
-  const { kind, boardId, classLevelId, subjectId, chapterIds: uniqueChapterIds } = parsed.value;
+  const scope = await getStudentClassScope(input.studentUserId);
+  const { kind, subjectId, chapterIds: uniqueChapterIds } = parsed.value;
+  const boardId = scope?.boardId ?? parsed.value.boardId;
+  const classLevelId = scope?.classLevelId ?? parsed.value.classLevelId;
   const needsSubject = kind !== "FULL_CLASS";
 
   const chapters = await findActiveChapters({

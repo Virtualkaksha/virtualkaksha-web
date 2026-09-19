@@ -30,7 +30,17 @@ const kinds: Array<{ value: PracticeTestKind; label: string; hint: string }> = [
 
 const field = "min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
 
-export default function TestSetupForm({ catalogue, defaultBoardId, defaultClassLevelId }: { catalogue: Catalogue; defaultBoardId?: string; defaultClassLevelId?: string }) {
+export default function TestSetupForm({
+  catalogue,
+  defaultBoardId,
+  defaultClassLevelId,
+  lockClass = false,
+}: {
+  catalogue: Catalogue;
+  defaultBoardId?: string;
+  defaultClassLevelId?: string;
+  lockClass?: boolean;
+}) {
   const [state, action, pending] = useActionState(startStudentPracticeTest, { status: "idle" } satisfies StartTestActionState);
   const [boardId, setBoardId] = useState(defaultBoardId ?? catalogue.boards[0]?.id ?? "");
   const [classLevelId, setClassLevelId] = useState(defaultClassLevelId ?? catalogue.levels[0]?.id ?? "");
@@ -76,15 +86,29 @@ export default function TestSetupForm({ catalogue, defaultBoardId, defaultClassL
       <div className="grid gap-4 sm:grid-cols-2">
         <label>
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Board</span>
-          <select name="boardId" value={boardId} onChange={(event) => { setBoardId(event.target.value); setSubjectId(""); setChapterId(""); setCombinedIds([]); }} className={field}>
-            {catalogue.boards.map((board) => <option key={board.id} value={board.id}>{board.shortName}</option>)}
-          </select>
+          {lockClass ? (
+            <>
+              <input type="hidden" name="boardId" value={boardId} />
+              <p className={`${field} flex items-center bg-slate-50`}>{catalogue.boards.find((board) => board.id === boardId)?.shortName ?? "Your board"}</p>
+            </>
+          ) : (
+            <select name="boardId" value={boardId} onChange={(event) => { setBoardId(event.target.value); setSubjectId(""); setChapterId(""); setCombinedIds([]); }} className={field}>
+              {catalogue.boards.map((board) => <option key={board.id} value={board.id}>{board.shortName}</option>)}
+            </select>
+          )}
         </label>
         <label>
           <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Class</span>
-          <select name="classLevelId" value={classLevelId} onChange={(event) => { setClassLevelId(event.target.value); setSubjectId(""); setChapterId(""); setCombinedIds([]); }} className={field}>
-            {catalogue.levels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}
-          </select>
+          {lockClass ? (
+            <>
+              <input type="hidden" name="classLevelId" value={classLevelId} />
+              <p className={`${field} flex items-center bg-slate-50`}>{catalogue.levels.find((level) => level.id === classLevelId)?.name ?? "Your class"}</p>
+            </>
+          ) : (
+            <select name="classLevelId" value={classLevelId} onChange={(event) => { setClassLevelId(event.target.value); setSubjectId(""); setChapterId(""); setCombinedIds([]); }} className={field}>
+              {catalogue.levels.map((level) => <option key={level.id} value={level.id}>{level.name}</option>)}
+            </select>
+          )}
         </label>
       </div>
 

@@ -17,7 +17,7 @@ export default function SignupPage() {
         Create your student account
       </h2>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Set up a secure account to save resources and track learning progress.
+        Set up a secure account for your class so you only see matching subjects, chapters and resources.
       </p>
       <SignupForm />
     </div>

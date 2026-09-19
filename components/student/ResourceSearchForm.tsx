@@ -34,10 +34,18 @@ function inferTrackType(track: string, facets: Facets) {
   return "";
 }
 
-export default function ResourceSearchForm({ query, facets }: { query: ResourceSearchQuery; facets: Facets }) {
-  const [trackType, setTrackType] = useState(query.trackType ?? inferTrackType(query.track, facets));
-  const [track, setTrack] = useState(query.track);
-  const [level, setLevel] = useState(query.level);
+export default function ResourceSearchForm({
+  query,
+  facets,
+  lockedClass = null,
+}: {
+  query: ResourceSearchQuery;
+  facets: Facets;
+  lockedClass?: { boardSlug: string; boardName: string; classSlug: string; className: string } | null;
+}) {
+  const [trackType, setTrackType] = useState(lockedClass ? "BOARD" : query.trackType ?? inferTrackType(query.track, facets));
+  const [track, setTrack] = useState(lockedClass?.boardSlug ?? query.track);
+  const [level, setLevel] = useState(lockedClass?.classSlug ?? query.level);
   const [subject, setSubject] = useState(query.subject);
   const [chapter, setChapter] = useState(query.chapter);
 
@@ -59,12 +67,10 @@ export default function ResourceSearchForm({ query, facets }: { query: ResourceS
         .map((item) => item.boardClassSubject?.subject.slug)
         .filter((slug): slug is string => Boolean(slug)),
     );
-    if (allowed.has("science")) {
-      allowed.add("chemistry");
-      allowed.add("physics");
-      allowed.add("biology");
+    if (allowed.size === 0) {
+      if (level || track) return facets.subjects.filter((item) => item.slug === subject);
+      return facets.subjects;
     }
-    if (allowed.size === 0) return facets.subjects;
     return facets.subjects.filter((item) => allowed.has(item.slug) || item.slug === subject);
   }, [facets, trackType, track, level, subject]);
 
@@ -81,6 +87,18 @@ export default function ResourceSearchForm({ query, facets }: { query: ResourceS
         <span className="mb-1.5 block text-sm font-semibold text-slate-700">Search resources</span>
         <input name="q" type="search" defaultValue={query.q} maxLength={100} placeholder="Title, chapter, subject or teacher" className={fieldClass} />
       </label>
+      {lockedClass ? (
+        <>
+          <input type="hidden" name="trackType" value="BOARD" />
+          <input type="hidden" name="track" value={lockedClass.boardSlug} />
+          <input type="hidden" name="level" value={lockedClass.classSlug} />
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-950 md:col-span-2 xl:col-span-4">
+            Showing {lockedClass.boardName} {lockedClass.className} only. Change class from{" "}
+            <Link href="/student/profile" className="font-semibold underline-offset-2 hover:underline">My Profile</Link>.
+          </div>
+        </>
+      ) : (
+        <>
       <label>
         <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Track type</span>
         <select name="trackType" value={trackType} onChange={(event) => { setTrackType(event.target.value); setChapter(""); }} className={fieldClass}>
@@ -108,6 +126,8 @@ export default function ResourceSearchForm({ query, facets }: { query: ResourceS
           {facets.levels.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
         </select>
       </label>
+        </>
+      )}
       <label>
         <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Subject</span>
         <select name="subject" value={subject} onChange={(event) => { setSubject(event.target.value); setChapter(""); }} className={fieldClass}>
@@ -146,7 +166,7 @@ export default function ResourceSearchForm({ query, facets }: { query: ResourceS
       <input type="hidden" name="pageSize" value={query.pageSize} />
       <div className="flex items-end gap-2 md:col-span-2 xl:col-span-4">
         <button className="min-h-11 rounded-xl bg-blue-700 px-6 text-sm font-semibold text-white transition hover:bg-blue-800">Search</button>
-        <Link href="/student/resources/search" className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Clear</Link>
+        <Link href={lockedClass ? `/student/resources/search?track=${lockedClass.boardSlug}&trackType=BOARD&level=${lockedClass.classSlug}` : "/student/resources/search"} className="inline-flex min-h-11 items-center rounded-xl border border-slate-300 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Clear</Link>
       </div>
     </form>
   );
