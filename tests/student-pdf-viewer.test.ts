@@ -134,6 +134,17 @@ test("React-PDF applies responsive width in a bounded vertical scroll area", asy
   assert.match(source, /min-w-0 overflow-hidden/);
 });
 
+test("React-PDF toolbar can open the viewer fullscreen", async () => {
+  const source = await readFile("components/student/StudentPdfCanvasViewer.tsx", "utf8");
+  assert.match(source, /aria-label=\{isFullscreen \? "Exit fullscreen" : "Open fullscreen"\}/);
+  assert.match(source, /requestFullscreen/);
+  assert.match(source, /exitFullscreen/);
+  assert.match(source, /fullscreenchange/);
+  assert.match(source, /fixed inset-0 z-\[80\]/);
+  assert.match(source, /Maximize2/);
+  assert.match(source, /Minimize2/);
+});
+
 test("iframe fallback appears only after a React-PDF error, not ordinary loading", async () => {
   const source = await readFile("components/student/StudentPdfCanvasViewer.tsx", "utf8");
   const errorBranch = source.indexOf("if (loadError)");

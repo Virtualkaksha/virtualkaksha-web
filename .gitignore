@@ -45,4 +45,6 @@ next-env.d.ts
 /app/generated/prisma
 
 /storage/resources/
+/storage/imports/
+/6-10 Foundation Package/
 .neon

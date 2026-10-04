@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -17,6 +17,7 @@ type StudentPdfCanvasViewerProps = {
 };
 
 type TurnDirection = "next" | "previous" | "none";
+type FullscreenMode = "off" | "native" | "css";
 
 const VIEWER_HORIZONTAL_PADDING = 32;
 
@@ -40,8 +41,10 @@ export default function StudentPdfCanvasViewer({
   const [isPageRendering, setIsPageRendering] = useState(true);
   const [turnDirection, setTurnDirection] = useState<TurnDirection>("none");
   const [loadError, setLoadError] = useState<"document" | "page" | null>(null);
+  const [fullscreenMode, setFullscreenMode] = useState<FullscreenMode>("off");
   const file = useMemo(() => ({ url: sourceUrl }), [sourceUrl]);
   const options = useMemo(() => ({ withCredentials: true }), []);
+  const isFullscreen = fullscreenMode !== "off";
 
   useEffect(() => {
     pageRef.current = page;
@@ -65,7 +68,73 @@ export default function StudentPdfCanvasViewer({
     });
     observer.observe(viewer);
     return () => observer.disconnect();
+  }, [fullscreenMode]);
+
+  const exitFullscreen = useCallback(async () => {
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        // The CSS overlay still needs to close even if the browser rejects exitFullscreen.
+      }
+    }
+    setFullscreenMode("off");
   }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    if (fullscreenMode !== "off") {
+      await exitFullscreen();
+      return;
+    }
+
+    try {
+      if (typeof viewer.requestFullscreen === "function") {
+        await viewer.requestFullscreen();
+        setFullscreenMode("native");
+        return;
+      }
+    } catch {
+      // iOS Safari and some embedded browsers reject the Fullscreen API.
+    }
+
+    setFullscreenMode("css");
+  }, [exitFullscreen, fullscreenMode]);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (document.fullscreenElement === viewerRef.current) {
+        setFullscreenMode("native");
+        return;
+      }
+      setFullscreenMode((mode) => (mode === "native" ? "off" : mode));
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    if (fullscreenMode !== "css") return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setFullscreenMode("off");
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [fullscreenMode]);
 
   const finishPageRender = useCallback(() => {
     navigationLockedRef.current = false;
@@ -151,32 +220,56 @@ export default function StudentPdfCanvasViewer({
     turnDirection === "next" ? "pdf-page-enter-next" : turnDirection === "previous" ? "pdf-page-enter-previous" : "pdf-page-enter";
 
   return (
-    <div ref={viewerRef} tabIndex={0} className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-blue-200">
-      <div className="sticky top-0 z-20 flex min-h-16 items-center justify-center gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <div
+      ref={viewerRef}
+      tabIndex={0}
+      className={`min-w-0 overflow-hidden bg-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-blue-200 ${
+        isFullscreen
+          ? "flex h-full min-h-full flex-col rounded-none"
+          : "rounded-2xl border border-slate-200"
+      } ${fullscreenMode === "css" ? "fixed inset-0 z-[80] h-dvh w-dvw" : ""}`}
+    >
+      <div className="sticky top-0 z-20 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(page - 1)}
+            disabled={!numPages || isPageRendering || page <= 1}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </button>
+          <span className="min-w-28 text-center text-sm font-semibold text-slate-700">
+            Page {page} of {numPages ?? "—"}
+          </span>
+          <button
+            type="button"
+            onClick={() => navigate(page + 1)}
+            disabled={!numPages || isPageRendering || page >= numPages}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
         <button
           type="button"
-          onClick={() => navigate(page - 1)}
-          disabled={!numPages || isPageRendering || page <= 1}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={() => void toggleFullscreen()}
+          aria-label={isFullscreen ? "Exit fullscreen" : "Open fullscreen"}
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 transition hover:bg-blue-100"
         >
-          <ChevronLeft className="h-4 w-4" />
-          Previous
-        </button>
-        <span className="min-w-28 text-center text-sm font-semibold text-slate-700">
-          Page {page} of {numPages ?? "—"}
-        </span>
-        <button
-          type="button"
-          onClick={() => navigate(page + 1)}
-          disabled={!numPages || isPageRendering || page >= numPages}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Next
-          <ChevronRight className="h-4 w-4" />
+          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          <span className="hidden sm:inline">{isFullscreen ? "Exit fullscreen" : "Fullscreen"}</span>
         </button>
       </div>
 
-      <div ref={scrollRef} className="pdf-scroller relative max-h-[calc(100vh-12rem)] min-h-[420px] overflow-y-auto overflow-x-hidden p-4">
+      <div
+        ref={scrollRef}
+        className={`pdf-scroller relative overflow-y-auto overflow-x-hidden p-4 ${
+          isFullscreen ? "min-h-0 flex-1" : "max-h-[calc(100vh-12rem)] min-h-[420px]"
+        }`}
+      >
         <Document
           file={file}
           options={options}

@@ -493,7 +493,7 @@ export default async function ResourceViewerPage({
           </div>
 
           <ResourceActions
-            title={selectedResource.title}
+            title={formatStudentResourceTitle(selectedResource.title)}
             downloadUrl={downloadUrl}
             resourceId={selectedResource.id}
             initialBookmarked={initialBookmarked}
@@ -639,7 +639,7 @@ export default async function ResourceViewerPage({
                   {relatedResource.resourceType.name}
                 </p>
                 <h3 className="mt-2 font-semibold text-slate-900">
-                  {relatedResource.title}
+                  {formatStudentResourceTitle(relatedResource.title)}
                 </h3>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">

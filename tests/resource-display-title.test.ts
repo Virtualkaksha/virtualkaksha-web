@@ -18,3 +18,13 @@ test("ordinary titles are left unchanged", () => {
   assert.equal(formatStudentResourceTitle("Chemical Reactions revision notes"), "Chemical Reactions revision notes");
   assert.equal(formatStudentResourceTitle("  NCERT Solutions  "), "NCERT Solutions");
 });
+
+test("resource viewer related resources use readable titles", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile(
+    "app/student/resources/[track]/[level]/[subject]/[chapter]/[resource]/page.tsx",
+    "utf8",
+  );
+  assert.match(source, /formatStudentResourceTitle\(relatedResource\.title\)/);
+  assert.match(source, /title=\{formatStudentResourceTitle\(selectedResource\.title\)\}/);
+});

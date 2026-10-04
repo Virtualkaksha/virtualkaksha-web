@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 import type { ResourceViewerState } from "@/lib/resources/student-resource-service";
@@ -43,6 +43,8 @@ export default function StudentPdfViewer({ resourceId, viewerState, initialPage 
   const [isPdfLoading, setIsPdfLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [isIframeFullscreen, setIsIframeFullscreen] = useState(false);
+  const iframeViewerRef = useRef<HTMLDivElement>(null);
   const [saveError, setSaveError] = useState(false);
   const [saveRateLimited, setSaveRateLimited] = useState(false);
   const [useIframeFallback, setUseIframeFallback] = useState(false);
@@ -120,7 +122,38 @@ export default function StudentPdfViewer({ resourceId, viewerState, initialPage 
     };
   }, []);
 
-  const containerClassName = useMemo(() => (expanded ? "min-h-[80vh]" : "min-h-[60vh]"), [expanded]);
+  const containerClassName = useMemo(() => {
+    if (isIframeFullscreen) return "min-h-0 flex-1";
+    return expanded ? "min-h-[80vh]" : "min-h-[60vh]";
+  }, [expanded, isIframeFullscreen]);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsIframeFullscreen(document.fullscreenElement === iframeViewerRef.current);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  const toggleIframeFullscreen = async () => {
+    const viewer = iframeViewerRef.current;
+    if (!viewer) return;
+
+    if (isIframeFullscreen) {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => undefined);
+      }
+      setIsIframeFullscreen(false);
+      return;
+    }
+
+    try {
+      await viewer.requestFullscreen();
+      setIsIframeFullscreen(true);
+    } catch {
+      setIsIframeFullscreen(true);
+    }
+  };
 
   if (viewerState.viewerType !== "native") {
     if (!viewerState.sourceUrl) {
@@ -224,15 +257,29 @@ export default function StudentPdfViewer({ resourceId, viewerState, initialPage 
           <button
             type="button"
             onClick={() => setExpanded((current) => !current)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100"
+            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
             aria-label="Toggle expanded viewer"
           >
-            <ChevronsUpDown className="h-4 w-4" />
+            {expanded ? "Compact" : "Expand"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void toggleIframeFullscreen()}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-blue-200 bg-white px-3 text-sm font-semibold text-blue-800 transition hover:bg-blue-50"
+            aria-label={isIframeFullscreen ? "Exit fullscreen" : "Open fullscreen"}
+          >
+            {isIframeFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            <span className="hidden sm:inline">{isIframeFullscreen ? "Exit fullscreen" : "Fullscreen"}</span>
           </button>
         </div>
       </div>
 
-      <div className={`relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 ${containerClassName}`}>
+      <div
+        ref={iframeViewerRef}
+        className={`relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 ${containerClassName} ${
+          isIframeFullscreen ? "fixed inset-0 z-[80] h-dvh rounded-none" : ""
+        }`}
+      >
         {isPdfLoading ? (
           <div className="pointer-events-none absolute inset-0 z-10 flex min-h-[420px] items-center justify-center bg-slate-100/60">
             <p role="status" aria-live="polite" className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">

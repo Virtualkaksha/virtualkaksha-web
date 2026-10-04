@@ -21,6 +21,36 @@ const s3Config = {
   forcePathStyle: false,
 };
 
+test("development can read a local asset when the default provider is s3", async () => {
+  const root = await mkdtemp(join(tmpdir(), "virtualkaksha-storage-"));
+  try {
+    const provider = createResourceStorageProvider("local", {
+      NODE_ENV: "development",
+      RESOURCE_STORAGE_PROVIDER: "s3",
+      LOCAL_RESOURCE_STORAGE_PATH: root,
+      RESOURCE_UPLOAD_MAX_MB: "20",
+      S3_ENDPOINT: "https://storage.example.test",
+      S3_REGION: "auto",
+      S3_BUCKET: "private-resources",
+      S3_ACCESS_KEY_ID: "test-access-key",
+      S3_SECRET_ACCESS_KEY: "test-secret-key",
+      S3_FORCE_PATH_STYLE: "false",
+    });
+    assert.ok(provider instanceof LocalResourceStorageProvider);
+    const buffer = Buffer.from("%PDF-local-override");
+    await provider.upload({
+      objectKey: "resources/resource-1/local.pdf",
+      originalFileName: "local.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: buffer.length,
+      buffer,
+    });
+    assert.deepEqual(await provider.readFile("resources/resource-1/local.pdf"), buffer);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("local provider remains available in development and can round-trip a PDF", async () => {
   const root = await mkdtemp(join(tmpdir(), "virtualkaksha-storage-"));
   try {

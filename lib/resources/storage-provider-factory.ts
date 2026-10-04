@@ -40,9 +40,8 @@ export function createResourceStorageProvider(
   providerOverride?: string,
   environment?: EnvironmentSource,
 ): ResourceStorageProvider {
-  const validated = environment
-    ? getStorageEnvironment(withProviderOverride(environment, providerOverride))
-    : getStorageEnvironment();
+  const source = withProviderOverride(environment ?? process.env, providerOverride);
+  const validated = getStorageEnvironment(source);
   if (providerOverride && providerOverride !== validated.provider) {
     throw new Error("Storage environment validation failed: requested provider does not match configured provider.");
   }
