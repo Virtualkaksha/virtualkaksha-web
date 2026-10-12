@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
+import { BrandLogo } from "@/app/components/brand/BrandLogo";
 import { CATALOGUE_TYPE_SLUGS, STUDENT_CATALOGUE_SEARCH_PATH, studentCatalogueTypeHref } from "@/lib/resources/catalogue-types";
 import type { StudentNavProfile } from "@/lib/students/nav-profile";
 import { StudentAvatar, StudentProfileChip } from "./StudentAvatar";
@@ -103,15 +104,10 @@ export default function StudentSidebar({ profile }: { profile?: StudentNavProfil
     <aside className="hidden min-h-screen w-[280px] shrink-0 border-r border-slate-200/80 bg-white lg:block">
       <div className="sticky top-0 flex h-screen flex-col">
         <div className="px-5 pb-5 pt-6">
-          <Link href="/student" className="flex items-center gap-3 rounded-xl px-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-sm font-bold text-white shadow-sm">
-              VK
-            </span>
-            <span>
-              <span className="block text-lg font-bold tracking-tight text-slate-950">VirtualKaksha</span>
-              <span className="block text-xs font-medium text-slate-500">Student workspace</span>
-            </span>
-          </Link>
+          <div>
+            <BrandLogo href="/student" size={40} />
+            <p className="mt-1 text-xs font-medium text-slate-500">Student workspace</p>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-4 pb-5">

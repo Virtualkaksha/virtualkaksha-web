@@ -26,7 +26,7 @@ export default function ChooseClass() {
           {classes.map((item) => (
             <Link
               key={item}
-              href={`/search?level=${item.toLowerCase().replace(" ", "-")}`}
+              href={`/cbse/${item.toLowerCase().replace(" ", "-")}`}
               className="bg-white rounded-xl shadow-md hover:shadow-xl hover:bg-blue-600 hover:text-white transition-all duration-300 p-6 font-semibold text-lg"
             >
               {item}

@@ -21,15 +21,30 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://virtualkaksha.com"),
-  title: { default: "VirtualKaksha", template: "%s | VirtualKaksha" },
-  description: "Browse structured learning resources for Classes 6–12, read PDFs, bookmark material, and continue learning.",
+  title: {
+    default: "CBSE Class 6–12 Notes, NCERT Solutions and Tests | VirtualKaksha",
+    template: "%s | VirtualKaksha",
+  },
+  description:
+    "Free CBSE notes, NCERT solutions, videos and 30-question practice tests for Classes 6 to 12 Maths, Science, Physics and Chemistry.",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     url: "/",
     siteName: "VirtualKaksha",
-    title: "VirtualKaksha",
-    description: "Structured learning resources for Classes 6–12 across supported boards and exams.",
+    title: "CBSE Class 6–12 Notes, NCERT Solutions and Tests",
+    description:
+      "Free CBSE notes, NCERT solutions, videos and practice tests for Classes 6 to 12.",
+    images: [{ url: "/brand/virtualkaksha-logo.png", alt: "VirtualKaksha" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "CBSE Class 6–12 Notes | VirtualKaksha",
+    description: "Notes, NCERT solutions and practice tests for CBSE Classes 6 to 12.",
+  },
+  icons: {
+    icon: "/brand/virtualkaksha-logo.png",
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -45,7 +60,27 @@ export default async function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "EducationalOrganization",
+              name: "VirtualKaksha",
+              url: "https://virtualkaksha.com",
+              email: "support@virtualkaksha.com",
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: "Noida",
+                addressRegion: "Uttar Pradesh",
+                addressCountry: "IN",
+              },
+            }),
+          }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

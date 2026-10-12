@@ -13,12 +13,12 @@ function chapterSlug(name: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function chapters(items: Array<[number, string, string]>): ChapterSeed[] {
-  return items.map(([chapterNumber, name, nameHindi]) => ({
+function chapters(items: Array<[number, string, string] | [number, string, string, string]>): ChapterSeed[] {
+  return items.map(([chapterNumber, name, nameHindi, slug]) => ({
     chapterNumber,
     name,
     nameHindi,
-    slug: chapterSlug(name),
+    slug: slug ?? chapterSlug(name),
   }));
 }
 
@@ -180,6 +180,37 @@ const catalogue: Record<string, ChapterSeed[]> = {
     [11, "Sound", "ध्वनि"],
     [12, "Improvement in Food Resources", "खाद्य संसाधनों में सुधार"],
   ]),
+  "10:science": chapters([
+    [1, "Chemical Reactions and Equations", "रासायनिक अभिक्रियाएँ एवं समीकरण"],
+    [2, "Acids, Bases and Salts", "अम्ल, क्षारक एवं लवण"],
+    [3, "Metals and Non-metals", "धातु एवं अधातु"],
+    [4, "Carbon and Its Compounds", "कार्बन एवं उसके यौगिक"],
+    [5, "Life Processes", "जैव प्रक्रम"],
+    [6, "Control and Coordination", "नियंत्रण एवं समन्वय"],
+    [7, "How Do Organisms Reproduce?", "जीव जनन कैसे करते हैं?"],
+    [8, "Heredity", "आनुवंशिकता"],
+    [9, "Light – Reflection and Refraction", "प्रकाश – परावर्तन तथा अपवर्तन"],
+    [10, "The Human Eye and the Colourful World", "मानव नेत्र तथा रंगबिरंगा संसार", "human-eye-and-colourful-world"],
+    [11, "Electricity", "विद्युत"],
+    [12, "Magnetic Effects of Electric Current", "विद्युत धारा के चुंबकीय प्रभाव"],
+    [13, "Our Environment", "हमारा पर्यावरण"],
+  ]),
+  "10:mathematics": chapters([
+    [1, "Real Numbers", "वास्तविक संख्याएँ"],
+    [2, "Polynomials", "बहुपद"],
+    [3, "Pair of Linear Equations in Two Variables", "दो चरों वाले रैखिक समीकरण युग्म"],
+    [4, "Quadratic Equations", "द्विघात समीकरण"],
+    [5, "Arithmetic Progressions", "समांतर श्रेढ़ियाँ"],
+    [6, "Triangles", "त्रिभुज"],
+    [7, "Coordinate Geometry", "निर्देशांक ज्यामिति"],
+    [8, "Introduction to Trigonometry", "त्रिकोणमिति का परिचय"],
+    [9, "Applications of Trigonometry", "त्रिकोणमिति के अनुप्रयोग"],
+    [10, "Circles", "वृत्त"],
+    [11, "Areas Related to Circles", "वृत्तों से संबंधित क्षेत्रफल"],
+    [12, "Surface Areas and Volumes", "पृष्ठीय क्षेत्रफल एवं आयतन"],
+    [13, "Statistics", "सांख्यिकी"],
+    [14, "Probability", "प्रायिकता"],
+  ]),
   "11:physics": chapters([
     [1, "Units and Measurements", "मात्रक और मापन"],
     [2, "Motion in a Straight Line", "सरल रेखा में गति"],
@@ -270,4 +301,19 @@ const catalogue: Record<string, ChapterSeed[]> = {
 
 export function chaptersForSubject(numericLevel: number, subjectSlug: string): ChapterSeed[] {
   return catalogue[`${numericLevel}:${subjectSlug}`] ?? [];
+}
+
+export function listPublicCatalogueEntries() {
+  return Object.entries(catalogue)
+    .map(([key, chapters]) => {
+      const [level, subjectSlug] = key.split(":");
+      const numericLevel = Number(level);
+      return {
+        numericLevel,
+        classSlug: `class-${numericLevel}`,
+        subjectSlug: subjectSlug!,
+        chapters,
+      };
+    })
+    .filter((entry) => entry.numericLevel >= 6 && entry.numericLevel <= 12);
 }

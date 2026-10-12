@@ -1,18 +1,14 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { GraduationCap, ShieldCheck, Sparkles } from "lucide-react";
+import { ShieldCheck, Sparkles } from "lucide-react";
+
+import { BrandLogo } from "@/app/components/brand/BrandLogo";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
         <section className="hidden bg-slate-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
-          <Link href="/" className="inline-flex items-center gap-3 font-bold">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600">
-              <GraduationCap className="h-6 w-6" />
-            </span>
-            <span className="text-xl">VirtualKaksha</span>
-          </Link>
+          <BrandLogo href="/" variant="on-dark" size={44} />
 
           <div className="max-w-md">
             <span className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-semibold text-blue-200">

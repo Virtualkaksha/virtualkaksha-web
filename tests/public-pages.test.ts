@@ -70,12 +70,12 @@ test("public search browses class then subject then chapter before resources", a
   assert.equal(resolvePublicBrowseStep(chapter), "resources");
   assert.equal(resolvePublicBrowseStep(keyword), "resources");
 
-  assert.match(publicBrowseHref(empty, { level: "class-10" }), /level=class-10/);
+  assert.equal(publicBrowseHref(empty, { level: "class-10" }), "/cbse/class-10");
   assert.doesNotMatch(publicBrowseHref(empty, { level: "class-10" }), /subject=/);
-  assert.match(publicBrowseHref(class10, { level: "class-10", subject: "science" }), /subject=science/);
+  assert.equal(publicBrowseHref(class10, { level: "class-10", subject: "science" }), "/cbse/class-10/science");
   assert.doesNotMatch(publicBrowseHref(class10, { level: "class-10", subject: "science" }), /chapter=/);
 
-  const page = await readFile("app/search/page.tsx", "utf8");
+  const page = await readFile("components/public/PublicCatalogueScreen.tsx", "utf8");
   assert.match(page, /loadPublicCataloguePage/);
   assert.match(page, /PublicClassSwitcher/);
   assert.match(page, /PublicSubjectCards/);

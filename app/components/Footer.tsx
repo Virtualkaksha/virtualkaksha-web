@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BrandLogo } from "@/app/components/brand/BrandLogo";
 import { CATALOGUE_TYPE_SLUGS, publicCatalogueTypeHref } from "@/lib/resources/catalogue-types";
 
 const resources = [
@@ -29,7 +30,7 @@ export default function Footer() {
     <footer className="border-t border-slate-200 bg-slate-950 text-slate-300">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div className="sm:col-span-2 lg:col-span-1">
-          <h2 className="text-2xl font-bold text-white">VirtualKaksha</h2>
+          <BrandLogo href="/" variant="on-dark" size={40} />
           <p className="mt-4 max-w-sm text-sm leading-7">
             Browse structured learning resources for Classes 6–12, bookmark useful material, and
             continue reading PDFs.

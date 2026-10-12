@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
 import { logoutAction } from "@/app/(auth)/actions";
+import { BrandLogo } from "@/app/components/brand/BrandLogo";
 import { CATALOGUE_TYPE_SLUGS, publicCatalogueTypeHref } from "@/lib/resources/catalogue-types";
 
 const links = [
@@ -31,9 +32,7 @@ export default function NavbarClient({ isAuthenticated, workspacePath }: NavbarC
       className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur"
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-        <Link href="/" className="shrink-0 text-xl font-bold text-blue-700 sm:text-2xl">
-          VirtualKaksha
-        </Link>
+        <BrandLogo href="/" priority />
 
         <div className="hidden items-center gap-5 font-medium lg:flex xl:gap-7">
           {links.map(([label, href]) => (

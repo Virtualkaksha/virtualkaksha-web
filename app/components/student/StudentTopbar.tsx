@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { isStudentNavigationActive, studentNavigationItems, studentSupportNavigationItem } from "./StudentSidebar";
 import { logoutAction } from "@/app/(auth)/actions";
+import { BrandLogo } from "@/app/components/brand/BrandLogo";
 import type { StudentNavProfile } from "@/lib/students/nav-profile";
 import { StudentAvatar, StudentProfileChip } from "./StudentAvatar";
 
@@ -60,10 +61,7 @@ export default function StudentTopbar({ profile }: { profile?: StudentNavProfile
           <button type="button" aria-label="Close navigation overlay" onClick={() => setMobileOpen(false)} className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" />
           <aside className="relative h-full w-[min(88vw,340px)] overflow-y-auto bg-white p-4 shadow-2xl">
             <div className="flex items-center justify-between px-2 py-2">
-              <Link href="/student" onClick={() => setMobileOpen(false)} className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-sm font-bold text-white">VK</span>
-                <span className="font-bold text-slate-950">VirtualKaksha</span>
-              </Link>
+              <BrandLogo href="/student" size={36} />
               <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close navigation" className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-600">
                 <X className="h-5 w-5" />
               </button>

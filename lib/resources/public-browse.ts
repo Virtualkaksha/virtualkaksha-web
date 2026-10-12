@@ -1,7 +1,9 @@
+import { publicCataloguePath } from "@/lib/seo/public-listing";
 import type { ResourceSearchQuery } from "./resource-search-query";
 
 export const PUBLIC_BOARD_SLUG = "cbse";
 export const DEFAULT_PUBLIC_CLASS_SLUG = "class-10";
+export const PUBLIC_CATALOGUE_HOME = "/cbse";
 
 export type PublicBrowseStep = "classes" | "subjects" | "chapters" | "resources";
 
@@ -42,5 +44,15 @@ export function publicBrowseHref(
   if (selection.level) params.set("level", selection.level);
   if (selection.subject) params.set("subject", selection.subject);
   if (selection.chapter) params.set("chapter", selection.chapter);
+  if (!query.q && !query.type && selection.level) {
+    return publicCataloguePath({
+      level: selection.level,
+      subject: selection.subject,
+      chapter: selection.chapter,
+    });
+  }
+  if (!query.q && !query.type && !selection.level) {
+    return PUBLIC_CATALOGUE_HOME;
+  }
   return `/search?${params.toString()}`;
 }

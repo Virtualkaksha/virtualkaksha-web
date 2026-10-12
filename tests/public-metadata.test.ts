@@ -18,10 +18,17 @@ test("root metadata is branded and canonical", async () => {
 
 test("sitemap, robots and manifest expose only approved public surfaces", () => {
   const urls = sitemap().map((item) => item.url);
-  for (const route of ["", "/about", "/contact", "/privacy", "/terms", "/search"]) assert.ok(urls.includes(`https://virtualkaksha.com${route}`));
+  for (const route of ["", "/about", "/contact", "/privacy", "/terms", "/search", "/cbse", "/cbse/class-10/mathematics"]) {
+    assert.ok(urls.includes(`https://virtualkaksha.com${route}`), route);
+  }
+  assert.ok(urls.length > 50);
   assert.equal(urls.some((url) => /\/(?:admin|teacher|student)(?:\/|$)/.test(url)), false);
-  assert.deepEqual(robots().rules, { userAgent: "*", allow: ["/", "/about", "/contact", "/privacy", "/terms", "/search"], disallow: ["/admin/", "/teacher/", "/student/", "/api/"] });
-  assert.equal(manifest().icons?.[0]?.src, "/favicon.ico");
+  assert.deepEqual(robots().rules, {
+    userAgent: "*",
+    allow: ["/", "/about", "/contact", "/privacy", "/terms", "/search", "/cbse/"],
+    disallow: ["/admin/", "/teacher/", "/student/", "/api/"],
+  });
+  assert.equal(manifest().icons?.[0]?.src, "/brand/virtualkaksha-logo.png");
 });
 
 test("production readiness detects the unresolved legal effective date", () => {
