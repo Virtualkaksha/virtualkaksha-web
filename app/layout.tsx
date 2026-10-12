@@ -43,10 +43,7 @@ export const metadata: Metadata = {
     description: "Notes, NCERT solutions and practice tests for CBSE Classes 6 to 12.",
   },
   icons: {
-    icon: [
-      { url: "/brand/virtualkaksha-icon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icon.png", type: "image/png" },
-    ],
+    icon: [{ url: "/brand/virtualkaksha-icon-32.png", sizes: "32x32", type: "image/png" }],
     apple: "/apple-touch-icon.png",
     shortcut: "/brand/virtualkaksha-icon-32.png",
   },
