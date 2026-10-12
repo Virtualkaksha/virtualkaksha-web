@@ -3,10 +3,10 @@ export const PRACTICE_TEST_KINDS = ["CHAPTER", "COMBINED_CHAPTER", "SUBJECT", "F
 export type PracticeTestKind = (typeof PRACTICE_TEST_KINDS)[number];
 
 export const PRACTICE_TEST_SIZE: Record<PracticeTestKind, number> = {
-  CHAPTER: 10,
-  COMBINED_CHAPTER: 15,
-  SUBJECT: 20,
-  FULL_CLASS: 25,
+  CHAPTER: 30,
+  COMBINED_CHAPTER: 30,
+  SUBJECT: 30,
+  FULL_CLASS: 30,
 };
 
 export const PRACTICE_TEST_MINIMUM: Record<PracticeTestKind, number> = {

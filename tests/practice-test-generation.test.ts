@@ -11,12 +11,12 @@ import {
 test("a chapter test needs at least five published questions", () => {
   assert.equal(allocateQuestionCount("CHAPTER", 4), 0);
   assert.equal(allocateQuestionCount("CHAPTER", 5), 5);
-  assert.equal(allocateQuestionCount("CHAPTER", 40), 10);
+  assert.equal(allocateQuestionCount("CHAPTER", 40), 30);
   assert.equal(allocateQuestionCount("COMBINED_CHAPTER", 7), 0);
   assert.equal(allocateQuestionCount("COMBINED_CHAPTER", 8), 8);
   assert.equal(allocateQuestionCount("SUBJECT", 20), 20);
   assert.equal(allocateQuestionCount("FULL_CLASS", 12), 12);
-  assert.equal(allocateQuestionCount("FULL_CLASS", 40), 25);
+  assert.equal(allocateQuestionCount("FULL_CLASS", 40), 30);
 });
 
 test("question picking mixes chapters instead of draining one bucket first", () => {

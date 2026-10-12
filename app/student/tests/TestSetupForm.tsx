@@ -22,10 +22,10 @@ type Catalogue = {
 };
 
 const kinds: Array<{ value: PracticeTestKind; label: string; hint: string }> = [
-  { value: "CHAPTER", label: "Chapter test", hint: "Questions from one chapter." },
-  { value: "COMBINED_CHAPTER", label: "Combined chapter test", hint: "Mix questions from two or three chapters." },
-  { value: "SUBJECT", label: "Subject test", hint: "Questions from the whole subject." },
-  { value: "FULL_CLASS", label: "Full class test", hint: "Questions from every subject in this class." },
+  { value: "CHAPTER", label: "Chapter test", hint: "30 questions from one chapter." },
+  { value: "COMBINED_CHAPTER", label: "Combined chapter test", hint: "30 questions mixed from two or three chapters." },
+  { value: "SUBJECT", label: "Subject test", hint: "30 questions from the whole subject." },
+  { value: "FULL_CLASS", label: "Full class test", hint: "30 questions from every subject in this class." },
 ];
 
 const field = "min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100";

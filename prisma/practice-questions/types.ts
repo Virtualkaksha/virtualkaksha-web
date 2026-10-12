@@ -10,7 +10,7 @@ export type PracticeQuestionSeed = {
 };
 
 export function cbsePyq(
-  classSlug: "class-10" | "class-11" | "class-12",
+  classSlug: "class-6" | "class-7" | "class-8" | "class-9" | "class-10" | "class-11" | "class-12",
   subjectSlug: string,
   chapterSlug: string,
   prompt: string,
@@ -42,14 +42,26 @@ export function class12Pyq(
 }
 
 export function assertTwentyPerChapter(questions: PracticeQuestionSeed[], expectedChapters: string[]) {
+  assertCountPerChapter(questions, expectedChapters, 20);
+}
+
+export function assertThirtyPerChapter(questions: PracticeQuestionSeed[], expectedChapters: string[]) {
+  assertCountPerChapter(questions, expectedChapters, 30);
+}
+
+export function assertCountPerChapter(
+  questions: PracticeQuestionSeed[],
+  expectedChapters: string[],
+  expectedCount: number,
+) {
   const counts = new Map<string, number>();
   for (const question of questions) {
     counts.set(question.chapterSlug, (counts.get(question.chapterSlug) ?? 0) + 1);
   }
   for (const slug of expectedChapters) {
     const count = counts.get(slug) ?? 0;
-    if (count !== 20) {
-      throw new Error(`Expected 20 questions for ${slug}, found ${count}.`);
+    if (count !== expectedCount) {
+      throw new Error(`Expected ${expectedCount} questions for ${slug}, found ${count}.`);
     }
   }
   if (counts.size !== expectedChapters.length) {

@@ -4,13 +4,29 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../app/generated/prisma/client";
 import { chaptersForSubject as catalogueChapters } from "./chapter-catalogue";
 import { class10MathematicsQuestions } from "./practice-questions/class-10-mathematics";
+import { class10MathematicsExtraQuestions } from "./practice-questions/class-10-mathematics-extra";
 import { class10ScienceQuestions } from "./practice-questions/class-10-science";
+import { class10ScienceExtraQuestions } from "./practice-questions/class-10-science-extra";
+import { class6MathematicsQuestions } from "./practice-questions/class-6-mathematics";
+import { class6ScienceQuestions } from "./practice-questions/class-6-science";
+import { class7MathematicsQuestions } from "./practice-questions/class-7-mathematics";
+import { class7ScienceQuestions } from "./practice-questions/class-7-science";
+import { class8MathematicsQuestions } from "./practice-questions/class-8-mathematics";
+import { class8ScienceQuestions } from "./practice-questions/class-8-science";
+import { class9MathematicsQuestions } from "./practice-questions/class-9-mathematics";
+import { class9ScienceQuestions } from "./practice-questions/class-9-science";
 import { class11ChemistryQuestions } from "./practice-questions/class-11-chemistry";
+import { class11ChemistryExtraQuestions } from "./practice-questions/class-11-chemistry-extra";
 import { class11MathematicsQuestions } from "./practice-questions/class-11-mathematics";
+import { class11MathematicsExtraQuestions } from "./practice-questions/class-11-mathematics-extra";
 import { class11PhysicsQuestions } from "./practice-questions/class-11-physics";
+import { class11PhysicsExtraQuestions } from "./practice-questions/class-11-physics-extra";
 import { class12ChemistryQuestions } from "./practice-questions/class-12-chemistry";
+import { class12ChemistryExtraQuestions } from "./practice-questions/class-12-chemistry-extra";
 import { class12MathematicsQuestions } from "./practice-questions/class-12-mathematics";
+import { class12MathematicsExtraQuestions } from "./practice-questions/class-12-mathematics-extra";
 import { class12PhysicsQuestions } from "./practice-questions/class-12-physics";
+import { class12PhysicsExtraQuestions } from "./practice-questions/class-12-physics-extra";
 import type { PracticeQuestionSeed } from "./practice-questions/types";
 
 const connectionString = process.env.DATABASE_URL;
@@ -1174,13 +1190,29 @@ async function seedPracticeQuestions() {
       ...question,
     })),
     ...class10ScienceQuestions,
+    ...class10ScienceExtraQuestions,
     ...class10MathematicsQuestions,
+    ...class10MathematicsExtraQuestions,
+    ...class9ScienceQuestions,
+    ...class9MathematicsQuestions,
+    ...class8ScienceQuestions,
+    ...class8MathematicsQuestions,
+    ...class7ScienceQuestions,
+    ...class7MathematicsQuestions,
+    ...class6ScienceQuestions,
+    ...class6MathematicsQuestions,
     ...class11PhysicsQuestions,
+    ...class11PhysicsExtraQuestions,
     ...class11ChemistryQuestions,
+    ...class11ChemistryExtraQuestions,
     ...class11MathematicsQuestions,
+    ...class11MathematicsExtraQuestions,
     ...class12PhysicsQuestions,
+    ...class12PhysicsExtraQuestions,
     ...class12ChemistryQuestions,
+    ...class12ChemistryExtraQuestions,
     ...class12MathematicsQuestions,
+    ...class12MathematicsExtraQuestions,
   ];
 
   const groups = new Map<string, PracticeQuestionSeed[]>();
