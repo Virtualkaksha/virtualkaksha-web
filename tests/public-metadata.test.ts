@@ -28,8 +28,7 @@ test("sitemap, robots and manifest expose only approved public surfaces", () => 
     allow: ["/", "/about", "/contact", "/privacy", "/terms", "/search", "/cbse/", "/sitemap.xml"],
     disallow: ["/admin/", "/teacher/", "/student/", "/api/"],
   });
-  assert.equal(manifest().icons?.[0]?.src, "/favicon.ico");
-  assert.ok(manifest().icons?.some((icon) => icon.src === "/brand/virtualkaksha-logo.png"));
+  assert.equal(manifest().icons?.[0]?.src, "/brand/virtualkaksha-icon-32.png");
 });
 
 test("production readiness detects the unresolved legal effective date", () => {

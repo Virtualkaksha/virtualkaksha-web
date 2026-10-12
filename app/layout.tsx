@@ -44,12 +44,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "48x48" },
       { url: "/brand/virtualkaksha-icon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/brand/virtualkaksha-logo.png", type: "image/png" },
+      { url: "/icon.png", type: "image/png" },
     ],
     apple: "/apple-touch-icon.png",
-    shortcut: "/favicon.ico",
+    shortcut: "/brand/virtualkaksha-icon-32.png",
   },
 };
 
