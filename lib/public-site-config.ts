@@ -2,7 +2,7 @@ import "server-only";
 
 export const PUBLIC_SITE_CONFIG = {
   name: "VirtualKaksha",
-  canonicalUrl: "https://virtualkaksha.com",
+  canonicalUrl: "https://www.virtualkaksha.com",
   supportEmail: "support@virtualkaksha.com",
   operatingLocation: "Noida, Uttar Pradesh, India",
   legalEffectiveDate: "OWNER_CONFIRM_PUBLIC_LAUNCH_DATE",

@@ -20,7 +20,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://virtualkaksha.com"),
+  metadataBase: new URL("https://www.virtualkaksha.com"),
   title: {
     default: "CBSE Class 6–12 Notes, NCERT Solutions and Tests | VirtualKaksha",
     template: "%s | VirtualKaksha",
@@ -68,7 +68,7 @@ export default async function RootLayout({
               "@context": "https://schema.org",
               "@type": "EducationalOrganization",
               name: "VirtualKaksha",
-              url: "https://virtualkaksha.com",
+              url: "https://www.virtualkaksha.com",
               email: "support@virtualkaksha.com",
               address: {
                 "@type": "PostalAddress",

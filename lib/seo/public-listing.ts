@@ -112,7 +112,7 @@ export function publicPageSeo(query: {
       "@type": "LearningResource",
       name: copy.title,
       description: copy.description,
-      url: `https://virtualkaksha.com${canonical}`,
+      url: `https://www.virtualkaksha.com${canonical}`,
       educationalLevel: query.level ? classDisplayName(query.level) : "Class 6–12",
       learningResourceType: "Study notes",
       inLanguage: "en",
@@ -120,7 +120,7 @@ export function publicPageSeo(query: {
       provider: {
         "@type": "EducationalOrganization",
         name: "VirtualKaksha",
-        url: "https://virtualkaksha.com",
+        url: "https://www.virtualkaksha.com",
       },
     },
   };
