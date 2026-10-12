@@ -1,8 +1,12 @@
+import { assertDeliverableMailbox } from "@/lib/auth/email-mailbox";
 import { hashPassword } from "@/lib/auth/password";
 import type { RateLimitAdapter, RateLimitDecision } from "@/lib/rate-limit";
 import { getRateLimitAdapter, resolveRequestClientIp } from "@/lib/rate-limit";
 
-export type SignupServiceResult = { accepted: true } | { accepted: false; retryAfterSeconds: number };
+export type SignupServiceResult =
+  | { accepted: true }
+  | { accepted: false; retryAfterSeconds: number }
+  | { accepted: false; mailbox: true };
 
 type SignupInput = {
   firstName: string;
@@ -26,6 +30,7 @@ type SignupDependencies = {
     boardSlug?: string;
   }) => Promise<unknown>;
   isUniqueConflict?: (error: unknown) => boolean;
+  assertMailbox?: (email: string) => Promise<{ ok: boolean }>;
 };
 
 function unavailable(): RateLimitDecision {
@@ -56,6 +61,9 @@ export async function registerStudentAccount(
     const decision = await limiter.check(policy, identifier).catch(() => unavailable());
     if (!decision.allowed) return { accepted: false, retryAfterSeconds: Math.max(1, decision.retryAfterSeconds) };
   }
+
+  const mailbox = await (dependencies.assertMailbox ?? assertDeliverableMailbox)(input.email);
+  if (!mailbox.ok) return { accepted: false, mailbox: true };
 
   const passwordHash = await (dependencies.hash ?? hashPassword)(input.password);
   try {

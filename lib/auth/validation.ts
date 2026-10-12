@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assertEmailShape } from "@/lib/auth/email-mailbox";
 import { DEFAULT_STUDENT_BOARD_SLUG, STUDENT_BOARD_SLUGS, STUDENT_CLASS_SLUGS } from "@/lib/students/class-options";
 
 export const passwordSchema = z
@@ -27,12 +28,16 @@ export const signupSchema = z
       .max(50, "Last name is too long.")
       .optional()
       .or(z.literal("")),
-    email: z.string().trim().email("Enter a valid email address.").toLowerCase(),
+    email: z
+      .string()
+      .trim()
+      .email("Enter a valid email address.")
+      .toLowerCase()
+      .refine((value) => assertEmailShape(value).ok, {
+        message: "Use your real Gmail, Outlook, Yahoo, or school email. Random IDs like abc@gmail.com are not allowed.",
+      }),
     password: passwordSchema,
     confirmPassword: z.string(),
-    guardianAcknowledgement: z.literal("on", {
-      error: "Please confirm the age or parent/guardian permission requirement.",
-    }),
     board: z.enum(STUDENT_BOARD_SLUGS).default(DEFAULT_STUDENT_BOARD_SLUG),
     classLevel: z.enum(STUDENT_CLASS_SLUGS, {
       error: "Select your class.",

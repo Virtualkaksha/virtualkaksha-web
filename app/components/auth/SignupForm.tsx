@@ -66,15 +66,17 @@ export default function SignupForm() {
         <label htmlFor="email" className="text-sm font-semibold text-slate-800">
           Email address
         </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-        />
-        <FieldError messages={state.fieldErrors?.email} />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="yourname@gmail.com"
+            className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+          />
+          <p className="mt-1.5 text-xs text-slate-500">Use an email you can open. Gmail IDs must be at least 6 characters.</p>
+          <FieldError messages={state.fieldErrors?.email} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -119,17 +121,6 @@ export default function SignupForm() {
           </select>
           <FieldError messages={state.fieldErrors?.classLevel} />
         </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm leading-6 text-slate-700">
-          Students under 18 should create an account only with permission from a parent or guardian. This beta acknowledgement is not verified parental consent. Read our <Link href="/terms" className="font-semibold text-blue-700">Terms</Link> and <Link href="/privacy" className="font-semibold text-blue-700">Privacy Policy</Link>.
-        </p>
-        <label className="mt-3 flex items-start gap-3 text-sm font-medium text-slate-800">
-          <input type="checkbox" name="guardianAcknowledgement" required className="mt-1 h-4 w-4" />
-          <span>I confirm that I am 18 or older, or I have permission from my parent or guardian.</span>
-        </label>
-        <FieldError messages={state.fieldErrors?.guardianAcknowledgement} />
       </div>
 
       <div>

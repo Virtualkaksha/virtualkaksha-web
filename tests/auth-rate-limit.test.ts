@@ -163,7 +163,7 @@ test("signup IP and normalized-email limits are enforced before hashing", async 
     const limiter = adapter({ decision: (policy) => policy === blockedPolicy ? limited : allowed });
     const result = await registerStudentAccount(
       { firstName: "Person", email: "person@example.com", password: "Password1", classLevelSlug: "class-10", request },
-      { rateLimit: limiter.value, resolveIp: () => ip, hash: async () => { hashed = true; return "hash"; } },
+      { rateLimit: limiter.value, resolveIp: () => ip, hash: async () => { hashed = true; return "hash"; }, assertMailbox: async () => ({ ok: true }) },
     );
     assert.deepEqual(result, { accepted: false, retryAfterSeconds: 60 });
     assert.equal(hashed, false);
@@ -171,7 +171,7 @@ test("signup IP and normalized-email limits are enforced before hashing", async 
 });
 
 test("new and duplicate signup emails have the same accepted result", async () => {
-  const base = { rateLimit: adapter().value, resolveIp: () => ip, hash: async () => "hash" };
+  const base = { rateLimit: adapter().value, resolveIp: () => ip, hash: async () => "hash", assertMailbox: async () => ({ ok: true }) };
   const created = await registerStudentAccount(
     { firstName: "Person", email: "person@example.com", password: "Password1", classLevelSlug: "class-10", request },
     { ...base, createUser: async () => ({ id: "user-1", email: "person@example.com" }) },
@@ -194,10 +194,26 @@ test("signup limiter outage fails closed before hashing or creation", async () =
       resolveIp: () => ip,
       hash: async () => { touched = true; return "hash"; },
       createUser: async () => { touched = true; return { id: "user", email: "person@example.com" }; },
+      assertMailbox: async () => ({ ok: true }),
     },
   );
   assert.equal(result.accepted, false);
   assert.equal(touched, false);
+});
+
+test("signup rejects addresses that cannot receive mail before hashing", async () => {
+  let hashed = false;
+  const result = await registerStudentAccount(
+    { firstName: "Person", email: "person@mailinator.com", password: "Password1", classLevelSlug: "class-10", request },
+    {
+      rateLimit: adapter().value,
+      resolveIp: () => ip,
+      hash: async () => { hashed = true; return "hash"; },
+      assertMailbox: async () => ({ ok: false }),
+    },
+  );
+  assert.deepEqual(result, { accepted: false, mailbox: true });
+  assert.equal(hashed, false);
 });
 
 test("signup uses the request IP helper that supports local direct mode", async () => {

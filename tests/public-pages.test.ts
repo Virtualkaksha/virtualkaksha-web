@@ -16,13 +16,16 @@ test("legal pages include required subjects and consistent support contact", asy
   assert.match(await readFile("lib/public-site-config.ts", "utf8"), /support@virtualkaksha\.com/);
 });
 
-test("signup requires class and the interim age or guardian acknowledgement server-side", () => {
+test("signup requires class server-side", () => {
   const input = { firstName: "Test", lastName: "Student", email: "student@example.test", password: "StrongPass1", confirmPassword: "StrongPass1" };
   assert.equal(signupSchema.safeParse(input).success, false);
-  assert.equal(signupSchema.safeParse({ ...input, guardianAcknowledgement: "on" }).success, false);
-  const withClass = signupSchema.safeParse({ ...input, guardianAcknowledgement: "on", classLevel: "class-10" });
+  const withClass = signupSchema.safeParse({ ...input, classLevel: "class-10" });
   assert.equal(withClass.success, true);
-  const icse = signupSchema.safeParse({ ...input, guardianAcknowledgement: "on", classLevel: "class-11", board: "icse" });
+  assert.equal(
+    signupSchema.safeParse({ ...input, classLevel: "class-10", email: "abc@gmail.com" }).success,
+    false,
+  );
+  const icse = signupSchema.safeParse({ ...input, classLevel: "class-11", board: "icse" });
   assert.equal(icse.success, true);
   if (icse.success) {
     assert.equal(icse.data.classLevel, "class-11");

@@ -121,7 +121,6 @@ export async function signupAction(
     email: formData.get("email"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
-    guardianAcknowledgement: formData.get("guardianAcknowledgement"),
     board: formData.get("board") || undefined,
     classLevel: formData.get("classLevel"),
   });
@@ -145,6 +144,15 @@ export async function signupAction(
       request: requestFromHeaders(await headers()),
     });
     if (!result.accepted) {
+      if ("mailbox" in result && result.mailbox) {
+        return {
+          status: "error",
+          message: "Please use a real email inbox you can access.",
+          fieldErrors: {
+            email: ["This email domain cannot receive mail. Use Gmail, Outlook, or your school email."],
+          },
+        };
+      }
       return {
         status: "error",
         message: "Too many requests. Please try again later.",
