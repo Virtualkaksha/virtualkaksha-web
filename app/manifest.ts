@@ -8,6 +8,11 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#1d4ed8",
-    icons: [{ src: "/brand/virtualkaksha-logo.png", sizes: "any", type: "image/png" }],
+    icons: [
+      { src: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
+      { src: "/brand/virtualkaksha-icon-32.png", sizes: "32x32", type: "image/png" },
+      { src: "/brand/virtualkaksha-icon-192.png", sizes: "192x192", type: "image/png" },
+      { src: "/brand/virtualkaksha-logo.png", sizes: "any", type: "image/png" },
+    ],
   };
 }
